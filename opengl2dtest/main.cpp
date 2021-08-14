@@ -22,6 +22,18 @@ void processInput(GLFWwindow* window);
 GLFWwindow* init_and_create_window();
 std::tuple<GLuint, GLuint> load_textures();
 
+typedef struct
+{
+	bool front;
+	bool back;
+	bool left;
+	bool right;
+	bool bottom;
+	bool top;
+} neighborCubesIndicies;
+
+neighborCubesIndicies check_neighbors(int i, const std::vector<glm::vec3>&);
+
 // settings
 constexpr unsigned int SCR_WIDTH = 1024;
 constexpr unsigned int SCR_HEIGHT = 768;
@@ -41,12 +53,10 @@ int main()
 	Shader ourShader("7.4.camera.vs",
 					 "7.4.camera.fs");
 
-
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	float vertices[] = {
+		//front
 		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
 		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
 		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
@@ -96,34 +106,50 @@ int main()
 	constexpr float featureSize = 24.0f;
 
 	std::vector<glm::vec3> cubePositions;
-	// generate world space positions of our cubes
 	for (int x = 0; x < width; x++)
 	{
 		double xi = x / featureSize;
 		for (int z = 0; z < height; z++)
 		{
 			double zi = z / featureSize;
-			double noiseEval = noise.eval<double>(xi, zi)*100*-1; // ???
+			double noiseEval = noise.eval<double>(xi, zi) * 100 * -1; // ???
 			for (int y = 0; y < noiseEval; y++)
 				cubePositions.push_back(glm::vec3(x, y, z));
 		}
 	}
-
-	unsigned int VBO, VAO;
+//	for (int x = 0; x < width; x++)
+//	{
+//		for (int z = 0; z < height; z++)
+//		{
+//			cubePositions.push_back(glm::vec3(-10 + x, -10 + z, -50));
+//		}
+//	}
+//	for (int x = 0; x < width; x++)
+//	{
+//		for (int y = 0; y < height; y++)
+//		{
+//			for(int z = 0; z < 5; z++)
+//				cubePositions.push_back(glm::vec3(x,y,z));
+//				//cubePositions.push_back(glm::vec3(-10 + x, -10 + z, -50));
+//		}
+//	}
+	cubePositions.push_back(glm::vec3(0, 0, 0));
+	cubePositions.push_back(glm::vec3(1, 0, 0));
+	unsigned int VAO;
 	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-
 	glBindVertexArray(VAO);
 
+	unsigned int VBO;
+	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	// texture coord attribute
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
 	// load and create a texture 
 	// -------------------------
@@ -133,31 +159,42 @@ int main()
 	// -------------------------------------------------------------------------------------------
 	ourShader.use();
 	ourShader.setInt("texture1", 0);
-//	ourShader.setInt("texture2", 1);
+	//	ourShader.setInt("texture2", 1);
+
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	// render loop
 	// -----------
+	int nbFrames = 0;
+	double lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
 		// per-frame time logic
 		// --------------------
-		float currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
+		float currentTime = glfwGetTime();
+		deltaTime = currentTime - lastFrame;
+		lastFrame = currentTime;
 
-		// input
-		// -----
+		// measure frames
+		nbFrames++;
+		if (currentTime - lastTime >= 1.0)
+		{
+			double msPerFrame = 1000.0 / double(nbFrames);
+			double ms = 1000 / msPerFrame;
+			std::cout << msPerFrame << "ms/frame  |  " << 1 / (msPerFrame / 1000) << " FPS" << '\n';
+			nbFrames = 0;
+			lastTime += 1.0;
+		}
+
 		processInput(window);
 
-		// render
-		// ------
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture1);
-//		glActiveTexture(GL_TEXTURE1);
-//		glBindTexture(GL_TEXTURE_2D, texture2);
+		//		glActiveTexture(GL_TEXTURE1);
+		//		glBindTexture(GL_TEXTURE_2D, texture2);
 
 		// pass projection matrix to shader (note that in this case it could change every frame)
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
@@ -174,12 +211,28 @@ int main()
 			// calculate the model matrix for each object and pass it to shader before drawing
 			glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
 			model = glm::translate(model, cubePositions[i]);
-			//model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
-		//	float angle = 20.0f * i;
-		//	model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+
 			ourShader.setMat4("model", model);
 
-			glDrawArrays(GL_TRIANGLES, 0, 36);
+			neighborCubesIndicies nci = check_neighbors(i, cubePositions);
+			//front
+			if (!nci.front)
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+			//back
+			if (!nci.back)
+				glDrawArrays(GL_TRIANGLES, 6, 6);
+			//left
+			if (!nci.left)
+				glDrawArrays(GL_TRIANGLES, 12, 6);
+			//right
+			if (!nci.right)
+				glDrawArrays(GL_TRIANGLES, 18, 6);
+			//bottom
+			if (!nci.bottom)
+				glDrawArrays(GL_TRIANGLES, 24, 6);
+			//top
+			if (!nci.top)
+				glDrawArrays(GL_TRIANGLES, 30, 6);
 		}
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -227,7 +280,7 @@ GLFWwindow* init_and_create_window()
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "opengltest", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -285,32 +338,87 @@ std::tuple<GLuint, GLuint> load_textures()
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
-//	// texture 2
-//	// ---------
-//	glGenTextures(1, &texture2);
-//	glBindTexture(GL_TEXTURE_2D, texture2);
-//	// set the texture wrapping parameters
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-//	// set texture filtering parameters
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//	// load image, create texture and generate mipmaps
-//	data = stbi_load("resources\\textures\\awesomeface.png", &width, &height, &nrChannels, 0);
-//	if (data)
-//	{
-//		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
-//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-//		glGenerateMipmap(GL_TEXTURE_2D);
-//	}
-//	else
-//	{
-//		std::cout << "Failed to load texture" << std::endl;
-//	}
-//	// generate
-//	stbi_image_free(data);
-//
+	//	// texture 2
+	//	// ---------
+	//	glGenTextures(1, &texture2);
+	//	glBindTexture(GL_TEXTURE_2D, texture2);
+	//	// set the texture wrapping parameters
+	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//	// set texture filtering parameters
+	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//	// load image, create texture and generate mipmaps
+	//	data = stbi_load("resources\\textures\\awesomeface.png", &width, &height, &nrChannels, 0);
+	//	if (data)
+	//	{
+	//		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
+	//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	//		glGenerateMipmap(GL_TEXTURE_2D);
+	//	}
+	//	else
+	//	{
+	//		std::cout << "Failed to load texture" << std::endl;
+	//	}
+	//	// generate
+	//	stbi_image_free(data);
+	//
 	return std::make_tuple(texture1, texture2);
+}
+
+#include <algorithm>
+neighborCubesIndicies check_neighbors(int i, const std::vector<glm::vec3>& positions)
+{
+	neighborCubesIndicies nci = { false, false, false, false, false, false };
+
+	auto currentCubePos = positions[i];
+
+	auto frontPos = currentCubePos;
+	frontPos.z -= 1;
+	auto frontResult = std::find(positions.begin(), positions.end(), frontPos);
+	if (frontResult != positions.end())
+	{
+		nci.front = true;
+	}
+	auto backPos = currentCubePos;
+	backPos.z += 1;
+	auto backResult = std::find(positions.begin(), positions.end(), backPos);
+	if (backResult != positions.end())
+	{
+		nci.back = true;
+	}
+
+	auto leftPos = currentCubePos;
+	leftPos.x -= 1;
+	auto leftResult = std::find(positions.begin(), positions.end(), leftPos);
+	if (leftResult != positions.end())
+	{
+		nci.left = true;
+	}
+	auto rightPos = currentCubePos;
+	rightPos.x += 1;
+	auto rightResult = std::find(positions.begin(), positions.end(), rightPos);
+	if (rightResult != positions.end())
+	{
+		nci.right = true;
+	}
+
+	auto bottomPos = currentCubePos;
+	bottomPos.y -= 1;
+	auto bottomResult = std::find(positions.begin(), positions.end(), bottomPos);
+	if (bottomResult != positions.end())
+	{
+		nci.bottom = true;
+	}
+	auto topPos = currentCubePos;
+	topPos.y += 1;
+	auto topResult = std::find(positions.begin(), positions.end(), topPos);
+	if (topResult != positions.end())
+	{
+		nci.top = true;
+	}
+
+	return nci;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -325,6 +433,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
+
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
