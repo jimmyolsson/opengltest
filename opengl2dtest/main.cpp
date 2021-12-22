@@ -10,6 +10,8 @@
 #include "shader_m.h"
 #include "camera.h"
 #include "noise.h"
+#include "block_vertex_builder.h"
+#include "chunk.h"
 
 #include <iostream>
 #include <tuple>
@@ -55,49 +57,49 @@ int main()
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
-	float vertices[] = {
+	float vertices[108] = {
 		//front
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f, // 1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
+		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f,
 
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
 
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
 
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
 
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, // 1.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
 
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, // 0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f
 	};
 
 	OSN::Noise<2> noise;
@@ -106,17 +108,17 @@ int main()
 	constexpr float featureSize = 24.0f;
 
 	std::vector<glm::vec3> cubePositions;
-	for (int x = 0; x < width; x++)
-	{
-		double xi = x / featureSize;
-		for (int z = 0; z < height; z++)
-		{
-			double zi = z / featureSize;
-			double noiseEval = noise.eval<double>(xi, zi) * 100 * -1; // ???
-			for (int y = 0; y < noiseEval; y++)
-				cubePositions.push_back(glm::vec3(x, y, z));
-		}
-	}
+	//for (int x = 0; x < width; x++)
+	//{
+	//	double xi = x / featureSize;
+	//	for (int z = 0; z < height; z++)
+	//	{
+	//		double zi = z / featureSize;
+	//		double noiseEval = noise.eval<double>(xi, zi) * 100 * -1; // ???
+	//		for (int y = 0; y < noiseEval; y++)
+	//			cubePositions.push_back(glm::vec3(x, y, z));
+	//	}
+	//}
 //	for (int x = 0; x < width; x++)
 //	{
 //		for (int z = 0; z < height; z++)
@@ -135,33 +137,39 @@ int main()
 //	}
 	cubePositions.push_back(glm::vec3(0, 0, 0));
 	cubePositions.push_back(glm::vec3(1, 0, 0));
-	unsigned int VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
 
-	unsigned int VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	block_vertex_builder bvb;
+	//chunk c;
 
-	// position attribute
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	// texture coord attribute
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	//unsigned int VAO;
+
+	//glGenVertexArrays(1, &VAO);
+	//glBindVertexArray(VAO);
+
+	//unsigned int VBO;
+
+	//glGenBuffers(1, &VBO);
+	//glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	//// position attribute
+	//glEnableVertexAttribArray(0);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	//// texture coord attribute
+	//glEnableVertexAttribArray(1);
+	//glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
 	// load and create a texture 
 	// -------------------------
-	const auto [texture1, texture2] = load_textures();
+	//const auto [texture1, texture2] = load_textures();
 
 	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	ourShader.use();
-	ourShader.setInt("texture1", 0);
+	//ourShader.setInt("texture1", 0);
 	//	ourShader.setInt("texture2", 1);
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	// render loop
 	// -----------
 	int nbFrames = 0;
@@ -191,8 +199,8 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// bind textures on corresponding texture units
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture1);
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, texture1);
 		//		glActiveTexture(GL_TEXTURE1);
 		//		glBindTexture(GL_TEXTURE_2D, texture2);
 
@@ -204,36 +212,42 @@ int main()
 		glm::mat4 view = camera.GetViewMatrix();
 		ourShader.setMat4("view", view);
 
-		// render boxes
-		glBindVertexArray(VAO);
-		for (int i = 0; i < cubePositions.size(); i++)
-		{
-			// calculate the model matrix for each object and pass it to shader before drawing
-			glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-			model = glm::translate(model, cubePositions[i]);
+		glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
 
-			ourShader.setMat4("model", model);
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+		ourShader.setMat4("model", model);
+		bvb.draw();
 
-			neighborCubesIndicies nci = check_neighbors(i, cubePositions);
-			//front
-			if (!nci.front)
-				glDrawArrays(GL_TRIANGLES, 0, 6);
-			//back
-			if (!nci.back)
-				glDrawArrays(GL_TRIANGLES, 6, 6);
-			//left
-			if (!nci.left)
-				glDrawArrays(GL_TRIANGLES, 12, 6);
-			//right
-			if (!nci.right)
-				glDrawArrays(GL_TRIANGLES, 18, 6);
-			//bottom
-			if (!nci.bottom)
-				glDrawArrays(GL_TRIANGLES, 24, 6);
-			//top
-			if (!nci.top)
-				glDrawArrays(GL_TRIANGLES, 30, 6);
-		}
+		//// render boxes
+		//glBindVertexArray(VAO);
+		//for (int i = 0; i < cubePositions.size(); i++)
+		//{
+		//	// calculate the model matrix for each object and pass it to shader before drawing
+		//	glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+		//	model = glm::translate(model, cubePositions[i]);
+
+		//	ourShader.setMat4("model", model);
+
+		//	neighborCubesIndicies nci = check_neighbors(i, cubePositions);
+		//	//front
+		//	if (!nci.front)
+		//		glDrawArrays(GL_TRIANGLES, 0, 6);
+		//	//back
+		//	if (!nci.back)
+		//		glDrawArrays(GL_TRIANGLES, 6, 6);
+		//	//left
+		//	if (!nci.left)
+		//		glDrawArrays(GL_TRIANGLES, 12, 6);
+		//	//right
+		//	if (!nci.right)
+		//		glDrawArrays(GL_TRIANGLES, 18, 6);
+		//	//bottom
+		//	if (!nci.bottom)
+		//		glDrawArrays(GL_TRIANGLES, 24, 6);
+		//	//top
+		//	if (!nci.top)
+		//		glDrawArrays(GL_TRIANGLES, 30, 6);
+		//}
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -243,8 +257,8 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
+	//glDeleteVertexArrays(1, &VAO);
+	//glDeleteBuffers(1, &VBO);
 
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
