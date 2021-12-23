@@ -57,49 +57,49 @@ int main()
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
-	float vertices[108] = {
+	float vertices[] = {
 		//front
-		-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f,
-		 0.5f, -0.5f, -0.5f, // 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
 
-		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, // 1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f, // 1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
 
-		-0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
 
-		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
 
-		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, // 1.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, // 1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f, // 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
 
-		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f, // 1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, // 1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, // 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f
+		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f
 	};
 
 	OSN::Noise<2> noise;
@@ -108,37 +108,9 @@ int main()
 	constexpr float featureSize = 24.0f;
 
 	std::vector<glm::vec3> cubePositions;
-	//for (int x = 0; x < width; x++)
-	//{
-	//	double xi = x / featureSize;
-	//	for (int z = 0; z < height; z++)
-	//	{
-	//		double zi = z / featureSize;
-	//		double noiseEval = noise.eval<double>(xi, zi) * 100 * -1; // ???
-	//		for (int y = 0; y < noiseEval; y++)
-	//			cubePositions.push_back(glm::vec3(x, y, z));
-	//	}
-	//}
-//	for (int x = 0; x < width; x++)
-//	{
-//		for (int z = 0; z < height; z++)
-//		{
-//			cubePositions.push_back(glm::vec3(-10 + x, -10 + z, -50));
-//		}
-//	}
-//	for (int x = 0; x < width; x++)
-//	{
-//		for (int y = 0; y < height; y++)
-//		{
-//			for(int z = 0; z < 5; z++)
-//				cubePositions.push_back(glm::vec3(x,y,z));
-//				//cubePositions.push_back(glm::vec3(-10 + x, -10 + z, -50));
-//		}
-//	}
 	cubePositions.push_back(glm::vec3(0, 0, 0));
-	cubePositions.push_back(glm::vec3(1, 0, 0));
 
-	block_vertex_builder bvb;
+	block_vertex_builder bvb(50);
 	//chunk c;
 
 	//unsigned int VAO;
@@ -154,22 +126,22 @@ int main()
 
 	//// position attribute
 	//glEnableVertexAttribArray(0);
-	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	//// texture coord attribute
 	//glEnableVertexAttribArray(1);
 	//glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
 	// load and create a texture 
 	// -------------------------
-	//const auto [texture1, texture2] = load_textures();
+	const auto [texture1, texture2] = load_textures();
 
 	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	ourShader.use();
-	//ourShader.setInt("texture1", 0);
+	ourShader.setInt("texture1", 0);
 	//	ourShader.setInt("texture2", 1);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	// render loop
 	// -----------
 	int nbFrames = 0;
@@ -199,8 +171,8 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// bind textures on corresponding texture units
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, texture1);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture1);
 		//		glActiveTexture(GL_TEXTURE1);
 		//		glBindTexture(GL_TEXTURE_2D, texture2);
 
@@ -217,16 +189,18 @@ int main()
 		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
 		ourShader.setMat4("model", model);
 		bvb.draw();
+		//glBindVertexArray(VAO);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		//// render boxes
-		//glBindVertexArray(VAO);
 		//for (int i = 0; i < cubePositions.size(); i++)
 		//{
 		//	// calculate the model matrix for each object and pass it to shader before drawing
-		//	glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-		//	model = glm::translate(model, cubePositions[i]);
+			//glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+			//model = glm::translate(model, cubePositions[i]);
 
-		//	ourShader.setMat4("model", model);
+			//ourShader.setMat4("model", model);
+	//cubePositions.push_back(glm::vec3(1, 0, 0));
 
 		//	neighborCubesIndicies nci = check_neighbors(i, cubePositions);
 		//	//front
