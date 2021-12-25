@@ -53,7 +53,7 @@ int main()
 
 	// build and compile our shader zprogram
 	Shader ourShader("7.4.camera.vs",
-					 "7.4.camera.fs");
+		"7.4.camera.fs");
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -101,6 +101,8 @@ int main()
 		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f
 	};
+
+	std::cout << glGetString(GL_VERSION);
 
 	OSN::Noise<2> noise;
 	constexpr int width = 20;
@@ -172,7 +174,7 @@ int main()
 
 		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture1);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
 		//		glActiveTexture(GL_TEXTURE1);
 		//		glBindTexture(GL_TEXTURE_2D, texture2);
 
@@ -262,7 +264,7 @@ GLFWwindow* init_and_create_window()
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -301,112 +303,122 @@ GLFWwindow* init_and_create_window()
 
 std::tuple<GLuint, GLuint> load_textures()
 {
-	unsigned int texture1, texture2;
-	// texture 1
-	// ---------
+	unsigned int texture2;
+	unsigned char* stone = nullptr;
+	unsigned char* dirt = nullptr;
+	{
+		int width, height, nrChannels;
+		stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+		stone = stbi_load("resources\\textures\\stone2.png", &width, &height, &nrChannels, 0);
+		dirt = stbi_load("resources\\textures\\dirt.png", &width, &height, &nrChannels, 0);
+	}
+	unsigned int texture1;
+	GLsizei width = 512;
+	GLsizei height = 512;
+	GLsizei layerCount = 2;
+	GLsizei mipLevelCount = 1;
+
 	glGenTextures(1, &texture1);
-	glBindTexture(GL_TEXTURE_2D, texture1);
-	// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// load image, create texture and generate mipmaps
-	int width, height, nrChannels;
-	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	unsigned char* data = stbi_load("resources\\textures\\stone2.png", &width, &height, &nrChannels, 0);
-	if (data)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
+	auto l = glGetError();
+	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+	auto k = glGetError();
+	// Allocate the storage.
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGB8, 512, 512, layerCount);
+	auto c = glGetError();
+	// Upload pixel data.
+	// The first 0 refers to the mipmap level (level 0, since there's only 1)
+	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
+	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
+	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, stone);
+	auto b = glGetError();
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt);
+	auto i = glGetError();
+	if (!c && !b && !i)
+		std::cout << "\ntexture initialized correctly!";
 	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-	//	// texture 2
-	//	// ---------
-	//	glGenTextures(1, &texture2);
-	//	glBindTexture(GL_TEXTURE_2D, texture2);
-	//	// set the texture wrapping parameters
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//	// set texture filtering parameters
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//	// load image, create texture and generate mipmaps
-	//	data = stbi_load("resources\\textures\\awesomeface.png", &width, &height, &nrChannels, 0);
-	//	if (data)
-	//	{
-	//		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
-	//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	//		glGenerateMipmap(GL_TEXTURE_2D);
-	//	}
-	//	else
-	//	{
-	//		std::cout << "Failed to load texture" << std::endl;
-	//	}
-	//	// generate
-	//	stbi_image_free(data);
-	//
+		std::cout << "\ntexture initialization failed!\n";
+	//glGenTextures(1, &texture1);
+	//glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+
+	//glTexStorage3D(GL_TEXTURE_2D_ARRAY, // target
+	//	1,								// levels
+	//	GL_RGBA8,						// internalformat
+	//	512,							// width
+	//	512,							// height
+	//	1);								// depth
+
+	//auto a = glGetError();
+	//glTexSubImage3D(GL_TEXTURE_2D_ARRAY,// target
+	//	0,								// level
+	//	0,								// xoffset
+	//	0,								// yoffset
+	//	0,								// zoffset
+	//	512,							// width
+	//	512,							// height
+	//	1,								// depth
+	//	GL_RGBA8,						// format
+	//	GL_UNSIGNED_BYTE,				// type
+	//	dirt);							// pixels
+
+	//auto a9 = glGetError();
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+	//glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, 512, 512, 1, GL_RGBA, GL_UNSIGNED_BYTE, dirt);
+
 	return std::make_tuple(texture1, texture2);
-}
 
-#include <algorithm>
-neighborCubesIndicies check_neighbors(int i, const std::vector<glm::vec3>& positions)
-{
-	neighborCubesIndicies nci = { false, false, false, false, false, false };
-
-	auto currentCubePos = positions[i];
-
-	auto frontPos = currentCubePos;
-	frontPos.z -= 1;
-	auto frontResult = std::find(positions.begin(), positions.end(), frontPos);
-	if (frontResult != positions.end())
-	{
-		nci.front = true;
-	}
-	auto backPos = currentCubePos;
-	backPos.z += 1;
-	auto backResult = std::find(positions.begin(), positions.end(), backPos);
-	if (backResult != positions.end())
-	{
-		nci.back = true;
-	}
-
-	auto leftPos = currentCubePos;
-	leftPos.x -= 1;
-	auto leftResult = std::find(positions.begin(), positions.end(), leftPos);
-	if (leftResult != positions.end())
-	{
-		nci.left = true;
-	}
-	auto rightPos = currentCubePos;
-	rightPos.x += 1;
-	auto rightResult = std::find(positions.begin(), positions.end(), rightPos);
-	if (rightResult != positions.end())
-	{
-		nci.right = true;
-	}
-
-	auto bottomPos = currentCubePos;
-	bottomPos.y -= 1;
-	auto bottomResult = std::find(positions.begin(), positions.end(), bottomPos);
-	if (bottomResult != positions.end())
-	{
-		nci.bottom = true;
-	}
-	auto topPos = currentCubePos;
-	topPos.y += 1;
-	auto topResult = std::find(positions.begin(), positions.end(), topPos);
-	if (topResult != positions.end())
-	{
-		nci.top = true;
-	}
-
-	return nci;
+	//// set the texture wrapping parameters
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//// set texture filtering parameters
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//// load image, create texture and generate mipmaps
+	//int width, height, nrChannels;
+	//stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+	//unsigned char* data = stbi_load("resources\\textures\\stone2.png", &width, &height, &nrChannels, 0);
+	//if (data)
+	//{
+	//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	//	glGenerateMipmap(GL_TEXTURE_2D);
+	//}
+	//else
+	//{
+	//	std::cout << "Failed to load texture" << std::endl;
+	//}
+	//stbi_image_free(data);
+	////	// texture 2
+	////	// ---------
+	////	glGenTextures(1, &texture2);
+	////	glBindTexture(GL_TEXTURE_2D, texture2);
+	////	// set the texture wrapping parameters
+	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	////	// set texture filtering parameters
+	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	////	// load image, create texture and generate mipmaps
+	////	data = stbi_load("resources\\textures\\awesomeface.png", &width, &height, &nrChannels, 0);
+	////	if (data)
+	////	{
+	////		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
+	////		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	////		glGenerateMipmap(GL_TEXTURE_2D);
+	////	}
+	////	else
+	////	{
+	////		std::cout << "Failed to load texture" << std::endl;
+	////	}
+	////	// generate
+	////	stbi_image_free(data);
+	////
+	//return std::make_tuple(texture1, texture2);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

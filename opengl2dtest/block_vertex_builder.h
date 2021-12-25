@@ -8,11 +8,6 @@
 #include <iostream>
 #include <string>
 
-struct block
-{
-	int position;
-};
-
 class block_vertex_builder
 {
 public:
@@ -283,7 +278,6 @@ private:
 		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f
 	};
-
 
 	const float m_back_verticies[30] = {
 		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
