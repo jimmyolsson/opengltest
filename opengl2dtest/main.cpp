@@ -34,14 +34,12 @@ typedef struct
 	bool top;
 } neighborCubesIndicies;
 
-neighborCubesIndicies check_neighbors(int i, const std::vector<glm::vec3>&);
-
 // settings
-constexpr unsigned int SCR_WIDTH = 1024;
-constexpr unsigned int SCR_HEIGHT = 768;
+constexpr unsigned int SCR_WIDTH = 1280;
+constexpr unsigned int SCR_HEIGHT = 960;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
 
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -102,17 +100,9 @@ int main()
 		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f
 	};
 
-	std::cout << glGetString(GL_VERSION);
+	std::cout << glGetString(GL_VERSION) << "\n";
 
-	OSN::Noise<2> noise;
-	constexpr int width = 20;
-	constexpr int height = 20;
-	constexpr float featureSize = 24.0f;
-
-	std::vector<glm::vec3> cubePositions;
-	cubePositions.push_back(glm::vec3(0, 0, 0));
-
-	block_vertex_builder bvb(50);
+	block_vertex_builder bvb(100);
 	//chunk c;
 
 	//unsigned int VAO;
@@ -188,7 +178,7 @@ int main()
 
 		glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
 
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+		model = glm::translate(model, glm::vec3(-80.0f, -10.0f, -100.0f));
 		ourShader.setMat4("model", model);
 		bvb.draw();
 		//glBindVertexArray(VAO);
@@ -301,21 +291,25 @@ GLFWwindow* init_and_create_window()
 	return window;
 }
 
+unsigned char* load_png(const char* path)
+{
+	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+	return stbi_load(path, &width, &height, &nrChannels, 0);
+}
+
 std::tuple<GLuint, GLuint> load_textures()
 {
 	unsigned int texture2;
-	unsigned char* stone = nullptr;
-	unsigned char* dirt = nullptr;
-	{
-		int width, height, nrChannels;
-		stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-		stone = stbi_load("resources\\textures\\stone2.png", &width, &height, &nrChannels, 0);
-		dirt = stbi_load("resources\\textures\\dirt.png", &width, &height, &nrChannels, 0);
-	}
+	unsigned char* dirt = load_png("resources\\textures\\dirt.png");
+	unsigned char* dirt_grass_side = load_png("resources\\textures\\dirt_grass_side.png");
+	unsigned char* dirt_grass_top = load_png("resources\\textures\\dirt_grass_top.png");
+	unsigned char* stone = load_png("resources\\textures\\stone.png");
+		
 	unsigned int texture1;
-	GLsizei width = 512;
-	GLsizei height = 512;
-	GLsizei layerCount = 2;
+	GLsizei width = 48;
+	GLsizei height = 48;
+	GLsizei layerCount = 6;
 	GLsizei mipLevelCount = 1;
 
 	glGenTextures(1, &texture1);
@@ -323,102 +317,36 @@ std::tuple<GLuint, GLuint> load_textures()
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
 	auto k = glGetError();
 	// Allocate the storage.
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGB8, 512, 512, layerCount);
-	auto c = glGetError();
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
+                        GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGB8, 48, 48, layerCount);
+	auto a1 = glGetError();
 	// Upload pixel data.
 	// The first 0 refers to the mipmap level (level 0, since there's only 1)
 	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
 	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
 	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, stone);
-	auto b = glGetError();
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt);
-	auto i = glGetError();
-	if (!c && !b && !i)
-		std::cout << "\ntexture initialized correctly!";
-	else
-		std::cout << "\ntexture initialization failed!\n";
-	//glGenTextures(1, &texture1);
-	//glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
-
-	//glTexStorage3D(GL_TEXTURE_2D_ARRAY, // target
-	//	1,								// levels
-	//	GL_RGBA8,						// internalformat
-	//	512,							// width
-	//	512,							// height
-	//	1);								// depth
-
-	//auto a = glGetError();
-	//glTexSubImage3D(GL_TEXTURE_2D_ARRAY,// target
-	//	0,								// level
-	//	0,								// xoffset
-	//	0,								// yoffset
-	//	0,								// zoffset
-	//	512,							// width
-	//	512,							// height
-	//	1,								// depth
-	//	GL_RGBA8,						// format
-	//	GL_UNSIGNED_BYTE,				// type
-	//	dirt);							// pixels
-
-	//auto a9 = glGetError();
-
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-	//glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, 512, 512, 1, GL_RGBA, GL_UNSIGNED_BYTE, dirt);
-
-	return std::make_tuple(texture1, texture2);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
+	// MIPMAPS???
+	////if (!c && !b && !i)
+	//	std::cout << "\ntexture initialized correctly!";
+	////else
+	//	std::cout << "\ntexture initialization failed!\n";
+	//glGenTextures(1, &texture1);	return std::make_tuple(texture1, texture2);
 
 	//// set the texture wrapping parameters
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//// set texture filtering parameters
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//// load image, create texture and generate mipmaps
-	//int width, height, nrChannels;
-	//stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	//unsigned char* data = stbi_load("resources\\textures\\stone2.png", &width, &height, &nrChannels, 0);
-	//if (data)
-	//{
-	//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	//	glGenerateMipmap(GL_TEXTURE_2D);
-	//}
-	//else
-	//{
-	//	std::cout << "Failed to load texture" << std::endl;
-	//}
-	//stbi_image_free(data);
-	////	// texture 2
-	////	// ---------
-	////	glGenTextures(1, &texture2);
-	////	glBindTexture(GL_TEXTURE_2D, texture2);
-	////	// set the texture wrapping parameters
-	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	////	// set texture filtering parameters
-	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	////	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	////	// load image, create texture and generate mipmaps
-	////	data = stbi_load("resources\\textures\\awesomeface.png", &width, &height, &nrChannels, 0);
-	////	if (data)
-	////	{
-	////		// note that the awesomeface.png has transparency and thus an alpha channel, so make sure to tell OpenGL the data type is of GL_RGBA
-	////		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	////		glGenerateMipmap(GL_TEXTURE_2D);
-	////	}
-	////	else
-	////	{
-	////		std::cout << "Failed to load texture" << std::endl;
-	////	}
-	////	// generate
-	////	stbi_image_free(data);
-	////
-	//return std::make_tuple(texture1, texture2);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
+                        GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
+
+	return std::make_tuple(texture1, texture2);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

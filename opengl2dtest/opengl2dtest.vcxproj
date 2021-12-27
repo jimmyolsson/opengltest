@@ -145,6 +145,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="blocks\block.h" />
     <ClInclude Include="block_vertex_builder.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="chunk.h" />
