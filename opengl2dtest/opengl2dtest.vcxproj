@@ -143,14 +143,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SimplexNoise.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks\block.h" />
     <ClInclude Include="block_vertex_builder.h" />
     <ClInclude Include="camera.h" />
-    <ClInclude Include="chunk.h" />
-    <ClInclude Include="noise.h" />
     <ClInclude Include="shader_m.h" />
+    <ClInclude Include="SimplexNoise.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="7.4.camera.fs" />

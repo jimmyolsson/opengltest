@@ -18,6 +18,9 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SimplexNoise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shader_m.h">
@@ -26,16 +29,13 @@
     <ClInclude Include="camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="noise.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="block_vertex_builder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="chunk.h">
+    <ClInclude Include="blocks\block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="blocks\block.h">
+    <ClInclude Include="SimplexNoise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

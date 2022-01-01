@@ -19,7 +19,7 @@ enum class block_face_direction
 
 struct block 
 {
-	block_type type;
+	block_type type = block_type::AIR;
 };
 
 int block_get_texture_stone(block_face_direction direction)

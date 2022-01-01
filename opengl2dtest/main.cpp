@@ -9,12 +9,14 @@
 
 #include "shader_m.h"
 #include "camera.h"
-#include "noise.h"
+#include "SimplexNoise.h"
 #include "block_vertex_builder.h"
-#include "chunk.h"
+#include "blocks/block.h"
 
 #include <iostream>
 #include <tuple>
+#include <unordered_map>
+#include <map>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -24,26 +26,74 @@ void processInput(GLFWwindow* window);
 GLFWwindow* init_and_create_window();
 std::tuple<GLuint, GLuint> load_textures();
 
-typedef struct
-{
-	bool front;
-	bool back;
-	bool left;
-	bool right;
-	bool bottom;
-	bool top;
-} neighborCubesIndicies;
-
 // settings
 constexpr unsigned int SCR_WIDTH = 1280;
 constexpr unsigned int SCR_HEIGHT = 960;
 
-// camera
-Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
-
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
+
+block* blocks;
+int chunk_size_x = 16;
+int chunk_size_y = 16;
+int chunk_size_z = 16;
+int blocks_in_chunk = chunk_size_x * chunk_size_y * chunk_size_z;
+int chunk_draw_distance = 12;
+
+// camera
+Camera camera(glm::vec3(0.0f, chunk_size_y + 10, 0.0f));
+
+int normalize(int height)
+{
+	return 0;
+}
+
+int offset(int x, int y, int z)
+{
+	return (x * chunk_size_x) + (y * chunk_size_y) + z;
+}
+
+void generate_noise(block_vertex_builder* bvb, glm::vec3* pos)
+{
+	for (int x = 0; x < chunk_size_x; x++)
+	{
+		for (int y = 0; y < chunk_size_y; y++)
+		{
+			for (int z = 0; z < chunk_size_z; z++)
+			{
+				bvb->m_blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
+			}
+		}
+	}
+}
+
+std::vector<std::pair<glm::vec3, block_vertex_builder>> chunks;
+
+void init_chunks()
+{
+	for (int x = (chunk_draw_distance / 2) * -1; x < chunk_draw_distance; x++)
+	{
+		for (int z = (chunk_draw_distance / 2) * -1; z < chunk_draw_distance; z++)
+		{
+			block_vertex_builder bvb{ blocks_in_chunk, chunk_size_x, chunk_size_y, chunk_size_z };
+
+			bvb.m_blocks = new block[blocks_in_chunk];
+			auto key = glm::vec3(x * chunk_size_x, 0, z * chunk_size_z);
+			chunks.push_back(std::make_pair(key, bvb));
+		}
+	}
+
+
+	for (int i = 0; i < chunks.size(); i++)
+	{
+		auto* chunk = &chunks[i];
+
+		generate_noise(&chunk->second, &chunk->first);
+		chunk->second.build_mesh();
+		chunk->second.setup_buffers();
+	}
+}
 
 int main()
 {
@@ -53,95 +103,19 @@ int main()
 	Shader ourShader("7.4.camera.vs",
 		"7.4.camera.fs");
 
-	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// ------------------------------------------------------------------
-	float vertices[] = {
-		//front
-		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-		 0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-
-		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f, 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
-
-		-0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-
-		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-
-		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-
-		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f
-	};
-
 	std::cout << glGetString(GL_VERSION) << "\n";
 
-	block_vertex_builder bvb(100);
-	//chunk c;
-
-	//unsigned int VAO;
-
-	//glGenVertexArrays(1, &VAO);
-	//glBindVertexArray(VAO);
-
-	//unsigned int VBO;
-
-	//glGenBuffers(1, &VBO);
-	//glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	//// position attribute
-	//glEnableVertexAttribArray(0);
-	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	//// texture coord attribute
-	//glEnableVertexAttribArray(1);
-	//glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-
-	// load and create a texture 
-	// -------------------------
 	const auto [texture1, texture2] = load_textures();
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
-	// -------------------------------------------------------------------------------------------
 	ourShader.use();
-	ourShader.setInt("texture1", 0);
-	//	ourShader.setInt("texture2", 1);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	// render loop
-	// -----------
+	init_chunks();
+
 	int nbFrames = 0;
 	double lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
-		// per-frame time logic
-		// --------------------
 		float currentTime = glfwGetTime();
 		deltaTime = currentTime - lastFrame;
 		lastFrame = currentTime;
@@ -165,8 +139,6 @@ int main()
 		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
-		//		glActiveTexture(GL_TEXTURE1);
-		//		glBindTexture(GL_TEXTURE_2D, texture2);
 
 		// pass projection matrix to shader (note that in this case it could change every frame)
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
@@ -178,62 +150,20 @@ int main()
 
 		glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
 
-		model = glm::translate(model, glm::vec3(-80.0f, -10.0f, -100.0f));
-		ourShader.setMat4("model", model);
-		bvb.draw();
-		//glBindVertexArray(VAO);
-		//glDrawArrays(GL_TRIANGLES, 0, 36);
+		for (auto& it : chunks)
+		{
+			ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), it.first));
+			it.second.draw();
+		}
 
-		//// render boxes
-		//for (int i = 0; i < cubePositions.size(); i++)
-		//{
-		//	// calculate the model matrix for each object and pass it to shader before drawing
-			//glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-			//model = glm::translate(model, cubePositions[i]);
-
-			//ourShader.setMat4("model", model);
-	//cubePositions.push_back(glm::vec3(1, 0, 0));
-
-		//	neighborCubesIndicies nci = check_neighbors(i, cubePositions);
-		//	//front
-		//	if (!nci.front)
-		//		glDrawArrays(GL_TRIANGLES, 0, 6);
-		//	//back
-		//	if (!nci.back)
-		//		glDrawArrays(GL_TRIANGLES, 6, 6);
-		//	//left
-		//	if (!nci.left)
-		//		glDrawArrays(GL_TRIANGLES, 12, 6);
-		//	//right
-		//	if (!nci.right)
-		//		glDrawArrays(GL_TRIANGLES, 18, 6);
-		//	//bottom
-		//	if (!nci.bottom)
-		//		glDrawArrays(GL_TRIANGLES, 24, 6);
-		//	//top
-		//	if (!nci.top)
-		//		glDrawArrays(GL_TRIANGLES, 30, 6);
-		//}
-
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
-	// optional: de-allocate all resources once they've outlived their purpose:
-	// ------------------------------------------------------------------------
-	//glDeleteVertexArrays(1, &VAO);
-	//glDeleteBuffers(1, &VBO);
-
-	// glfw: terminate, clearing all previously allocated GLFW resources.
-	// ------------------------------------------------------------------
 	glfwTerminate();
 	return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -251,15 +181,11 @@ void processInput(GLFWwindow* window)
 
 GLFWwindow* init_and_create_window()
 {
-	// glfw: initialize and configure
-	// ------------------------------
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	// glfw window creation
-	// --------------------
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "opengltest", NULL, NULL);
 	if (window == NULL)
 	{
@@ -273,19 +199,14 @@ GLFWwindow* init_and_create_window()
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 
-	// tell GLFW to capture our mouse
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	// glad: load all OpenGL function pointers
-	// ---------------------------------------
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return nullptr;
 	}
 
-	// configure global opengl state
-	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 
 	return window;
@@ -305,7 +226,7 @@ std::tuple<GLuint, GLuint> load_textures()
 	unsigned char* dirt_grass_side = load_png("resources\\textures\\dirt_grass_side.png");
 	unsigned char* dirt_grass_top = load_png("resources\\textures\\dirt_grass_top.png");
 	unsigned char* stone = load_png("resources\\textures\\stone.png");
-		
+
 	unsigned int texture1;
 	GLsizei width = 48;
 	GLsizei height = 48;
@@ -317,12 +238,12 @@ std::tuple<GLuint, GLuint> load_textures()
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
 	auto k = glGetError();
 	// Allocate the storage.
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
+		GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGB8, 48, 48, layerCount);
 	auto a1 = glGetError();
 	// Upload pixel data.
@@ -342,19 +263,15 @@ std::tuple<GLuint, GLuint> load_textures()
 	//glGenTextures(1, &texture1);	return std::make_tuple(texture1, texture2);
 
 	//// set the texture wrapping parameters
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
+		GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
 
 	return std::make_tuple(texture1, texture2);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	// make sure the viewport matches the new window dimensions; note that width and 
-	// height will be significantly larger than specified on retina displays.
 	glViewport(0, 0, width, height);
 }
 
@@ -362,8 +279,6 @@ float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-// glfw: whenever the mouse moves, this callback is called
-// -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	if (firstMouse)
@@ -382,8 +297,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	camera.ProcessMouseScroll(yoffset);

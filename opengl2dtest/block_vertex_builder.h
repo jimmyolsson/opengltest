@@ -2,8 +2,6 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
-#include "noise.h"
-
 #include <iostream>
 #include <string>
 
@@ -12,46 +10,19 @@
 class block_vertex_builder
 {
 public:
-	//block_vertex_builder(int* block_3darray, int begin, int end)
-	block_vertex_builder(int size)
-		: m_chunk_size(size)
+	block_vertex_builder(int size, int x_size, int y_size, int z_size)
+		: m_chunk_size(size), x_size(x_size), y_size(y_size), z_size(z_size)
 	{
-		m_blocks = new block[pow(m_chunk_size, 3)];
-
-		init_cubes();
-
-		generate_noise();
-
-		build_mesh();
-
+	}
+	void setup_buffers()
+	{
 		glGenVertexArrays(1, &m_array_handle);
 		glBindVertexArray(m_array_handle);
 
 		glGenBuffers(1, &m_buffer_handle);
 		glBindBuffer(GL_ARRAY_BUFFER, m_buffer_handle);
-		//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		//for (int i = 0; i < m_data.size() * sizeof(float); i++)
-		//{
-		//	std::cout << m_data[i];
-		//}
 		glBufferData(GL_ARRAY_BUFFER, m_data.size() * sizeof(float), m_data.data(), GL_STATIC_DRAW);
 
-		//for(int i = 0;i < m_data.size(); i += 6)
-		//{
-		//	for (int j = 0; j <= 5; j++)
-		//	{
-		//		if (std::to_string(m_data[i + j])[0] == '-')
-		//			std::cout << m_data[i + j] << ",";
-		//		else
-		//			std::cout << ' ' << m_data[i + j] << ",";
-
-		//		if (j == 5)
-		//			std::cout << "\n";
-		//	}
-		//}
-
-		// I ?? 3 * vertex size
-		//glVertexAttribIPointer(0, 1, GL_INT, m_vertex_size, (void*)0);
 		// Position
 		auto a = sizeof(block);
 		glEnableVertexAttribArray(0);
@@ -69,40 +40,13 @@ public:
 		glBindVertexArray(0);
 	}
 
-	void generate_noise()
-	{
-		OSN::Noise<2> noise;
-		int width = m_chunk_size;
-		int height = m_chunk_size;
-		constexpr float featureSize = 10.0f;
-
-		for (double x = 0; x < width; x++)
-		{
-			double xi = x / featureSize;
-			for (double z = 0; z < height; z++)
-			{
-				double zi = z / featureSize;
-				double noiseEval = noise.eval<double>(xi, zi) * 10; // ???
-				for (double y = 0; y <= noiseEval; y++)
-				{
-					if (y > noiseEval-2 || y == noiseEval)
-					{
-						m_blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
-					}
-					else
-						m_blocks[offset(x, y, z)].type = block_type::STONE;
-				}
-			}
-		}
-	}
-
 	void build_mesh()
 	{
-		for (int x = 0; x < m_chunk_size; x++)
+		for (int x = 0; x < x_size; x++)
 		{
-			for (int y = 0; y < m_chunk_size; y++)
+			for (int y = 0; y < y_size; y++)
 			{
-				for (int z = 0; z < m_chunk_size; z++)
+				for (int z = 0; z < z_size; z++)
 				{
 					int vert_count = 30;
 
@@ -129,7 +73,7 @@ public:
 						}
 					}
 					//front
-					if (((z + 1) >= m_chunk_size) || m_blocks[offset(x, y, z + 1)].type == block_type::AIR)
+					if (((z + 1) >= z_size) || m_blocks[offset(x, y, z + 1)].type == block_type::AIR)
 					{
 						int i = 0;
 						while (i != vert_count)
@@ -169,7 +113,7 @@ public:
 						}
 					}
 					//right
-					if (((x + 1) >= m_chunk_size) || m_blocks[offset(x + 1, y, z)].type == block_type::AIR)
+					if (((x + 1) >= x_size) || m_blocks[offset(x + 1, y, z)].type == block_type::AIR)
 					{
 						int i = 0;
 						while (i != vert_count)
@@ -187,6 +131,7 @@ public:
 							auto a = block_get_texture(block_face_direction::RIGHT, m_blocks[offset(x, y, z)].type);
 							m_data.push_back(a);
 						}
+
 					}
 					//bottom
 					if (y == 0 || m_blocks[offset(x, y - 1, z)].type == block_type::AIR)
@@ -209,7 +154,7 @@ public:
 						}
 					}
 					// top
-					if (((y + 1) >= m_chunk_size) || m_blocks[offset(x, y + 1, z)].type == block_type::AIR)
+					if (((y + 1) >= y_size) || m_blocks[offset(x, y + 1, z)].type == block_type::AIR)
 					{
 						int i = 0;
 						while (i != vert_count)
@@ -239,9 +184,13 @@ public:
 		glDrawArrays(GL_TRIANGLES, 0, m_data.size() / 6);
 	}
 
-private:
-	int m_chunk_size;
 	block* m_blocks;
+	glm::ivec3 pos;
+private:
+	int x_size;
+	int y_size;
+	int z_size;
+	int m_chunk_size;
 	std::vector<float> m_data;
 	GLuint m_array_handle;
 	GLuint m_buffer_handle;
@@ -249,24 +198,9 @@ private:
 
 	int offset(int x, int y, int z)
 	{
-		return (z * m_chunk_size * m_chunk_size) + (y * m_chunk_size) + x;
-	}
-
-	void init_cubes()
-	{
-		for (int x = 0; x < m_chunk_size; x++)
-		{
-			for (int y = 0; y < m_chunk_size; y++)
-			{
-				for (int z = 0; z < m_chunk_size; z++)
-				{
-					if(y == 0)
-						m_blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
-					else
-						m_blocks[offset(x, y, z)].type = block_type::AIR;
-				}
-			}
-		}
+		//auto index = (z * x_size * y_size) + (y * x_size) + x;
+		return (x * x_size) + (y * y_size) + z;
+		//return (x * x_sizease) + (y * y_size) + z;
 	}
 
 	const float m_back_verticies[30] = {
