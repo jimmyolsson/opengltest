@@ -133,6 +133,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,23 +143,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="chunk.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="SimplexNoise.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks\block.h" />
-    <ClInclude Include="block_vertex_builder.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="chunk.h" />
+    <ClInclude Include="noise.h" />
+    <ClInclude Include="noise2.h" />
+    <ClInclude Include="robin_hood.h" />
     <ClInclude Include="shader_m.h" />
-    <ClInclude Include="SimplexNoise.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="7.4.camera.fs" />
-    <None Include="7.4.camera.vs" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\textures\awesomeface.png" />
     <Image Include="resources\textures\container.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\7.4.camera.shader" />
+    <None Include="resources\7.4.camera.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

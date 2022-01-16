@@ -18,7 +18,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SimplexNoise.cpp">
+    <ClCompile Include="chunk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,23 +29,21 @@
     <ClInclude Include="camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="block_vertex_builder.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="blocks\block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SimplexNoise.h">
+    <ClInclude Include="noise2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="7.4.camera.vs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="7.4.camera.fs">
-      <Filter>Resource Files</Filter>
-    </None>
+    <ClInclude Include="noise.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="chunk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="robin_hood.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\textures\awesomeface.png">
@@ -54,5 +52,13 @@
     <Image Include="resources\textures\container.jpg">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\7.4.camera.shader">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\7.4.camera.vs">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

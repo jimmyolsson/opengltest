@@ -2,8 +2,9 @@
 #define CAMERA_H
 
 #ifdef __EMSCRIPTEN__
-#include "glad.h"
+#include "GL/gl.h"
 #include "glm/glm.hpp"
+#include <emscripten/emscripten.h>
 #else
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -23,7 +24,7 @@ enum Camera_Movement
 // Default camera values
 const float YAW = -90.0f;
 const float PITCH = 0.0f;
-const float SPEED = 20.5f;
+const float SPEED = 100.5f;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
 

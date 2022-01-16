@@ -2,8 +2,11 @@
 #define SHADER_H
 
 #ifdef __EMSCRIPTEN__
-#include "glad.h"
+#include <emscripten.h>
+#include <GLES2/gl2.h>
+#include <GL/GL.h>
 #include "glm/glm.hpp"
+#include <GL/glew.h>
 #else
 #include <glad/glad.h>
 #include <glm/glm.hpp>

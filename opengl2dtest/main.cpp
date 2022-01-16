@@ -1,22 +1,45 @@
+#ifdef __EMSCRIPTEN__
+#include <GL/gl.h>
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#include <GLES2/gl2.h>
+#else
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#endif
 
+#ifdef __EMSCRIPTEN__
+//#include <GL/glfw.h>
+#include <GLFW/glfw3.h>
+#else
+#include <GLFW/glfw3.h>
+#endif
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+
+#ifdef __EMSCRIPTEN__
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#else
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/hash.hpp>
+#endif
 
 #include "shader_m.h"
 #include "camera.h"
-#include "SimplexNoise.h"
-#include "block_vertex_builder.h"
+#include "chunk.h"
 #include "blocks/block.h"
 
 #include <iostream>
 #include <tuple>
 #include <unordered_map>
 #include <map>
+#include <algorithm>
+#include <execution>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -27,7 +50,7 @@ GLFWwindow* init_and_create_window();
 std::tuple<GLuint, GLuint> load_textures();
 
 // settings
-constexpr unsigned int SCR_WIDTH = 1280;
+constexpr unsigned int SCR_WIDTH = 1360;
 constexpr unsigned int SCR_HEIGHT = 960;
 
 // timing
@@ -35,64 +58,129 @@ float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
 block* blocks;
-int chunk_size_x = 16;
-int chunk_size_y = 16;
-int chunk_size_z = 16;
-int blocks_in_chunk = chunk_size_x * chunk_size_y * chunk_size_z;
-int chunk_draw_distance = 12;
+const int blocks_in_chunk = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
+#include <cmath>
+#include <array>
+#include "noise2.h"
+#include "robin_hood.h"
 // camera
-Camera camera(glm::vec3(0.0f, chunk_size_y + 10, 0.0f));
+Camera camera(glm::vec3(20.0f, 45.0f, 150.0f));
+//Camera camera(glm::vec3(0.0f, 45.0f, 5.0f));
 
-int normalize(int height)
-{
-	return 0;
-}
+//static std::unordered_map<glm::ivec2, chunk> chunks;
+//static std::unordered_map<glm::ivec2, int> chunks;
+static robin_hood::unordered_node_map<glm::ivec2, chunk> chunks = {};
 
 int offset(int x, int y, int z)
 {
-	return (x * chunk_size_x) + (y * chunk_size_y) + z;
+	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
-void generate_noise(block_vertex_builder* bvb, glm::vec3* pos)
+float mapRange(float val, float inMin, float inMax, float outMin, float outMax)
 {
-	for (int x = 0; x < chunk_size_x; x++)
+	return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
+float redistribute(float noise, int exponent, int modifier)
+{
+	return pow(noise * modifier, exponent);
+}
+
+siv::PerlinNoise perlin;
+void generate_noise(chunk* chunk, int xoffset, int zoffset)
+{
+	const float zoom = 0.01;
+	const float persistence = 0.5;
+	const int octaves = 3;
+	const int exponent = 6;
+	const float modifier = 1.2;
+
+	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 	{
-		for (int y = 0; y < chunk_size_y; y++)
+		for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 		{
-			for (int z = 0; z < chunk_size_z; z++)
+			float xi = x + xoffset;
+			float zi = z + zoffset;
+
+			xi *= zoom;
+			zi *= zoom;
+
+			xi += zoom;
+			zi += zoom;
+
+			float noise = perlin.octave2D_01(xi, zi, octaves, persistence);
+			noise = redistribute(noise, octaves, modifier);
+			noise = mapRange(noise, 0, 1, 1, CHUNK_SIZE_HEIGHT);
+
+			int height = noise;
+
+			for (int y = 0; y < height; y++)
 			{
-				bvb->m_blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
+				chunk->blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
+			}
+		}
+	}
+
+	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+	{
+		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+			{
+				block* current = &chunk->blocks[offset(x, y, z)];
+
+				if (y <= 5)
+				{
+					if (current->type == block_type::AIR)
+					{
+						current->type = block_type::WATER;
+					}
+					else if (current->type != block_type::AIR)
+					{
+						current->type = block_type::SAND;
+					}
+				}
+				else
+				{
+				}
 			}
 		}
 	}
 }
 
-std::vector<std::pair<glm::vec3, block_vertex_builder>> chunks;
+void create_and_init_chunk(int x, int z)
+{
+	chunk chunk;
+	chunk.blocks = new block[blocks_in_chunk];
+	chunk.chunks = &chunks;
+	auto pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+
+	generate_noise(&chunk, pos.x, pos.y);
+	chunks[pos] = chunk;
+}
 
 void init_chunks()
 {
-	for (int x = (chunk_draw_distance / 2) * -1; x < chunk_draw_distance; x++)
-	{
-		for (int z = (chunk_draw_distance / 2) * -1; z < chunk_draw_distance; z++)
-		{
-			block_vertex_builder bvb{ blocks_in_chunk, chunk_size_x, chunk_size_y, chunk_size_z };
+	std::cout << "Generating chunks\n";
 
-			bvb.m_blocks = new block[blocks_in_chunk];
-			auto key = glm::vec3(x * chunk_size_x, 0, z * chunk_size_z);
-			chunks.push_back(std::make_pair(key, bvb));
+	for (int x = (CHUNK_DRAW_DISTANCE / 2) * -1; x < CHUNK_DRAW_DISTANCE; x++)
+	{
+		for (int z = (CHUNK_DRAW_DISTANCE / 2) * -1; z < CHUNK_DRAW_DISTANCE; z++)
+		{
+			create_and_init_chunk(x, z);
 		}
 	}
 
-
-	for (int i = 0; i < chunks.size(); i++)
+	const siv::PerlinNoise::seed_type seed = 123456u;
+	siv::PerlinNoise perlin{ seed };
+	for (auto& iter : chunks)
 	{
-		auto* chunk = &chunks[i];
-
-		generate_noise(&chunk->second, &chunk->first);
-		chunk->second.build_mesh();
-		chunk->second.setup_buffers();
+		ChunkPrivate::generate_mesh(iter.second, iter.first);
+		ChunkPrivate::init_buffers(iter.second);
 	}
+
+	std::cout << "Done!\n";
 }
 
 int main()
@@ -100,8 +188,8 @@ int main()
 	auto window = init_and_create_window();
 
 	// build and compile our shader zprogram
-	Shader ourShader("7.4.camera.vs",
-		"7.4.camera.fs");
+	Shader ourShader("resources\\7.4.camera.vs",
+		"resources\\7.4.camera.shader");
 
 	std::cout << glGetString(GL_VERSION) << "\n";
 
@@ -148,12 +236,11 @@ int main()
 		glm::mat4 view = camera.GetViewMatrix();
 		ourShader.setMat4("view", view);
 
-		glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-
-		for (auto& it : chunks)
+		// Draw all chunks
+		for (auto& iter : chunks)
 		{
-			ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), it.first));
-			it.second.draw();
+			ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
+			ChunkPrivate::draw(iter.second);
 		}
 
 		glfwSwapBuffers(window);
@@ -201,11 +288,13 @@ GLFWwindow* init_and_create_window()
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+#ifndef __EMSCRIPTEN__
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return nullptr;
 	}
+#endif
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -216,16 +305,21 @@ unsigned char* load_png(const char* path)
 {
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	return stbi_load(path, &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
+
+	std::cout << nrChannels << "\n";
+	return data;
 }
 
 std::tuple<GLuint, GLuint> load_textures()
 {
 	unsigned int texture2;
-	unsigned char* dirt = load_png("resources\\textures\\dirt.png");
-	unsigned char* dirt_grass_side = load_png("resources\\textures\\dirt_grass_side.png");
-	unsigned char* dirt_grass_top = load_png("resources\\textures\\dirt_grass_top.png");
-	unsigned char* stone = load_png("resources\\textures\\stone.png");
+	unsigned char* dirt = load_png("resources\\dirt.png");
+	unsigned char* dirt_grass_side = load_png("resources\\dirt_grass_side.png");
+	unsigned char* dirt_grass_top = load_png("resources\\dirt_grass_top.png");
+	unsigned char* stone = load_png("resources\\stone.png");
+	unsigned char* sand = load_png("resources\\sand.png");
+	unsigned char* water = load_png("resources\\water.png");
 
 	unsigned int texture1;
 	GLsizei width = 48;
@@ -234,18 +328,22 @@ std::tuple<GLuint, GLuint> load_textures()
 	GLsizei mipLevelCount = 1;
 
 	glGenTextures(1, &texture1);
-	auto l = glGetError();
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
-	auto k = glGetError();
 	// Allocate the storage.
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
-		GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	//glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// set texture filtering parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGB8, 48, 48, layerCount);
-	auto a1 = glGetError();
 	// Upload pixel data.
 	// The first 0 refers to the mipmap level (level 0, since there's only 1)
 	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
@@ -255,20 +353,41 @@ std::tuple<GLuint, GLuint> load_textures()
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
-	// MIPMAPS???
-	////if (!c && !b && !i)
-	//	std::cout << "\ntexture initialized correctly!";
-	////else
-	//	std::cout << "\ntexture initialization failed!\n";
-	//glGenTextures(1, &texture1);	return std::make_tuple(texture1, texture2);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, sand);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, water);
+	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
-	//// set the texture wrapping parameters
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
-		GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
-
+	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 	return std::make_tuple(texture1, texture2);
 }
+
+
+//std::tuple<GLuint, GLuint> load_textures()
+//{
+//	unsigned int texture2;
+//	unsigned char* dirt = load_png("resources\\dirt.png");
+//	unsigned char* dirt_grass_side = load_png("resources\\dirt_grass_side.png");
+//	unsigned char* dirt_grass_top = load_png("resources\\dirt_grass_top.png");
+//
+//	unsigned int texture1;
+//	GLsizei width = 48;
+//	GLsizei height = 48;
+//	GLsizei layerCount = 6;
+//	GLsizei mipLevelCount = 1;
+//
+//	glGenTextures(1, &texture1);
+//	glBindTexture(GL_TEXTURE_2D, texture1);
+//
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//
+//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
+//    glGenerateMipmap(GL_TEXTURE_2D);
+//
+//	return std::make_tuple(texture1, texture2);
+//}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -288,6 +407,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		firstMouse = false;
 	}
 
+	glm::vec4 tmp = glm::vec4((xpos / SCR_WIDTH) * 2.0f - 1.0f, -((ypos / SCR_HEIGHT) * 2.0f - 1.0f), 0, 1.0f);
+	glm::vec4 projectedScreen = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f) * tmp;
 	float xoffset = xpos - lastX;
 	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 

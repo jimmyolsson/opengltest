@@ -1,10 +1,14 @@
 #pragma once
 
+#include <iostream>
+
 enum class block_type {
 	AIR = 0,
 	STONE = 1,
 	DIRT = 2,
 	DIRT_GRASS = 3,
+	SAND = 4,
+	WATER = 5
 };
 
 enum class block_face_direction
@@ -22,17 +26,17 @@ struct block
 	block_type type = block_type::AIR;
 };
 
-int block_get_texture_stone(block_face_direction direction)
+static int block_get_texture_stone(block_face_direction direction)
 {
 	return 0;
 }
 
-int block_get_texture_dirt(block_face_direction direction)
+static int block_get_texture_dirt(block_face_direction direction)
 {
 	return 1;
 }
 
-int block_get_texture_grass(block_face_direction direction)
+static int block_get_texture_grass(block_face_direction direction)
 {
 	switch (direction)
 	{
@@ -51,7 +55,19 @@ int block_get_texture_grass(block_face_direction direction)
 
 }
 
-int block_get_texture(block_face_direction direction, block_type type)
+static int block_get_texture_sand(block_face_direction direction)
+{
+	return 4;
+}
+
+static int block_get_texture_water(block_face_direction direction)
+{
+	return 5;
+}
+
+
+
+static int block_get_texture(block_face_direction direction, block_type type)
 {
 	switch (type)
 	{
@@ -63,6 +79,12 @@ int block_get_texture(block_face_direction direction, block_type type)
 		break;
 	case block_type::DIRT_GRASS:
 		return block_get_texture_grass(direction);
+		break;
+	case block_type::SAND:
+		return block_get_texture_sand(direction);
+		break;
+	case block_type::WATER:
+		return block_get_texture_water(direction);
 		break;
 	}
 }
