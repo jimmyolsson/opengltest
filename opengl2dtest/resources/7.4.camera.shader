@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 in float o_btype;
 in vec2 TexCoord;

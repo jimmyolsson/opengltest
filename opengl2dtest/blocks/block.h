@@ -2,16 +2,17 @@
 
 #include <iostream>
 
-enum class block_type {
+enum class block_type : int {
 	AIR = 0,
 	STONE = 1,
 	DIRT = 2,
 	DIRT_GRASS = 3,
 	SAND = 4,
-	WATER = 5
+	WATER = 5,
+	LEAVES = 6
 };
 
-enum class block_face_direction
+enum class block_face_direction : int
 {
 	BACK = 0,
 	FRONT = 1,
@@ -65,7 +66,10 @@ static int block_get_texture_water(block_face_direction direction)
 	return 5;
 }
 
-
+static int block_get_texture_leaves(block_face_direction direction)
+{
+	return 6;
+}
 
 static int block_get_texture(block_face_direction direction, block_type type)
 {
@@ -85,6 +89,9 @@ static int block_get_texture(block_face_direction direction, block_type type)
 		break;
 	case block_type::WATER:
 		return block_get_texture_water(direction);
+		break;
+	case block_type::LEAVES:
+		return block_get_texture_leaves(direction);
 		break;
 	}
 }
