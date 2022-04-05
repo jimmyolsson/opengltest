@@ -10,7 +10,7 @@ enum class block_face_direction;
 
 const int CHUNK_SIZE_WIDTH = 16;
 const int CHUNK_SIZE_HEIGHT = 50;
-const int CHUNK_DRAW_DISTANCE = 50;
+const int CHUNK_DRAW_DISTANCE = 10;
 
 static int to_1d_array(int x, int y, int z)
 {
@@ -30,14 +30,20 @@ struct chunk
 	float* gpu_data_arr = nullptr;
 	int gpu_data_length = 0;
 	int gpu_data_used = 0;
+	int gpu_data_last_used = 0;
 
-	unsigned int vao_handle;
-	unsigned int vbo_handle;
+	int vertecies = 0;
+
+	unsigned int vao_handle = -1;
+	unsigned int vbo_handle = -1;
+
+	bool initialized = false;
 };
 
 namespace ChunkPrivate
 {
-	void init_buffers(chunk& chunk, int& counter);
+	void update_buffers(chunk& chunk);
+	void init_buffers(chunk& chunk);
 	void generate_mesh(chunk& chunk, const glm::vec2& chunk_pos);
 	void draw(chunk& chunk);
 

@@ -34,6 +34,7 @@
 #include "camera.h"
 #include "chunk.h"
 #include "blocks/block.h"
+#include "memory_arena.h"
 
 #include <iostream>
 #include <tuple>
@@ -66,7 +67,9 @@ const int blocks_in_chunk = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WI
 #include "robin_hood.h"
 // camera
 //Camera camera(glm::vec3(20.0f, 45.0f, 150.0f));
-Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
+Camera camera(glm::vec3(0.0f, 40.0f, 0.0f));
+
+memory_arena block_arena;
 
 //static std::unordered_map<glm::ivec2, chunk> chunks;
 //static std::unordered_map<glm::ivec2, int> chunks;
@@ -88,10 +91,10 @@ float redistribute(float noise, int exponent, int modifier)
 }
 
 siv::PerlinNoise perlin;
+float persistence = 0.5;
 void generate_noise(chunk* chunk, int xoffset, int zoffset)
 {
 	const float zoom = 0.01;
-	const float persistence = 0.5;
 	const int octaves = 3;
 	const int exponent = 6;
 	const float modifier = 1.2;
@@ -147,14 +150,39 @@ void generate_noise(chunk* chunk, int xoffset, int zoffset)
 	}
 }
 
+//void update_chunks()
+//{
+//	for (auto& iter : chunks)
+//	{
+//		for (int i = 0; i < blocks_in_chunk; i++)
+//			iter.second.blocks[i].type = block_type::AIR;
+//
+//		generate_noise(&iter.second, iter.first.x, iter.first.y);
+//	}
+//	for (auto& iter : chunks)
+//	{
+//		ChunkPrivate::generate_mesh(iter.second, iter.first);
+//		ChunkPrivate::update_buffers(iter.second);
+//		//ChunkPrivate::init_buffers(iter.second);
+//	}
+//}
+
+static bool is_initialized = false;
+
 void create_and_init_chunk(int x, int z)
 {
+	glm::vec2 pos;
 	chunk chunk;
-	chunk.blocks = new block[blocks_in_chunk];
+
+	chunk.blocks = (block*)memory_arena_get(&block_arena, sizeof(block) * blocks_in_chunk);
 	chunk.chunks = &chunks;
-	auto pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+	pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+
+	for (int i = 0; i < blocks_in_chunk; i++)
+		chunk.blocks[i].type = block_type::AIR;
 
 	generate_noise(&chunk, pos.x, pos.y);
+
 	chunks[pos] = chunk;
 }
 
@@ -163,11 +191,24 @@ void init_chunks()
 	std::cout << "Generate chunks\n";
 
 	auto start_noise_gen = std::chrono::steady_clock::now();
-	for (int x = (CHUNK_DRAW_DISTANCE / 2) * -1; x < CHUNK_DRAW_DISTANCE / 2; x++)
+	if (is_initialized)
 	{
-		for (int z = (CHUNK_DRAW_DISTANCE / 2) * -1; z < CHUNK_DRAW_DISTANCE / 2; z++)
+		for (auto& iter : chunks)
 		{
-			create_and_init_chunk(x, z);
+			for (int i = 0; i < blocks_in_chunk; i++)
+				iter.second.blocks[i].type = block_type::AIR;
+
+			generate_noise(&iter.second, iter.first.x, iter.first.y);
+		}
+	}
+	else
+	{
+		for (int x = (CHUNK_DRAW_DISTANCE / 2) * -1; x < CHUNK_DRAW_DISTANCE / 2; x++)
+		{
+			for (int z = (CHUNK_DRAW_DISTANCE / 2) * -1; z < CHUNK_DRAW_DISTANCE / 2; z++)
+			{
+				create_and_init_chunk(x, z);
+			}
 		}
 	}
 	auto end_noise_gen = std::chrono::steady_clock::now();
@@ -183,16 +224,23 @@ void init_chunks()
 		});
 	for (auto& iter : chunks)
 	{
+		glDeleteBuffers(1, &iter.second.vbo_handle);
+		glDeleteVertexArrays(1, &iter.second.vao_handle);
 		// Calls to opengl has to be single threaded :(
-		ChunkPrivate::init_buffers(iter.second, counter);
+		ChunkPrivate::init_buffers(iter.second);
 	}
 	//for (auto& iter : chunks)
 	//{
 	//	ChunkPrivate::generate_mesh(iter.second, iter.first);
+	//	//ChunkPrivate::update_buffers(iter.second);
+	//	glDeleteBuffers(1, &iter.second.vbo_handle);
+	//	glDeleteVertexArrays(1, &iter.second.vao_handle);
 	//	ChunkPrivate::init_buffers(iter.second);
 	//}
 	auto end_meshgen = std::chrono::steady_clock::now();
 	std::cout << "Generating meshes and buffers took: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
+
+	is_initialized = true;
 }
 
 int main()
@@ -210,6 +258,7 @@ int main()
 	ourShader.use();
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	memory_arena_init(&block_arena, (sizeof(block) * blocks_in_chunk) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
 	init_chunks();
 
 	//for (auto& a : chunks)
@@ -217,8 +266,8 @@ int main()
 	//	//delete[] a.second.blocks;
 	//	delete[] a.second.gpu_data_arr;
 	//}
-	glEnable( GL_BLEND );
-    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//robin_hood::unordered_node_map<glm::ivec2, chunk> tmp = {};
 	//chunks.swap(tmp);
@@ -287,6 +336,39 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
 }
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+	{
+		persistence += 0.5;
+
+		auto start_meshgen = std::chrono::steady_clock::now();
+		init_chunks();
+		auto end_meshgen = std::chrono::steady_clock::now();
+		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
+	}
+	else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+	{
+		persistence -= 0.5;
+
+		auto start_meshgen = std::chrono::steady_clock::now();
+		init_chunks();
+		auto end_meshgen = std::chrono::steady_clock::now();
+		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
+	}
+	else if (key == GLFW_KEY_E && action == GLFW_PRESS)
+	{
+		int length = 0;
+		int used = 0;
+		for (auto& i : chunks)
+		{
+			length += i.second.gpu_data_length;
+			used += i.second.gpu_data_used;
+		}
+		std::cout << "data length: " << length << "\n";
+		std::cout << "data used: " << used << "\n";
+	}
+}
 
 GLFWwindow* init_and_create_window()
 {
@@ -307,7 +389,7 @@ GLFWwindow* init_and_create_window()
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetScrollCallback(window, scroll_callback);
-
+	glfwSetKeyCallback(window, key_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #ifndef __EMSCRIPTEN__

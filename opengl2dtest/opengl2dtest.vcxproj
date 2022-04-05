@@ -145,11 +145,13 @@
   <ItemGroup>
     <ClCompile Include="chunk.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="memory_arena.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks\block.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="chunk.h" />
+    <ClInclude Include="memory_arena.h" />
     <ClInclude Include="noise.h" />
     <ClInclude Include="noise2.h" />
     <ClInclude Include="robin_hood.h" />

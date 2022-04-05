@@ -1,18 +1,37 @@
 #include "chunk.h"
+#include "blocks/block.h"
 
 #include <glad/glad.h>
 #include <glm/gtx/hash.hpp>
-#include "blocks/block.h"
 
-void ChunkPrivate::init_buffers(chunk& chunk, int& counter)
+// CURRENTLY UNUSED
+void ChunkPrivate::update_buffers(chunk& chunk)
+{
+	if (chunk.gpu_data_used > chunk.gpu_data_last_used || !chunk.gpu_data_used)
+	{
+		//glDeleteBuffers(1, &chunk.vbo_handle);
+		//glDeleteVertexArrays(1, &chunk.vbo_handle);
+		init_buffers(chunk);
+	}
+	else
+	{
+		glBindVertexArray(chunk.vao_handle);
+		glBindBuffer(GL_ARRAY_BUFFER, chunk.vbo_handle);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, chunk.gpu_data_used * sizeof(float), chunk.gpu_data_arr);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+	}
+}
+
+void ChunkPrivate::init_buffers(chunk& chunk)
 {
 	glGenVertexArrays(1, &chunk.vao_handle);
 	glBindVertexArray(chunk.vao_handle);
 
 	glGenBuffers(1, &chunk.vbo_handle);
 	glBindBuffer(GL_ARRAY_BUFFER, chunk.vbo_handle);
-	//glBufferData(GL_ARRAY_BUFFER, chunk.gpu_data.size() * sizeof(float), chunk.gpu_data.data(), GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER, chunk.gpu_data_used * sizeof(float), chunk.gpu_data_arr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, chunk.gpu_data_last_used * sizeof(float), chunk.gpu_data_arr, GL_STATIC_DRAW);
 
 	// Position
 	glEnableVertexAttribArray(0);
@@ -29,24 +48,29 @@ void ChunkPrivate::init_buffers(chunk& chunk, int& counter)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
-	counter += chunk.gpu_data_length * sizeof(float);
-
-	//delete[] chunk.gpu_data_arr;
-	//chunk.gpu_data_arr = nullptr;
+	free(chunk.gpu_data_arr);
+	chunk.gpu_data_arr = nullptr;
 }
 
-int extend(float** src, int used, int amount, int new_length)
+int extend(float** src, int used, int amount)
 {
-	float* temp = new float[used + amount];
-
-	if (*src != nullptr)
+	if (*src == nullptr)
 	{
-		std::copy(*src, *src + used, temp);
-		delete[] * src;
-		*src = nullptr;
+		*src = (float*)malloc((used + amount) * sizeof(float));
 	}
-	*src = temp;
-
+	else
+	{
+		float* more = (float*)realloc(*src, (used + amount) * sizeof(float));
+		if (more == nullptr)
+		{
+			assert(true);
+			free(*src);
+		}
+		else
+		{
+			*src = more;
+		}
+	}
 	return used + amount;
 }
 
@@ -57,22 +81,27 @@ void add_face_and_texture(chunk& chunk, const float* data, block_face_direction 
 	while (i != vert_count)
 	{
 		chunk.gpu_data_arr[chunk.gpu_data_used] = data[i] + x;
+		chunk.vertecies++;
 
 		i++;
 		chunk.gpu_data_used++;
 		chunk.gpu_data_arr[chunk.gpu_data_used] = data[i] + y;
+		chunk.vertecies++;
 
 		i++;
 		chunk.gpu_data_used++;
 		chunk.gpu_data_arr[chunk.gpu_data_used] = data[i] + z;
+		chunk.vertecies++;
 
 		i++;
 		chunk.gpu_data_used++;
 		chunk.gpu_data_arr[chunk.gpu_data_used] = data[i];
+		chunk.vertecies++;
 
 		i++;
 		chunk.gpu_data_used++;
 		chunk.gpu_data_arr[chunk.gpu_data_used] = data[i];
+		chunk.vertecies++;
 
 		i++;
 		chunk.gpu_data_used++;
@@ -82,7 +111,6 @@ void add_face_and_texture(chunk& chunk, const float* data, block_face_direction 
 		chunk.gpu_data_used++;
 	}
 }
-
 
 void generate_face(chunk& chunk, const glm::ivec2& neighbor_chunk_pos, const float data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
 {
@@ -110,9 +138,8 @@ void ChunkPrivate::generate_mesh(chunk& chunk, const glm::vec2& chunk_pos)
 {
 	using namespace ChunkPrivate;
 
-	chunk.gpu_data_used = 0;
-	chunk.gpu_data_length = 8192;
-	chunk.gpu_data_length = extend(&chunk.gpu_data_arr, chunk.gpu_data_used, 8192, chunk.gpu_data_length);
+	chunk.vertecies = 0;
+	chunk.gpu_data_length = extend(&chunk.gpu_data_arr, chunk.gpu_data_used, 8192);
 
 	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 	{
@@ -142,14 +169,19 @@ void ChunkPrivate::generate_mesh(chunk& chunk, const glm::vec2& chunk_pos)
 				}
 
 				if (chunk.gpu_data_used > chunk.gpu_data_length - 4096)
-					chunk.gpu_data_length = extend(&chunk.gpu_data_arr, chunk.gpu_data_used, 8192, chunk.gpu_data_length);
+					chunk.gpu_data_length = extend(&chunk.gpu_data_arr, chunk.gpu_data_used, 8192);
 			}
 		}
 	}
+
+	chunk.gpu_data_last_used = chunk.gpu_data_used;
+
+	chunk.gpu_data_length = 0;
+	chunk.gpu_data_used = 0;
 }
 
 void ChunkPrivate::draw(chunk& chunk)
 {
 	glBindVertexArray(chunk.vao_handle);
-	glDrawArrays(GL_TRIANGLES, 0, chunk.gpu_data_used / 6);
+	glDrawArrays(GL_TRIANGLES, 0, chunk.gpu_data_last_used / 6);
 }
