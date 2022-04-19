@@ -4,14 +4,14 @@
 #include <emscripten/html5.h>
 #include <GLES2/gl2.h>
 #else
-#include <glad/glad.h>
+#include "glad/glad.h"
 #endif
 
 #ifdef __EMSCRIPTEN__
 //#include <GL/glfw.h>
 #include <GLFW/glfw3.h>
 #else
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 #endif
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -67,32 +67,28 @@ const int blocks_in_chunk = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WI
 #include "robin_hood.h"
 // camera
 //Camera camera(glm::vec3(20.0f, 45.0f, 150.0f));
-Camera camera(glm::vec3(0.0f, 40.0f, 0.0f));
+//Camera camera(glm::vec3(0.0f, 40.0f, 0.0f));
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
 
 memory_arena block_arena;
 
-//static std::unordered_map<glm::ivec2, chunk> chunks;
-//static std::unordered_map<glm::ivec2, int> chunks;
-static robin_hood::unordered_node_map<glm::ivec2, chunk> chunks = {};
+static robin_hood::unordered_flat_map<glm::ivec2, chunk> chunks = {};
 
-int offset(int x, int y, int z)
-{
-	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
-}
-
-float mapRange(float val, float inMin, float inMax, float outMin, float outMax)
+inline float mapRange(float val, float inMin, float inMax, float outMin, float outMax)
 {
 	return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 }
 
-float redistribute(float noise, int exponent, int modifier)
+inline float redistribute(float noise, int exponent, int modifier)
 {
 	return pow(noise * modifier, exponent);
 }
 
+static int counterr = 0;
+
 siv::PerlinNoise perlin;
 float persistence = 0.5;
-void generate_noise(chunk* chunk, int xoffset, int zoffset)
+void generate_noise(const chunk* chunk, const int xoffset, const int zoffset)
 {
 	const float zoom = 0.01;
 	const int octaves = 3;
@@ -120,7 +116,7 @@ void generate_noise(chunk* chunk, int xoffset, int zoffset)
 
 			for (int y = 0; y < height; y++)
 			{
-				chunk->blocks[offset(x, y, z)].type = block_type::DIRT_GRASS;
+				chunk->blocks[to_1d_array(x, y, z)].type = block_type::DIRT_GRASS;
 			}
 		}
 	}
@@ -132,7 +128,7 @@ void generate_noise(chunk* chunk, int xoffset, int zoffset)
 		{
 			for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 			{
-				block* current = &chunk->blocks[offset(x, y, z)];
+				block* current = &chunk->blocks[to_1d_array(x, y, z)];
 
 				if (y <= sea_level)
 				{
@@ -169,13 +165,14 @@ void generate_noise(chunk* chunk, int xoffset, int zoffset)
 
 static bool is_initialized = false;
 
-void create_and_init_chunk(int x, int z)
+void create_and_init_chunk(const int x, const int z)
 {
 	glm::vec2 pos;
 	chunk chunk;
 
 	chunk.blocks = (block*)memory_arena_get(&block_arena, sizeof(block) * blocks_in_chunk);
 	chunk.chunks = &chunks;
+	chunk.initialized = false;
 	pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 
 	for (int i = 0; i < blocks_in_chunk; i++)
@@ -188,9 +185,11 @@ void create_and_init_chunk(int x, int z)
 
 void init_chunks()
 {
-	std::cout << "Generate chunks\n";
+	using namespace std::chrono;
+	//std::cout << "Generating chunks..." << "\n";
 
-	auto start_noise_gen = std::chrono::steady_clock::now();
+	//auto start_noise_gen = std::chrono::steady_clock::now();
+
 	if (is_initialized)
 	{
 		for (auto& iter : chunks)
@@ -198,8 +197,13 @@ void init_chunks()
 			for (int i = 0; i < blocks_in_chunk; i++)
 				iter.second.blocks[i].type = block_type::AIR;
 
-			generate_noise(&iter.second, iter.first.x, iter.first.y);
+			//generate_noise(&iter.second, iter.first.x, iter.first.y);
 		}
+		std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
+			[&](auto& iter)
+			{
+				generate_noise(&iter.second, iter.first.x, iter.first.y);
+			});
 	}
 	else
 	{
@@ -211,12 +215,14 @@ void init_chunks()
 			}
 		}
 	}
-	auto end_noise_gen = std::chrono::steady_clock::now();
-	std::cout << "Generating chunks took: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_noise_gen - start_noise_gen).count() << "ms\n";
 
-	std::cout << "Generating meshes and creating buffers\n";
-	auto start_meshgen = std::chrono::steady_clock::now();
-	int counter = 0;
+	//auto end_noise_gen = std::chrono::steady_clock::now();
+
+	//auto noise_gen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_noise_gen - start_noise_gen).count();
+	//std::cout << TOTAL_CHUNKS << " chunks initialised(noise) in: " << noise_gen_result << "ms\n";
+	//std::cout << "1 chunk initialised(noise)  in " << (float)noise_gen_result / TOTAL_CHUNKS << "ms\n";
+
+	//auto start_meshgen = std::chrono::steady_clock::now();
 	std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
 		[&](auto& iter)
 		{
@@ -224,21 +230,19 @@ void init_chunks()
 		});
 	for (auto& iter : chunks)
 	{
-		glDeleteBuffers(1, &iter.second.vbo_handle);
-		glDeleteVertexArrays(1, &iter.second.vao_handle);
-		// Calls to opengl has to be single threaded :(
-		ChunkPrivate::init_buffers(iter.second);
+		ChunkPrivate::update_buffers(iter.second);
 	}
 	//for (auto& iter : chunks)
 	//{
-	//	ChunkPrivate::generate_mesh(iter.second, iter.first);
-	//	//ChunkPrivate::update_buffers(iter.second);
-	//	glDeleteBuffers(1, &iter.second.vbo_handle);
-	//	glDeleteVertexArrays(1, &iter.second.vao_handle);
-	//	ChunkPrivate::init_buffers(iter.second);
+	//	//ChunkPrivate::generate_mesh(iter.second, iter.first);
+	//	ChunkPrivate::update_buffers(iter.second);
+
 	//}
-	auto end_meshgen = std::chrono::steady_clock::now();
-	std::cout << "Generating meshes and buffers took: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
+	//auto end_meshgen = std::chrono::steady_clock::now();
+	//auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
+
+	//std::cout << TOTAL_CHUNKS << " chunks initialised(mesh) in: " << meshgen_result << "ms\n";
+	//std::cout << "1 chunk initialised(mesh)  in " << (float)meshgen_result / TOTAL_CHUNKS << "ms\n";
 
 	is_initialized = true;
 }
@@ -261,13 +265,17 @@ int main()
 	memory_arena_init(&block_arena, (sizeof(block) * blocks_in_chunk) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
 	init_chunks();
 
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CW);
+
 	//for (auto& a : chunks)
 	//{
 	//	//delete[] a.second.blocks;
 	//	delete[] a.second.gpu_data_arr;
 	//}
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//robin_hood::unordered_node_map<glm::ivec2, chunk> tmp = {};
 	//chunks.swap(tmp);
@@ -342,31 +350,13 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	{
 		persistence += 0.5;
 
-		auto start_meshgen = std::chrono::steady_clock::now();
 		init_chunks();
-		auto end_meshgen = std::chrono::steady_clock::now();
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
 	}
 	else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
 	{
 		persistence -= 0.5;
 
-		auto start_meshgen = std::chrono::steady_clock::now();
 		init_chunks();
-		auto end_meshgen = std::chrono::steady_clock::now();
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count() << "ms\n";
-	}
-	else if (key == GLFW_KEY_E && action == GLFW_PRESS)
-	{
-		int length = 0;
-		int used = 0;
-		for (auto& i : chunks)
-		{
-			length += i.second.gpu_data_length;
-			used += i.second.gpu_data_used;
-		}
-		std::cout << "data length: " << length << "\n";
-		std::cout << "data used: " << used << "\n";
 	}
 }
 
@@ -374,7 +364,7 @@ GLFWwindow* init_and_create_window()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "opengltest", NULL, NULL);
@@ -430,29 +420,20 @@ std::tuple<GLuint, GLuint> load_textures()
 	GLsizei width = 48;
 	GLsizei height = 48;
 	GLsizei layerCount = 7;
-	GLsizei mipLevelCount = 1;
+	GLsizei mipLevelCount = 4;
 
 	glGenTextures(1, &texture1);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
-	// Allocate the storage.
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	//glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -1);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+	// Allocate the storage.
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, 48, 48, layerCount);
+
 	// Upload pixel data.
 	// The first 0 refers to the mipmap level (level 0, since there's only 1)
 	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
 	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
 	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
+
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, stone);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
@@ -460,6 +441,19 @@ std::tuple<GLuint, GLuint> load_textures()
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, sand);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, water);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 6, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, leaves);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	//// set texture filtering parameters
+	//glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//GLfloat value, max_anisotropy = 8.0f;
+	//glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &value);
+
+	//value = (value > max_anisotropy) ? max_anisotropy : value;
+	//glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY, value);
+
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
 	return std::make_tuple(texture1, texture2);

@@ -6,7 +6,7 @@
 #include "glm/glm.hpp"
 #include <emscripten/emscripten.h>
 #else
-#include <glad/glad.h>
+#include "glad/glad.h"
 #include <glm/glm.hpp>
 #endif
 

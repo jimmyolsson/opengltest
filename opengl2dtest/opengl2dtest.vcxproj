@@ -78,9 +78,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -123,6 +127,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,10 +145,12 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="chunk.cpp" />
+    <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory_arena.cpp" />
   </ItemGroup>
@@ -156,10 +163,6 @@
     <ClInclude Include="noise2.h" />
     <ClInclude Include="robin_hood.h" />
     <ClInclude Include="shader_m.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="resources\textures\awesomeface.png" />
-    <Image Include="resources\textures\container.jpg" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\7.4.camera.shader" />

@@ -8,7 +8,7 @@
 #include "glm/glm.hpp"
 #include <GL/glew.h>
 #else
-#include <glad/glad.h>
+#include "glad/glad.h"
 #include <glm/glm.hpp>
 #endif
 

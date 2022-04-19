@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+
 enum class block_type : int {
 	AIR = 0,
 	STONE = 1,
