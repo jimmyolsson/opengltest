@@ -66,9 +66,8 @@ const int blocks_in_chunk = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WI
 #include "noise2.h"
 #include "robin_hood.h"
 // camera
-//Camera camera(glm::vec3(20.0f, 45.0f, 150.0f));
-//Camera camera(glm::vec3(0.0f, 40.0f, 0.0f));
-Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
+//Camera camera(glm::vec3(190.0f, 178.0f, -112.0f));
+Camera camera(glm::vec3(0.0f, 170.0f, 0.0f));
 
 memory_arena block_arena;
 
@@ -86,82 +85,68 @@ inline float redistribute(float noise, int exponent, int modifier)
 
 static int counterr = 0;
 
-siv::PerlinNoise perlin;
+#include <FastNoise/FastNoise.h>
 float persistence = 0.5;
+int xsalt = 0;
+int ysalt = 0;
+FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
+static int to_1d_array(int x, int y, int z)
+{
+	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
+}
+
 void generate_noise(const chunk* chunk, const int xoffset, const int zoffset)
 {
-	const float zoom = 0.01;
-	const int octaves = 3;
-	const int exponent = 6;
-	const float modifier = 1.2;
+	const float frequency = 0.002f;
+	const float threshold = 0.02f;
 
-	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+	std::vector<float> noise(CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH);
+
+	auto min_max = asdnoise.get()->GenUniformGrid3D(noise.data(), xoffset, -128, zoffset, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT, CHUNK_SIZE_WIDTH, frequency, 1337);
+
+	for (auto& c : noise)
 	{
-		for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
-		{
-			float xi = x + xoffset;
-			float zi = z + zoffset;
-
-			xi *= zoom;
-			zi *= zoom;
-
-			xi += zoom;
-			zi += zoom;
-
-			float noise = perlin.octave2D_01(xi, zi, octaves, persistence);
-			noise = redistribute(noise, octaves, modifier);
-			noise = mapRange(noise, 0, 1, 1, CHUNK_SIZE_HEIGHT);
-
-			int height = noise;
-
-			for (int y = 0; y < height; y++)
-			{
-				chunk->blocks[to_1d_array(x, y, z)].type = block_type::DIRT_GRASS;
-			}
-		}
+		c *= -1;
 	}
 
-	int sea_level = 5;
-	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+#if _DEBUG
+	// dosent work in debug otherwise..
+	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
 		{
-			for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
-				block* current = &chunk->blocks[to_1d_array(x, y, z)];
+				int index = to_1d_array(x, y, z);
+				chunk->blocks[index].type = block_type::AIR;
+			}
+		}
+	}
+#endif // DEBUG
 
-				if (y <= sea_level)
+	const int sea_level = 50;
+	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+	{
+		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+			{
+				int index = to_1d_array(x, y, z);
+				if (noise[index] > threshold)
 				{
-					if (current->type == block_type::AIR)
+					if (noise[to_1d_array(x, y + 1, z)] > threshold)
 					{
-						current->type = block_type::WATER;
+						chunk->blocks[index].type = block_type::DIRT;
 					}
-					else if (current->type != block_type::AIR)
+					else
 					{
-						current->type = block_type::SAND;
+						chunk->blocks[index].type = block_type::DIRT_GRASS;
 					}
 				}
 			}
 		}
 	}
 }
-
-//void update_chunks()
-//{
-//	for (auto& iter : chunks)
-//	{
-//		for (int i = 0; i < blocks_in_chunk; i++)
-//			iter.second.blocks[i].type = block_type::AIR;
-//
-//		generate_noise(&iter.second, iter.first.x, iter.first.y);
-//	}
-//	for (auto& iter : chunks)
-//	{
-//		ChunkPrivate::generate_mesh(iter.second, iter.first);
-//		ChunkPrivate::update_buffers(iter.second);
-//		//ChunkPrivate::init_buffers(iter.second);
-//	}
-//}
 
 static bool is_initialized = false;
 
@@ -175,9 +160,6 @@ void create_and_init_chunk(const int x, const int z)
 	chunk.initialized = false;
 	pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 
-	for (int i = 0; i < blocks_in_chunk; i++)
-		chunk.blocks[i].type = block_type::AIR;
-
 	generate_noise(&chunk, pos.x, pos.y);
 
 	chunks[pos] = chunk;
@@ -186,27 +168,10 @@ void create_and_init_chunk(const int x, const int z)
 void init_chunks()
 {
 	using namespace std::chrono;
-	//std::cout << "Generating chunks..." << "\n";
 
-	//auto start_noise_gen = std::chrono::steady_clock::now();
-
-	if (is_initialized)
+	if (!is_initialized)
 	{
-		for (auto& iter : chunks)
-		{
-			for (int i = 0; i < blocks_in_chunk; i++)
-				iter.second.blocks[i].type = block_type::AIR;
-
-			//generate_noise(&iter.second, iter.first.x, iter.first.y);
-		}
-		std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
-			[&](auto& iter)
-			{
-				generate_noise(&iter.second, iter.first.x, iter.first.y);
-			});
-	}
-	else
-	{
+		auto start_noise_gen = steady_clock::now();
 		for (int x = (CHUNK_DRAW_DISTANCE / 2) * -1; x < CHUNK_DRAW_DISTANCE / 2; x++)
 		{
 			for (int z = (CHUNK_DRAW_DISTANCE / 2) * -1; z < CHUNK_DRAW_DISTANCE / 2; z++)
@@ -214,36 +179,56 @@ void init_chunks()
 				create_and_init_chunk(x, z);
 			}
 		}
+		auto end_noise_gen = steady_clock::now();
+		auto noise_gen_result = duration_cast<milliseconds>(end_noise_gen - start_noise_gen).count();
+
+		std::cout << TOTAL_CHUNKS << " chunks initialised(noise) in: " << noise_gen_result << "ms\n";
+	}
+	else
+	{
+		std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
+			[&](auto& iter)
+			{
+				generate_noise(&iter.second, iter.first.x, iter.first.y);
+			});
 	}
 
-	//auto end_noise_gen = std::chrono::steady_clock::now();
-
-	//auto noise_gen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_noise_gen - start_noise_gen).count();
-	//std::cout << TOTAL_CHUNKS << " chunks initialised(noise) in: " << noise_gen_result << "ms\n";
-	//std::cout << "1 chunk initialised(noise)  in " << (float)noise_gen_result / TOTAL_CHUNKS << "ms\n";
-
-	//auto start_meshgen = std::chrono::steady_clock::now();
+	// ----------------- MESH GEN -----------------
+	auto start_meshgen = std::chrono::steady_clock::now();
 	std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
 		[&](auto& iter)
 		{
 			ChunkPrivate::generate_mesh(iter.second, iter.first);
 		});
-	for (auto& iter : chunks)
+	auto end_meshgen = std::chrono::steady_clock::now();
+	auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
+	std::cout << TOTAL_CHUNKS << " chunks initialised(mesh) in: " << meshgen_result << "ms\n";
+	std::cout << "Average per chunk: " << (float)meshgen_result / (CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE) << 'ms\n';
+
+	// ----------------- UPDATE BUFFERS -----------------
+	if (is_initialized)
 	{
-		ChunkPrivate::update_buffers(iter.second);
+		start_meshgen = std::chrono::steady_clock::now();
+		for (auto& iter : chunks)
+		{
+			ChunkPrivate::update_buffers(iter.second);
+		}
+		end_meshgen = std::chrono::steady_clock::now();
+		meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
+		std::cout << "OpenGL buffers updated in: " << meshgen_result << "ms\n";
 	}
-	//for (auto& iter : chunks)
-	//{
-	//	//ChunkPrivate::generate_mesh(iter.second, iter.first);
-	//	ChunkPrivate::update_buffers(iter.second);
+	else
+	{
+		auto start_meshgen = std::chrono::steady_clock::now();
+		for (auto& iter : chunks)
+		{
+			ChunkPrivate::init_buffers(iter.second);
+		}
+		auto end_meshgen = std::chrono::steady_clock::now();
+		auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
+		std::cout << "OpenGL buffers intialized in: " << meshgen_result << "ms\n";
 
-	//}
-	//auto end_meshgen = std::chrono::steady_clock::now();
-	//auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
-
-	//std::cout << TOTAL_CHUNKS << " chunks initialised(mesh) in: " << meshgen_result << "ms\n";
-	//std::cout << "1 chunk initialised(mesh)  in " << (float)meshgen_result / TOTAL_CHUNKS << "ms\n";
-
+	}
 	is_initialized = true;
 }
 
@@ -252,33 +237,37 @@ int main()
 	auto window = init_and_create_window();
 
 	// build and compile our shader zprogram
-	Shader ourShader("resources\\7.4.camera.vs",
-		"resources\\7.4.camera.shader");
+	Shader lightingShader("resources\\6.multiple_lights.shadervs", "resources\\6.multiple_lights.shaderfs");
+	Shader lightCubeShader("resources\\6.light_cube.shadervs", "resources\\6.light_cube.shaderfs");
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
 	const auto [texture1, texture2] = load_textures();
 
-	ourShader.use();
-
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	memory_arena_init(&block_arena, (sizeof(block) * blocks_in_chunk) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
 	init_chunks();
 
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glFrontFace(GL_CW);
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_BACK);
+	//glFrontFace(GL_CW);
+	glEnable(GL_DEPTH_TEST);
+
+	//unsigned int diffuseMap = loadTexture("C:\\Users\\Jimmy\\source\\repos\\opengl2dtest\\opengl2dtest\\resources\\stone.png");
+	//unsigned int specularMap = loadTexture("C:\\Users\\Jimmy\\source\\repos\\opengl2dtest\\opengl2dtest\\resources\\stone.png");
+
+	lightingShader.use();
+	lightingShader.setInt("material.diffuse", 1);
+	lightingShader.setInt("material.specular", 1);
 
 	//for (auto& a : chunks)
 	//{
 	//	//delete[] a.second.blocks;
 	//	delete[] a.second.gpu_data_arr;
 	//}
+
 	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	//robin_hood::unordered_node_map<glm::ivec2, chunk> tmp = {};
-	//chunks.swap(tmp);
 
 	int nbFrames = 0;
 	double lastTime = glfwGetTime();
@@ -304,24 +293,58 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		lightingShader.use();
+		lightingShader.setVec3("viewPos", camera.Position);
+		lightingShader.setFloat("material.shininess", 32.0f);
+
+		lightingShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+		lightingShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
+		lightingShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
+		lightingShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+
+		// view/projection transformations
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		lightingShader.setMat4("projection", projection);
+		lightingShader.setMat4("view", view);
+		glm::mat4 model = glm::mat4(1.0f);
+		lightingShader.setMat4("model", model);
+
 		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
 
-		// pass projection matrix to shader (note that in this case it could change every frame)
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-		ourShader.setMat4("projection", projection);
+		// bind diffuse map
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, diffuseMap);
+		//// bind specular map
+		//glActiveTexture(GL_TEXTURE1);
+		//glBindTexture(GL_TEXTURE_2D, specularMap);
 
-		// camera/view transformation
-		glm::mat4 view = camera.GetViewMatrix();
-		ourShader.setMat4("view", view);
-
-		// Draw all chunks
 		for (auto& iter : chunks)
 		{
-			ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
+			lightingShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
 			ChunkPrivate::draw(iter.second);
 		}
+
+		//// bind textures on corresponding texture units
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+
+		//// pass projection matrix to shader (note that in this case it could change every frame)
+		//glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+		//ourShader.setMat4("projection", projection);
+
+		//// camera/view transformation
+		//glm::mat4 view = camera.GetViewMatrix();
+		//ourShader.setMat4("view", view);
+
+		//// Draw all chunks
+		//for (auto& iter : chunks)
+		//{
+		//	ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
+		//	ChunkPrivate::draw(iter.second);
+		//}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -346,15 +369,17 @@ void processInput(GLFWwindow* window)
 }
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	const int scale = 2000;
 	if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
 	{
-		persistence += 0.5;
-
+		//xsalt += scale;
+		//ysalt += scale;
 		init_chunks();
 	}
 	else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
 	{
-		persistence -= 0.5;
+		xsalt += scale;
+		ysalt += scale;
 
 		init_chunks();
 	}
@@ -364,7 +389,7 @@ GLFWwindow* init_and_create_window()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "opengltest", NULL, NULL);
@@ -401,7 +426,7 @@ unsigned char* load_png(const char* path)
 	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
 	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
 
-	std::cout << nrChannels << "\n";
+	//std::cout << nrChannels << "\n";
 	return data;
 }
 
@@ -538,7 +563,7 @@ struct Ray {
 					if (a.type == block_type::AIR)
 					{
 						it.second.blocks[to_1d_array(p.x, p.y, p.z)].type = block_type::STONE;
-						ChunkPrivate::generate_mesh(it.second, it.first);
+						//ChunkPrivate::generate_mesh(it.second, it.first);
 						//ChunkPrivate::init_buffers(it.second);
 					}
 
