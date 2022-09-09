@@ -4,7 +4,6 @@
 #include "glad/glad.h"
 #include <glm/gtx/hash.hpp>
 
-//const int ATTRIBUTES_PER_VERTEX = 6;
 const int ATTRIBUTES_PER_VERTEX = 1;
 
 void ChunkPrivate::update_buffers(chunk* chunk)
@@ -105,22 +104,6 @@ void add_face_and_texture(chunk* chunk, const block_size_t* data, block_face_dir
 	int i = 0;
 	while (i != vert_count)
 	{
-		// xxxxxxxx yyyyyyyy zzzzzzzz uvb00000
-		//int gpud = 0;
-		//int x = 255;
-		//int y = 255;
-		//int z = 255;
-		//int u = 1;
-		//int v = 0;
-		//int b = 63;
-
-		//gpud = x << 24;
-		//gpud |= y << 16;
-		//gpud |= z << 8;
-		//gpud |= u << 7;
-		//gpud |= v << 6;
-		//gpud |= b;
-
 		int result = 0;
 		result = (data[i] + x) << 24;																	//x
 		result |= (data[i + 1] + y) << 16;																//y
@@ -129,38 +112,8 @@ void add_face_and_texture(chunk* chunk, const block_size_t* data, block_face_dir
 		result |= (data[i + 4]) << 6;																	//v
 		result |= (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type));				//b
 
-		//int ax = (result & 0xFF000000) >> 24;
-		//int ay = (result & 0x00FF0000) >> 16;
-		//int az = (result & 0x0000FF00) >> 8;
-		//int au = (result & 0x00000080) >> 7;
-		//int av = (result & 0x00000040) >> 6;
-		//int ab = (result & 0x0000003F);
-
 		chunk->gpu_data_arr[chunk->gpu_data_used] = result;
 
-		if (data[i] + x != (result & 0xFF000000) >> 24)
-			int a = 2;
-		if (data[i + 1] + y != (result & 0x00FF0000) >> 16)
-			int a = 2;
-		if (data[i + 2] + z != (result & 0x0000FF00) >> 8)
-			int a = 2;
-		if (data[i + 3] != (result & 0x00000080) >> 7)
-			int a = 2;
-		if (data[i + 4] != (result & 0x00000040) >> 6)
-			int a = 2;
-		if (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type) != (result & 0x0000003F))
-			int a = 2;
-
-		//chunk->gpu_data_arr[chunk->gpu_data_used] = ax;
-		//chunk->gpu_data_arr[chunk->gpu_data_used + 1] = ay;
-		//chunk->gpu_data_arr[chunk->gpu_data_used + 2] = az;
-
-		//chunk->gpu_data_arr[chunk->gpu_data_used + 3] = au;
-		//chunk->gpu_data_arr[chunk->gpu_data_used + 4] = av;
-
-		//chunk->gpu_data_arr[chunk->gpu_data_used + 5] = ab;
-
-		// For next pass
 		chunk->gpu_data_used += ATTRIBUTES_PER_VERTEX;
 		i += 5;
 	}
