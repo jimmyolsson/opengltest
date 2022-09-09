@@ -38,12 +38,6 @@
     <ClInclude Include="blocks\block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="noise2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="noise.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="chunk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -61,5 +55,9 @@
     <None Include="resources\7.4.camera.vs">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="resources\outline.shaderfs" />
+    <None Include="resources\outline.shadervs" />
+    <None Include="resources\crosshair.shaderfs" />
+    <None Include="resources\crosshair.shadervs" />
   </ItemGroup>
 </Project>

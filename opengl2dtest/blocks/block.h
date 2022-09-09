@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-
 enum class block_type : int {
 	AIR = 0,
 	STONE = 1,
@@ -26,6 +25,8 @@ enum class block_face_direction : int
 struct block 
 {
 	block_type type = block_type::AIR;
+	short light_level = 0;
+	bool visible_to_sky = false;
 };
 
 static int block_get_texture_stone(block_face_direction direction)

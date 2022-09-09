@@ -159,14 +159,16 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="memory_arena.h" />
-    <ClInclude Include="noise.h" />
-    <ClInclude Include="noise2.h" />
     <ClInclude Include="robin_hood.h" />
     <ClInclude Include="shader_m.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\7.4.camera.shader" />
     <None Include="resources\7.4.camera.vs" />
+    <None Include="resources\crosshair.shaderfs" />
+    <None Include="resources\crosshair.shadervs" />
+    <None Include="resources\outline.shaderfs" />
+    <None Include="resources\outline.shadervs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

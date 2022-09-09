@@ -51,6 +51,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void processInput(GLFWwindow* window);
 GLFWwindow* init_and_create_window();
 std::tuple<GLuint, GLuint> load_textures();
+void set_opengl_constants();
 
 // settings
 constexpr unsigned int SCR_WIDTH = 1360;
@@ -63,13 +64,19 @@ float lastFrame = 0.0f;
 block* blocks;
 const int blocks_in_chunk = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
-#include "noise2.h"
+const int WORLD_GEN_HEIGHT = CHUNK_SIZE_HEIGHT;
+const int WORLD_GEN_WIDTH = CHUNK_SIZE_WIDTH;
+
+#define FLATGRASS
+
 #include "robin_hood.h"
 // camera
 //Camera camera(glm::vec3(190.0f, 178.0f, -112.0f));
-Camera camera(glm::vec3(0.0f, 170.0f, 0.0f));
+Camera camera(glm::vec3(0.0f, 60.0f, 0.0f));
 
 memory_arena block_arena;
+memory_arena noise_arena;
+memory_arena chunk_arena;
 
 static robin_hood::unordered_flat_map<glm::ivec2, chunk> chunks = {};
 
@@ -86,50 +93,35 @@ inline float redistribute(float noise, int exponent, int modifier)
 static int counterr = 0;
 
 #include <FastNoise/FastNoise.h>
-float persistence = 0.5;
-int xsalt = 0;
-int ysalt = 0;
 FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
+static int to_1d_array(glm::ivec3 pos)
+{
+	return (pos.z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (pos.y * CHUNK_SIZE_WIDTH) + pos.x;
+}
 static int to_1d_array(int x, int y, int z)
 {
 	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
-void generate_noise(const chunk* chunk, const int xoffset, const int zoffset)
+void generate_world_noise(const chunk* chunk, const int xoffset, const int zoffset)
 {
 	const float frequency = 0.002f;
 	const float threshold = 0.02f;
 
-	std::vector<float> noise(CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH);
+	float* noise = (float*)memory_arena_get(&noise_arena, sizeof(float) * (WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH));
 
-	auto min_max = asdnoise.get()->GenUniformGrid3D(noise.data(), xoffset, -128, zoffset, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT, CHUNK_SIZE_WIDTH, frequency, 1337);
+	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -128, zoffset, WORLD_GEN_WIDTH, WORLD_GEN_HEIGHT, WORLD_GEN_WIDTH, frequency, 1337);
 
-	for (auto& c : noise)
-	{
-		c *= -1;
-	}
+	for (int i = 0; i < WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH; i++)
+		noise[i] *= -1;
 
-#if _DEBUG
-	// dosent work in debug otherwise..
-	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
-	{
-		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
-		{
-			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
-			{
-				int index = to_1d_array(x, y, z);
-				chunk->blocks[index].type = block_type::AIR;
-			}
-		}
-	}
-#endif // DEBUG
 
 	const int sea_level = 50;
-	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
 	{
-		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
 		{
-			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
 			{
 				int index = to_1d_array(x, y, z);
 				if (noise[index] > threshold)
@@ -137,10 +129,12 @@ void generate_noise(const chunk* chunk, const int xoffset, const int zoffset)
 					if (noise[to_1d_array(x, y + 1, z)] > threshold)
 					{
 						chunk->blocks[index].type = block_type::DIRT;
+						chunk->blocks[index].light_level = 0;
 					}
 					else
 					{
 						chunk->blocks[index].type = block_type::DIRT_GRASS;
+						chunk->blocks[index].light_level = 0;
 					}
 				}
 			}
@@ -148,19 +142,68 @@ void generate_noise(const chunk* chunk, const int xoffset, const int zoffset)
 	}
 }
 
+void generate_world_flatgrass(const chunk* chunk, const int xoffset, const int zoffset)
+{
+	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
+	{
+		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
+		{
+			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
+			{
+				int index = to_1d_array(x, y, z);
+				if (y < WORLD_GEN_HEIGHT / 6)
+				{
+					chunk->blocks[index].type = block_type::DIRT_GRASS;
+				}
+				if (y < (WORLD_GEN_HEIGHT / 6) - 1)
+				{
+					chunk->blocks[index].type = block_type::DIRT_GRASS;
+				}
+			}
+		}
+	}
+}
+
+void generate_world(const chunk* chunk, const int xoffset, const int zoffset)
+{
+#if _DEBUG
+	// dosent work in debug otherwise..
+	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
+	{
+		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
+		{
+			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
+			{
+				int index = to_1d_array(x, y, z);
+				chunk->blocks[index].type = block_type::AIR;
+				chunk->blocks[index].light_level = 0;
+			}
+		}
+}
+#endif // DEBUG
+
+#ifdef FLATGRASS
+	generate_world_flatgrass(chunk, xoffset, zoffset);
+#else
+	generate_world_noise(chunk, xoffset, zoffset);
+#endif
+
+}
+
 static bool is_initialized = false;
 
 void create_and_init_chunk(const int x, const int z)
 {
-	glm::vec2 pos;
 	chunk chunk;
 
 	chunk.blocks = (block*)memory_arena_get(&block_arena, sizeof(block) * blocks_in_chunk);
+	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&chunk_arena, sizeof(block_size_t) * blocks_in_chunk);
 	chunk.chunks = &chunks;
 	chunk.initialized = false;
-	pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+	chunk.world_pos = pos;
 
-	generate_noise(&chunk, pos.x, pos.y);
+	generate_world(&chunk, pos.x, pos.y);
 
 	chunks[pos] = chunk;
 }
@@ -189,7 +232,7 @@ void init_chunks()
 		std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
 			[&](auto& iter)
 			{
-				generate_noise(&iter.second, iter.first.x, iter.first.y);
+				generate_world(&iter.second, iter.first.x, iter.first.y);
 			});
 	}
 
@@ -198,7 +241,7 @@ void init_chunks()
 	std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
 		[&](auto& iter)
 		{
-			ChunkPrivate::generate_mesh(iter.second, iter.first);
+			ChunkPrivate::generate_mesh(&iter.second, iter.first);
 		});
 	auto end_meshgen = std::chrono::steady_clock::now();
 	auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
@@ -211,7 +254,7 @@ void init_chunks()
 		start_meshgen = std::chrono::steady_clock::now();
 		for (auto& iter : chunks)
 		{
-			ChunkPrivate::update_buffers(iter.second);
+			ChunkPrivate::update_buffers(&iter.second);
 		}
 		end_meshgen = std::chrono::steady_clock::now();
 		meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
@@ -222,7 +265,7 @@ void init_chunks()
 		auto start_meshgen = std::chrono::steady_clock::now();
 		for (auto& iter : chunks)
 		{
-			ChunkPrivate::init_buffers(iter.second);
+			ChunkPrivate::init_buffers(&iter.second);
 		}
 		auto end_meshgen = std::chrono::steady_clock::now();
 		auto meshgen_result = std::chrono::duration_cast<std::chrono::milliseconds>(end_meshgen - start_meshgen).count();
@@ -231,43 +274,302 @@ void init_chunks()
 	}
 	is_initialized = true;
 }
+struct outline_block {
+	unsigned int vao;
+	unsigned int vbo;
+	glm::ivec3 position;
+} outline_b;
+
+void create_outline()
+{
+	const int vert_count = 30;
+	std::vector<int> gpu_data;
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_back_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 7]);
+			index += 8;
+		}
+	}
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_front_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 7]);
+			index += 8;
+		}
+	}
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_left_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 7]);
+			index += 8;
+		}
+	}
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_right_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 7]);
+			index += 8;
+		}
+	}
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 7]);
+			index += 8;
+		}
+	}
+	{
+		int index = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			gpu_data.push_back(ChunkPrivate::m_top_verticies[index]);
+			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 1]);
+			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 2]);
+			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 6]);
+			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 7]);
+			index += 8;
+		}
+	}
+
+
+	glGenVertexArrays(1, &outline_b.vao);
+	glBindVertexArray(outline_b.vao);
+
+	glGenBuffers(1, &outline_b.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, outline_b.vbo);
+	glBufferData(GL_ARRAY_BUFFER, gpu_data.size() * sizeof(block_size_t), gpu_data.data(), GL_STATIC_DRAW);
+
+	// Position
+	glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Texture coord
+	glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)(3 * BLOCK_SIZE_BYTES));
+	glEnableVertexAttribArray(1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+inline glm::vec3 intbound(glm::vec3 s, glm::vec3 ds)
+{
+	glm::vec3 res;
+	for (size_t i = 0; i < 3; i++)
+	{
+		res[i] =
+			(ds[i] > 0 ?
+				(glm::ceil(s[i]) - s[i])
+				: (s[i] - glm::floor(s[i])))
+			/ glm::abs(ds[i]);
+	}
+	return res;
+}
+
+struct ray_hit_result
+{
+	glm::ivec3 block_pos;
+	glm::ivec3 direction;
+	chunk* chunk_hit;
+	glm::ivec2 chunk_world_pos;
+};
+
+struct Ray {
+	glm::vec3 origin, direction;
+
+	Ray() = default;
+	Ray(const glm::vec3& o, const glm::vec3& d)
+		: origin(o), direction(d)
+	{
+	}
+
+	ray_hit_result intersect_block(float max_distance, bool inside = false)
+	{
+		ray_hit_result result;
+		glm::ivec3 p, step;
+		glm::vec3 t_max, t_delta;
+		float radius;
+
+		p = glm::floor(this->origin);
+		step = glm::sign(this->direction);
+		t_max = intbound(this->origin, this->direction);
+		t_delta = glm::vec3(step) / this->direction;
+		radius = max_distance / glm::l2Norm(this->direction);
+		glm::ivec3 d = glm::ivec3(0);
+
+		while (true)
+		{
+			//Check if we hit something, return block if we did
+			for (auto& it : chunks)
+			{
+				if (p.x < it.first.x + CHUNK_SIZE_WIDTH && p.x > it.first.x &&
+					p.z < it.first.y + CHUNK_SIZE_WIDTH && p.z > it.first.y)
+				{
+					int x = p.x - it.first.x;
+					int y = p.y;
+					int z = p.z - it.first.y;
+
+					auto& a = it.second.blocks[to_1d_array(x, y, z)];
+					if (a.type != block_type::AIR)
+					{
+						result.block_pos = glm::ivec3(x, y, z);
+						result.chunk_hit = &it.second;
+						result.chunk_world_pos = it.first;
+						result.direction = d;
+						return result;
+					}
+				}
+			}
+
+			if (t_max.x < t_max.y)
+			{
+				if (t_max.x < t_max.z)
+				{
+					if (t_max.x > radius)
+					{
+						break;
+					}
+
+					p.x += step.x;
+					t_max.x += t_delta.x;
+					d = glm::ivec3(-step.x, 0, 0);
+				}
+				else
+				{
+					if (t_max.z > radius)
+					{
+						break;
+					}
+
+					p.z += step.z;
+					t_max.z += t_delta.z;
+					d = glm::ivec3(0, 0, -step.z);
+				}
+			}
+			else
+			{
+				if (t_max.y < t_max.z)
+				{
+					if (t_max.y > radius)
+					{
+						break;
+					}
+
+					p.y += step.y;
+					t_max.y += t_delta.y;
+					d = glm::ivec3(0, -step.y, 0);
+				}
+				else
+				{
+					if (t_max.z > radius)
+					{
+						break;
+					}
+
+					p.z += step.z;
+					t_max.z += t_delta.z;
+					d = glm::ivec3(0, 0, -step.z);
+				}
+			}
+		}
+
+		result.chunk_hit = nullptr;
+		return result;
+	}
+};
+
+struct crosshair {
+	unsigned vao;
+	unsigned vbo;
+} crosshair_o;
+
+void create_crosshair()
+{
+	std::vector<float> gpu_data;
+	gpu_data.push_back(0.01f);
+	gpu_data.push_back(0.0f);
+	gpu_data.push_back(0.0f);
+
+	gpu_data.push_back(-0.01f);
+	gpu_data.push_back(0.0f);
+	gpu_data.push_back(0.0f);
+
+	gpu_data.push_back(0.0f);
+	gpu_data.push_back(0.01f);
+	gpu_data.push_back(0.0f);
+
+	gpu_data.push_back(0.0f);
+	gpu_data.push_back(-0.01f);
+	gpu_data.push_back(0.0f);
+
+	glGenVertexArrays(1, &crosshair_o.vao);
+	glBindVertexArray(crosshair_o.vao);
+
+	glGenBuffers(1, &crosshair_o.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, crosshair_o.vbo);
+	glBufferData(GL_ARRAY_BUFFER, gpu_data.size() * sizeof(float), gpu_data.data(), GL_STATIC_DRAW);
+
+	// Position
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
 
 int main()
 {
 	auto window = init_and_create_window();
 
-	// build and compile our shader zprogram
+	set_opengl_constants();
+
+	// build and comple our shader zprogram
 	Shader lightingShader("resources\\6.multiple_lights.shadervs", "resources\\6.multiple_lights.shaderfs");
 	Shader lightCubeShader("resources\\6.light_cube.shadervs", "resources\\6.light_cube.shaderfs");
+	Shader outlineShader("resources\\outline.shadervs", "resources\\outline.shaderfs");
+	Shader crosshairShader("resources\\crosshair.shadervs", "resources\\crosshair.shaderfs");
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
 	const auto [texture1, texture2] = load_textures();
+	create_outline();
+	create_crosshair();
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	memory_arena_init(&block_arena, (sizeof(block) * blocks_in_chunk) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
+	memory_arena_init(&noise_arena, sizeof(float) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE));
+	memory_arena_init(&chunk_arena, sizeof(block_size_t) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE));
+
 	init_chunks();
 
-	//glEnable(GL_CULL_FACE);
-	//glCullFace(GL_BACK);
-	//glFrontFace(GL_CW);
-	glEnable(GL_DEPTH_TEST);
+	memory_arena_dealloc(&noise_arena);
 
 	//unsigned int diffuseMap = loadTexture("C:\\Users\\Jimmy\\source\\repos\\opengl2dtest\\opengl2dtest\\resources\\stone.png");
 	//unsigned int specularMap = loadTexture("C:\\Users\\Jimmy\\source\\repos\\opengl2dtest\\opengl2dtest\\resources\\stone.png");
-
-	lightingShader.use();
-	lightingShader.setInt("material.diffuse", 1);
-	lightingShader.setInt("material.specular", 1);
-
-	//for (auto& a : chunks)
-	//{
-	//	//delete[] a.second.blocks;
-	//	delete[] a.second.gpu_data_arr;
-	//}
-
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	int nbFrames = 0;
 	double lastTime = glfwGetTime();
@@ -293,21 +595,27 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		lightingShader.use();
-		lightingShader.setVec3("viewPos", camera.Position);
-		lightingShader.setFloat("material.shininess", 32.0f);
-
-		lightingShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-		lightingShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
-		lightingShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
-		lightingShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
-
 		// view/projection transformations
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
 		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 model = glm::mat4(1.0f);
+
+		lightingShader.use();
+		lightingShader.setInt("material.diffuse", 1);
+		lightingShader.setInt("material.specular", 1);
+
+		lightingShader.use();
+		lightingShader.setVec3("viewPos", glm::vec3(0.0f, 340.0f, 0.0f));
+		lightingShader.setFloat("material.shininess", 32.0f);
+
+		lightingShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+		lightingShader.setVec3("dirLight.ambient", 0.11f, 0.11f, 0.11f);
+		lightingShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
+		lightingShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+		//lightingShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
+
 		lightingShader.setMat4("projection", projection);
 		lightingShader.setMat4("view", view);
-		glm::mat4 model = glm::mat4(1.0f);
 		lightingShader.setMat4("model", model);
 
 		// bind textures on corresponding texture units
@@ -327,24 +635,30 @@ int main()
 			ChunkPrivate::draw(iter.second);
 		}
 
-		//// bind textures on corresponding texture units
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+		glBindVertexArray(outline_b.vao);
+		outlineShader.use();
+		outlineShader.setMat4("projection", projection);
+		outlineShader.setMat4("view", view);
 
-		//// pass projection matrix to shader (note that in this case it could change every frame)
-		//glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-		//ourShader.setMat4("projection", projection);
+		Ray r(camera.Position, camera.Front);
+		ray_hit_result result = r.intersect_block(100);
+		if (result.chunk_hit != nullptr)
+		{
+			outlineShader.setMat4("model", glm::translate(glm::mat4(1.0f),
+				glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
+					result.block_pos.y,
+					result.chunk_world_pos.y + result.block_pos.z)));
 
-		//// camera/view transformation
-		//glm::mat4 view = camera.GetViewMatrix();
-		//ourShader.setMat4("view", view);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+			glBindVertexArray(0);
+		}
 
-		//// Draw all chunks
-		//for (auto& iter : chunks)
-		//{
-		//	ourShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
-		//	ChunkPrivate::draw(iter.second);
-		//}
+		glBindVertexArray(crosshair_o.vao);
+		crosshairShader.use();
+		crosshairShader.setMat4("transform", glm::scale<float>(glm::mat4(1), glm::vec3(1.0f, (float)SCR_WIDTH / (float)SCR_HEIGHT, 1.0f)));
+
+		glDrawArrays(GL_LINES, 0, 12);
+		glBindVertexArray(0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -378,8 +692,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	}
 	else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
 	{
-		xsalt += scale;
-		ysalt += scale;
 
 		init_chunks();
 	}
@@ -415,15 +727,13 @@ GLFWwindow* init_and_create_window()
 	}
 #endif
 
-	glEnable(GL_DEPTH_TEST);
-
 	return window;
 }
 
 unsigned char* load_png(const char* path)
 {
 	int width, height, nrChannels;
-	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+	//stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
 	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
 
 	//std::cout << nrChannels << "\n";
@@ -493,158 +803,7 @@ float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-//glm::vec3 to_voxel_pos(const glm::vec3 pos)
-//{
-//	for (auto& it : chunks)
-//	{
-//		if (pos.x > it.first.x && pos.x < it.first.x + CHUNK_SIZE_WIDTH)
-//		{
-//			it.second.blocks[to_1d_array(pos.x + it.first.x, pos.y, pos.z)].type == block_type::DIRT_GRASS;
-//			ChunkPrivate::generate_mesh(it.second, it.first);
-//		}
-//	}
-//	return glm::vec3(1, 1, 1);
-//}
-
 // find the smallest possible t such that s + t * ds is an integer
-inline glm::vec3 intbound(glm::vec3 s, glm::vec3 ds)
-{
-	glm::vec3 res;
-	for (size_t i = 0; i < 3; i++)
-	{
-		res[i] =
-			(ds[i] > 0 ?
-				(glm::ceil(s[i]) - s[i])
-				: (s[i] - glm::floor(s[i])))
-			/ glm::abs(ds[i]);
-	}
-	return res;
-}
-
-
-
-struct Ray {
-	glm::vec3 origin, direction;
-
-	Ray() = default;
-	Ray(const glm::vec3& o, const glm::vec3& d)
-		: origin(o), direction(d)
-	{
-	}
-
-	void intersect_block(float max_distance)
-	{
-		//util::Direction d = 0;
-		glm::ivec3 p, step;
-		glm::vec3 t_max, t_delta;
-		float radius;
-
-		p = glm::floor(this->origin);
-		step = glm::sign(this->direction);
-		t_max = intbound(this->origin, this->direction);
-		t_delta = glm::vec3(step) / this->direction;
-		radius = max_distance / glm::l2Norm(this->direction);
-
-		while (true)
-		{
-			//std::cout << "Ray: x:" << p.x << " y: " << p.y << " z: " << p.z << "\n";
-			//Check if we hit something, return block if we did
-			for (auto& it : chunks)
-			{
-				if (p.x < it.first.x + CHUNK_SIZE_WIDTH && p.x > it.first.x &&
-					p.z < it.first.y + CHUNK_SIZE_WIDTH && p.z > it.first.y)
-				{
-					int x = p.x - it.first.x;
-					int y = p.y;
-					int z = p.z - it.first.y;
-
-					auto& a = it.second.blocks[to_1d_array(x, y, z)];
-					int b = 2;
-					if (a.type == block_type::AIR)
-					{
-						it.second.blocks[to_1d_array(p.x, p.y, p.z)].type = block_type::STONE;
-						//ChunkPrivate::generate_mesh(it.second, it.first);
-						//ChunkPrivate::init_buffers(it.second);
-					}
-
-					//std::string dick = "";
-					//switch (a.type)
-					//{
-					//case block_type::AIR:
-					//	dick = "AIR";
-					//	break;
-					//case block_type::SAND:
-					//	dick = "SAND";
-					//	break;
-					//case block_type::STONE:
-					//	dick = "STONE";
-					//	break;
-					//case block_type::DIRT_GRASS:
-					//	dick = "DIRT_GRASS";
-					//	break;
-					//case block_type::DIRT:
-					//	dick = "DIRT";
-					//	break;
-					//default:
-					//	dick = "DEFAULT";
-					//}
-					//std::cout << "-------NEW RAY-------\n";
-				}
-			}
-
-			if (t_max.x < t_max.y)
-			{
-				if (t_max.x < t_max.z)
-				{
-					if (t_max.x > radius)
-					{
-						break;
-					}
-
-					p.x += step.x;
-					t_max.x += t_delta.x;
-					//d = glm::ivec3(-step.x, 0, 0);
-				}
-				else
-				{
-					if (t_max.z > radius)
-					{
-						break;
-					}
-
-					p.z += step.z;
-					t_max.z += t_delta.z;
-					//d = glm::ivec3(0, 0, -step.z);
-				}
-			}
-			else
-			{
-				if (t_max.y < t_max.z)
-				{
-					if (t_max.y > radius)
-					{
-						break;
-					}
-
-					p.y += step.y;
-					t_max.y += t_delta.y;
-					//d = glm::ivec3(0, -step.y, 0);
-				}
-				else
-				{
-					if (t_max.z > radius)
-					{
-						break;
-					}
-
-					p.z += step.z;
-					t_max.z += t_delta.z;
-					//d = glm::ivec3(0, 0, -step.z);
-				}
-			}
-		}
-	}
-};
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
@@ -669,6 +828,81 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	camera.ProcessMouseScroll(yoffset);
 }
 
+void handle_block_hit(ray_hit_result ray_hit, bool remove)
+{
+	if (ray_hit.chunk_hit == nullptr)
+		return;
+
+	block_type type = block_type::STONE;
+	if (remove)
+		type = block_type::AIR;
+
+	chunk* hit_chunk;
+	glm::vec3 b_pos;
+
+	bool another_chunk = false;
+	if (ray_hit.block_pos.x >= CHUNK_SIZE_WIDTH)
+	{
+		hit_chunk = ray_hit.chunk_hit->right_neighbor;
+		another_chunk = true;
+	}
+	else
+	{
+		hit_chunk = ray_hit.chunk_hit;
+	}
+
+	using namespace std::chrono;
+	if (another_chunk)
+	{
+		auto a = steady_clock::now();
+		b_pos = glm::vec3((ray_hit.block_pos.x - CHUNK_SIZE_WIDTH - 1), ray_hit.block_pos.y, ray_hit.block_pos.z);
+
+		if (!remove)
+			b_pos += ray_hit.direction;
+
+		chunks[ray_hit.chunk_hit->right_neighbor->world_pos].blocks[to_1d_array(b_pos)].type = type;
+
+		auto aa = steady_clock::now();
+		auto aaa = duration_cast<milliseconds>(aa - a).count();
+		std::cout << "modify(another chunk): " << aaa << "ms\n";
+
+		chunk* c = &chunks[ray_hit.chunk_hit->right_neighbor->world_pos];
+		ChunkPrivate::generate_mesh(c, ray_hit.chunk_hit->right_neighbor->world_pos);
+		glDeleteBuffers(1, &c->vbo_handle);
+		glDeleteVertexArrays(1, &c->vao_handle);
+		ChunkPrivate::init_buffers(c);
+	}
+	else
+	{
+		auto a = steady_clock::now();
+		b_pos = ray_hit.block_pos;
+
+		if (!remove)
+			b_pos += ray_hit.direction;
+
+		hit_chunk->blocks[to_1d_array(b_pos)].type = type;
+
+		hit_chunk->gpu_data_last_used = 0;
+
+		auto c_gen_meshs = steady_clock::now();
+		ChunkPrivate::generate_mesh_timed(hit_chunk, hit_chunk->world_pos);
+		auto c_gen_meshst = steady_clock::now();
+
+		auto c_del_buffers = steady_clock::now();
+		glDeleteBuffers(1, &hit_chunk->vbo_handle);
+		glDeleteVertexArrays(1, &hit_chunk->vao_handle);
+		auto c_del_bufferst = steady_clock::now();
+
+		auto c_inits = steady_clock::now();
+		ChunkPrivate::init_buffers(hit_chunk);
+		auto c_initst = steady_clock::now();
+		
+		std::cout << "genmesh: " << duration_cast<milliseconds>(c_gen_meshst - c_gen_meshs).count() << "ms\n";
+		std::cout << "del buffers: " << duration_cast<milliseconds>(c_del_bufferst - c_del_buffers).count() << "ms\n";
+		std::cout << "init_buffers: " << duration_cast<milliseconds>(c_initst - c_inits).count() << "ms\n";
+	}
+}
+
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -681,7 +915,35 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		auto position = camera.Position;
 		auto rotation = camera.Front;
 
-		//Ray r(camera.Position, glm::vec3(camera.Pitch, camera.Yaw, 0));
-		//r.intersect_block(4);
+		Ray r(camera.Position, camera.Front);
+		ray_hit_result result = r.intersect_block(100);
+
+		handle_block_hit(result, true);
 	}
+	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+	{
+		// viewport, 0 top of screen
+		double x;
+		double y;
+		glfwGetCursorPos(window, &x, &y);
+
+		auto position = camera.Position;
+		auto rotation = camera.Front;
+
+		Ray r(camera.Position, camera.Front);
+		ray_hit_result result = r.intersect_block(100);
+
+		handle_block_hit(result, false);
+	}
+}
+
+void set_opengl_constants()
+{
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
+
+	glEnable(GL_DEPTH_TEST);
+
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
