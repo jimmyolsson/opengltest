@@ -36,22 +36,6 @@ void ChunkPrivate::init_buffers(chunk* chunk)
 	glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)0);
 	glEnableVertexAttribArray(0);
 
-	//// Position
-	//glVertexAttribPointer(0, 3, GL_INT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)0);
-	//glEnableVertexAttribArray(0);
-
-	//// Texture coord
-	//glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)(3 * BLOCK_SIZE_BYTES));
-	//glEnableVertexAttribArray(3);
-
-	//// Light value
-	//glVertexAttribPointer(2, 1, GL_INT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)(5 * BLOCK_SIZE_BYTES));
-	//glEnableVertexAttribArray(1);
-
-	//// Blocktype
-	//glVertexAttribPointer(3, 1, GL_INT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)(6 * BLOCK_SIZE_BYTES));
-	//glEnableVertexAttribArray(2);
-
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 }
