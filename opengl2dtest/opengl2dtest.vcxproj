@@ -153,20 +153,28 @@
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory_arena.cpp" />
+    <ClCompile Include="shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks\block.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="chunk.h" />
+    <ClInclude Include="crosshair.h" />
     <ClInclude Include="memory_arena.h" />
+    <ClInclude Include="outline.h" />
     <ClInclude Include="robin_hood.h" />
+    <ClInclude Include="shader.h" />
     <ClInclude Include="shader_m.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\6.light_cube.shaderfs" />
+    <None Include="resources\6.light_cube.shadervs" />
     <None Include="resources\7.4.camera.shader" />
     <None Include="resources\7.4.camera.vs" />
     <None Include="resources\crosshair.shaderfs" />
     <None Include="resources\crosshair.shadervs" />
+    <None Include="resources\opaque_world.shaderfs" />
+    <None Include="resources\opaque_world.shadervs" />
     <None Include="resources\outline.shaderfs" />
     <None Include="resources\outline.shadervs" />
   </ItemGroup>

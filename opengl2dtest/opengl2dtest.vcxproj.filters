@@ -27,6 +27,9 @@
     <ClCompile Include="glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shader_m.h">
@@ -47,6 +50,15 @@
     <ClInclude Include="memory_arena.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="outline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="crosshair.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\7.4.camera.shader">
@@ -55,9 +67,29 @@
     <None Include="resources\7.4.camera.vs">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="resources\outline.shaderfs" />
-    <None Include="resources\outline.shadervs" />
-    <None Include="resources\crosshair.shaderfs" />
-    <None Include="resources\crosshair.shadervs" />
+    <None Include="resources\6.light_cube.shaderfs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\6.light_cube.shadervs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\crosshair.shaderfs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\crosshair.shadervs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\opaque_world.shaderfs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\opaque_world.shadervs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\outline.shaderfs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\outline.shadervs">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
