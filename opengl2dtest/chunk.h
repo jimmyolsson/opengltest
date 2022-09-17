@@ -3,8 +3,8 @@
 #include "robin_hood.h"
 
 #include <vector>
+#include "blocks/block.h"
 
-struct block;
 enum class block_type : int;
 enum class block_face_direction;
 
@@ -26,7 +26,6 @@ const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 struct chunk
 {
 	block* blocks;
-
 	robin_hood::unordered_flat_map<glm::ivec2, chunk>* chunks;
 	glm::ivec2 world_pos;
 

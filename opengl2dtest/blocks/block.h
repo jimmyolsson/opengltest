@@ -31,6 +31,7 @@ struct block_face
 struct block
 {
 	block_type type = block_type::AIR;
+	bool sky = false;
 
 	char light_level_top = 0;
 	char light_level_bottom = 0;

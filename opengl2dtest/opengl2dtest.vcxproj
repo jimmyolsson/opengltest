@@ -178,6 +178,9 @@
     <None Include="resources\outline.shaderfs" />
     <None Include="resources\outline.shadervs" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="todo.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

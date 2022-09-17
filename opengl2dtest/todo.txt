@@ -1,0 +1,10 @@
+- Chunk resize
+- Chunk outline
+- Infinite terrain
+- Add glass
+- Vegitation
+- Lighting
+- Ambient occlusion
+- Water
+- Skybox + sun
+- Pencil draw + scroll resize

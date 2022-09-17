@@ -273,17 +273,14 @@ void generate_world(const chunk* chunk, const int xoffset, const int zoffset)
 			{
 				int index = to_1d_array(x, y, z);
 				chunk->blocks[index].type = block_type::AIR;
+				chunk->blocks[index].sky = false;
 			}
 		}
 	}
 #endif // DEBUG
 
-#define FLATGRASS
-#ifdef FLATGRASS
-	generate_world_flatgrass(chunk, xoffset, zoffset);
-#else
+	//generate_world_flatgrass(chunk, xoffset, zoffset);
 	generate_world_noise(chunk, xoffset, zoffset);
-#endif
 }
 
 void create_and_init_chunk(const int x, const int z)
@@ -458,7 +455,6 @@ void create_outline()
 //}
 
 
-
 #pragma region RAY_SHIT
 inline glm::vec3 intbound(glm::vec3 s, glm::vec3 ds)
 {
@@ -591,7 +587,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	block_type type = block_type::WATER;
+	block_type type = block_type::STONE;
 	if (remove)
 		type = block_type::AIR;
 
@@ -639,6 +635,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 			b_pos += ray_hit.direction;
 
 		hit_chunk->blocks[to_1d_array(b_pos)].type = type;
+		auto kys = hit_chunk->blocks[to_1d_array(b_pos)];
 
 		hit_chunk->blocks_in_use = 0;
 
@@ -663,6 +660,8 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 #pragma endregion
 
+int lightingXD = 0;
+int lightingshaderID = 0;
 int main()
 {
 	auto window = init_and_create_window();
@@ -674,12 +673,13 @@ int main()
 	//shader_load(lighting_shader, )
 
 	Shader lightingShader("resources\\opaque_world.shadervs", "resources\\opaque_world.shaderfs");
+	lightingshaderID = lightingShader.ID;
 	Shader outlineShader("resources\\outline.shadervs", "resources\\outline.shaderfs");
 	Shader crosshairShader("resources\\crosshair.shadervs", "resources\\crosshair.shaderfs");
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
-	const auto [texture1, texture2] = load_textures();
+	const auto [atlas, texture2] = load_textures();
 
 	create_outline();
 	crosshair_t crosshair = crosshair_create();
@@ -740,13 +740,16 @@ int main()
 
 		lightingShader.use();
 
+		int location = glGetUniformLocation(lightingshaderID, "lightingXD");
+		glUniform1i(location, lightingXD);
+
 		lightingShader.setMat4("projection", projection);
 		lightingShader.setMat4("view", view);
 		lightingShader.setMat4("model", model);
 
 		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
 
 		for (auto& iter : chunks)
 		{
@@ -791,6 +794,7 @@ void set_opengl_constants()
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
+
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -854,15 +858,15 @@ std::tuple<GLuint, GLuint> load_textures()
 	unsigned char* oak_log = load_png("resources\\new\\oak_log.png");
 	unsigned char* oak_log_top = load_png("resources\\new\\oak_log_top.png");
 
-	unsigned int texture1;
+	unsigned int atlas;
 	GLsizei width = 16;
 	GLsizei height = 16;
 	// CURRENT NUMBER OF TEXTURES
 	GLsizei layerCount = 9;
 	GLsizei mipLevelCount = 4;
 
-	glGenTextures(1, &texture1);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, texture1);
+	glGenTextures(1, &atlas);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
 
 	// Allocate the storage.
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
@@ -875,7 +879,7 @@ std::tuple<GLuint, GLuint> load_textures()
 
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, stone);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, dirt);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, dirt_grass_side);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, sand);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, water);
@@ -897,13 +901,21 @@ std::tuple<GLuint, GLuint> load_textures()
 
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
-	return std::make_tuple(texture1, texture2);
+	return std::make_tuple(atlas, texture2);
 }
 #pragma endregion
 
 #pragma region CALLBACKS
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+	{
+		lightingXD = 1;
+	}
+	else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+	{
+		lightingXD = 0;
+	}
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
