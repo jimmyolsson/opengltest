@@ -8,18 +8,12 @@ in float BType;
 in float vert_lighting;
 
 uniform sampler2DArray atlas;
-uniform int lightingXD;
 
 void main()
 {    
 	if(texture(atlas, vec3(TexCoords.xy, BType)).a < 0.1)
 		discard;
 
-	//vec4 texture1 = texture(atlas, vec3(TexCoords.xy, BType));
-
     vec4 texture = texture(atlas, vec3(TexCoords.xy, BType));
-	if(lightingXD == 1)
-		FragColor = vec4(texture.xyz * vert_lighting, texture.w);
-	else if(lightingXD == 0)
-		FragColor = vec4(texture.xyz, texture.w);
+	FragColor = vec4(texture.xyz * vert_lighting, texture.w);
 }

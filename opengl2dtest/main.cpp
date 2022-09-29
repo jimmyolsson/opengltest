@@ -11,6 +11,7 @@
 //#include <GL/glfw.h>
 #include <GLFW/glfw3.h>
 #else
+#include "irrKlang.h"
 #include "GLFW/glfw3.h"
 #endif
 
@@ -28,14 +29,6 @@
 #include <glm/gtx/norm.hpp>
 #endif
 
-#include "shader_m.h"
-//#include "shader.h"
-#include "camera.h"
-#include "chunk.h"
-#include "blocks/block.h"
-#include "memory_arena.h"
-#include "crosshair.h"
-
 #include <iostream>
 #include <tuple>
 #include <algorithm>
@@ -44,6 +37,43 @@
 #include <array>
 #include <chrono>
 
+#include "common.h"
+
+#include "robin_hood.h"
+#include "camera.h"
+#include "chunk.h"
+#include "player.h"
+#include "shader_m.h"
+#include "blocks/block.h"
+#include "memory_arena.h"
+#include "crosshair.h"
+#include "outline.h"
+#include "sound_manager.h"
+#include "ray.h"
+
+struct State
+{
+	GLFWwindow* window;
+
+	const unsigned int SCR_WIDTH = 1360;
+	const unsigned int SCR_HEIGHT = 960;
+
+	// TODO: UI
+	crosshair_t crosshair;
+	outline_block outline;
+
+	player_s player;
+	chunk_map_t chunks;
+	sound_manager_s sound_manager;
+
+	memory_arena block_arena;
+	memory_arena chunk_arena;
+	memory_arena noise_arena;
+
+	float delta_time = 0.0f;	// time between current frame and last frame
+	float last_frame = 0.0f;
+} GameState;
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -51,48 +81,17 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void processInput(GLFWwindow* window);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 GLFWwindow* init_and_create_window();
-std::tuple<GLuint, GLuint> load_textures();
+GLuint load_textures();
 void set_opengl_constants();
-
-// settings
-constexpr unsigned int SCR_WIDTH = 1360;
-constexpr unsigned int SCR_HEIGHT = 960;
-
-// timing
-float deltaTime = 0.0f;	// time between current frame and last frame
-float lastFrame = 0.0f;
-
 
 const int WORLD_GEN_HEIGHT = CHUNK_SIZE_HEIGHT;
 const int WORLD_GEN_WIDTH = CHUNK_SIZE_WIDTH;
 
-//#define FLATGRASS
-
-#include "robin_hood.h"
-// camera
-//Camera camera(glm::vec3(190.0f, 178.0f, -112.0f));
-Camera camera(glm::vec3(0.0f, 60.0f, 0.0f));
-
-memory_arena block_arena;
-memory_arena noise_arena;
-memory_arena chunk_arena;
-
-static robin_hood::unordered_flat_map<glm::ivec2, chunk> chunks = {};
-
-static int counterr = 0;
-
 #include <FastNoise/FastNoise.h>
 FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
-static int to_1d_array(glm::ivec3 pos)
-{
-	return (pos.z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (pos.y * CHUNK_SIZE_WIDTH) + pos.x;
-}
-static int to_1d_array(int x, int y, int z)
-{
-	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
-}
 
-struct structure_node {
+struct structure_node
+{
 	glm::ivec3 pos;
 	block_type type;
 };
@@ -190,31 +189,35 @@ std::vector<structure_node> tree_structure = {
 	{{0, 7, 1}, block_type::LEAVES},
 };
 
-void place_tree(chunk* c, glm::ivec3 spawn_point_pos)
+void place_tree(chunk* c, glm::ivec3 spawn_point_pos, std::vector<structure_node> n)
 {
 	// TODO: bounds check
-	for (int i = 0; i < tree_structure.size(); i++)
+	//std::cout << "SPHERE::size: " << n.size() << '\n';
+	for (int i = 0; i < n.size(); i++)
 	{
-		auto& node = tree_structure[i];
+		auto& node = n[i];
 		glm::ivec3 pos = spawn_point_pos + node.pos;
-		c->blocks[to_1d_array(pos)].type = node.type;
+		chunk_set_block(c, pos, node.type);
 	}
 }
-
+static int to_1d_array(short x, short y, short z)
+{
+	return (z * WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT) + (y * WORLD_GEN_WIDTH) + x;
+}
 
 void generate_world_noise(const chunk* chunk, const int xoffset, const int zoffset)
 {
 	const float frequency = 0.002f;
-	const float threshold = 0.02f;
+	const float threshold = 0.01f;
 
-	float* noise = (float*)memory_arena_get(&noise_arena, sizeof(float) * (WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH));
+	float* noise = (float*)memory_arena_get(&GameState.noise_arena, sizeof(float) * (WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH));
 
 	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -WORLD_GEN_HEIGHT / 2, zoffset, WORLD_GEN_WIDTH, WORLD_GEN_HEIGHT, WORLD_GEN_WIDTH, frequency, 1337);
 
 	for (int i = 0; i < WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH; i++)
 		noise[i] *= -1;
 
-	const int sea_level = 50;
+	const static int sea_level = 130;
 	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
 	{
 		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
@@ -236,32 +239,45 @@ void generate_world_noise(const chunk* chunk, const int xoffset, const int zoffs
 			}
 		}
 	}
+	//for (int z = 0; z < WORLD_GEN_WIDTH; z++)
+	//{
+	//	for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
+	//	{
+	//		for (int x = 0; x < WORLD_GEN_WIDTH; x++)
+	//		{
+	//			auto& curr_c = chunk->blocks[to_1d_array(x, y, z)];
+	//			if (y < sea_level && curr_c.type == block_type::AIR)
+	//			{
+	//				curr_c.type = block_type::WATER;
+	//			}
+	//		}
+	//	}
+	//}
 }
 
-void generate_world_flatgrass(const chunk* chunk, const int xoffset, const int zoffset)
+void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
 	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
 	{
 		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
 		{
 			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
-
 			{
 				int index = to_1d_array(x, y, z);
 				if (y < WORLD_GEN_HEIGHT / 6)
 				{
-					chunk->blocks[index].type = block_type::DIRT_GRASS;
+					blocks[index].type = block_type::DIRT_GRASS;
 				}
 				if (y < (WORLD_GEN_HEIGHT / 6) - 1)
 				{
-					chunk->blocks[index].type = block_type::DIRT_GRASS;
+					blocks[index].type = block_type::DIRT_GRASS;
 				}
 			}
 		}
 	}
 }
 
-void generate_world(const chunk* chunk, const int xoffset, const int zoffset)
+void generate_world(block* blocks, const int xoffset, const int zoffset)
 {
 #if _DEBUG
 	// dosent work in debug otherwise..
@@ -272,38 +288,166 @@ void generate_world(const chunk* chunk, const int xoffset, const int zoffset)
 			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
 			{
 				int index = to_1d_array(x, y, z);
-				chunk->blocks[index].type = block_type::AIR;
-				chunk->blocks[index].sky = false;
+				blocks[index].type = block_type::AIR;
+				blocks[index].sky = false;
 			}
 		}
 	}
 #endif // DEBUG
 
-	//generate_world_flatgrass(chunk, xoffset, zoffset);
-	generate_world_noise(chunk, xoffset, zoffset);
+	generate_world_flatgrass(blocks, xoffset, zoffset);
+	//generate_world_noise(chunk, xoffset, zoffset);
+}
+
+void state_allocate_memory_arenas()
+{
+	auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	auto noise_arena_size = sizeof(float) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
+	auto size_chunk = sizeof(block_size_t) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
+	std::cout << "block: " << block_arena_size << "bytes\n";
+	std::cout << "noise: " << noise_arena_size << "bytes\n";
+	std::cout << "chunk: " << size_chunk << "bytes\n";
+
+	memory_arena_init(&GameState.block_arena, block_arena_size);
+	memory_arena_init(&GameState.noise_arena, noise_arena_size);
+	memory_arena_init(&GameState.chunk_arena, size_chunk);
+}
+
+void state_global_init()
+{
+	GameState.player.camera = Camera(glm::vec3(0.0f, 50.0f, 0.0f));
+	GameState.window = init_and_create_window();
+	GameState.chunks = {};
+
+	GameState.crosshair = crosshair_create();
+	GameState.outline = outline_create();
+
+	GameState.delta_time = 0;
+	GameState.last_frame = 0;
+
+	sound_init(&GameState.sound_manager);
+
+	state_allocate_memory_arenas();
 }
 
 void create_and_init_chunk(const int x, const int z)
 {
 	chunk chunk;
 
-	chunk.blocks = (block*)memory_arena_get(&block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
-	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&chunk_arena, sizeof(block_size_t) * BLOCKS_IN_CHUNK);
-	chunk.chunks = &chunks;
+	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
+	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, sizeof(block_size_t) * BLOCKS_IN_CHUNK);
+	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
 
-	generate_world(&chunk, pos.x, pos.y);
+	generate_world(chunk.blocks, pos.x, pos.y);
 
-	chunks[pos] = chunk;
+	GameState.chunks[pos] = chunk;
+}
+
+std::vector<structure_node> sphere;
+// Function to put pixels
+// at subsequence points
+void drawCircle(int xc, int yc, int x, int y, int world_y, std::vector<structure_node>& sphere)
+{
+	sphere.push_back({ { xc + x, world_y, yc + y }, block_type::STONE });
+	sphere.push_back({ { xc - x, world_y, yc + y }, block_type::STONE });
+	sphere.push_back({ { xc + x, world_y, yc - y }, block_type::STONE });
+	sphere.push_back({ { xc - x, world_y, yc - y }, block_type::STONE });
+	sphere.push_back({ { xc + y, world_y, yc + x }, block_type::STONE });
+	sphere.push_back({ { xc - y, world_y, yc + x }, block_type::STONE });
+	sphere.push_back({ { xc + y, world_y, yc - x }, block_type::STONE });
+	sphere.push_back({ { xc - y, world_y, yc - x }, block_type::STONE });
+}
+
+// Function for circle-generation
+// using Bresenham's algorithm
+void circleBres(int xc, int yc, int r, int world_y, std::vector<structure_node>& sphere)
+{
+	int x = 0, y = r;
+	int d = 3 - 2 * r;
+	drawCircle(xc, yc, x, y, world_y, sphere);
+	while (y >= x)
+	{
+		// for each pixel we will
+		// draw all eight pixels
+
+		x++;
+
+		// check for decision parameter
+		// and correspondingly
+		// update d, x, y
+		if (d > 0)
+		{
+			y--;
+			d = d + 4 * (x - y) + 10;
+		}
+		else
+			d = d + 4 * x + 6;
+		drawCircle(xc, yc, x, y, world_y, sphere);
+	}
+}
+
+const int sphere_size = 16;
+int map[sphere_size][sphere_size][sphere_size];
+
+std::vector<structure_node> sphere_algo(int x0, int y0, int z0, int r)
+{
+	int col = 1;
+	int n = sphere_size;
+	for (int x = 0; x < sphere_size; x++)
+		for (int y = 0; y < sphere_size; y++)
+			for (int z = 0; z < sphere_size; z++)
+			{
+				map[x][y][z] = 0;
+			}
+
+	int x, y, z, xa, ya, za, xb, yb, zb, xr, yr, zr, xx, yy, zz, rr = r * r;
+	// bounding box
+	xa = x0 - r; if (xa < 0) xa = 0; xb = x0 + r; if (xb > n) xb = n;
+	ya = y0 - r; if (ya < 0) ya = 0; yb = y0 + r; if (yb > n) yb = n;
+	za = z0 - r; if (za < 0) za = 0; zb = z0 + r; if (zb > n) zb = n;
+	// project xy plane
+	for (x = xa, xr = x - x0, xx = xr * xr; x < xb; x++, xr++, xx = xr * xr)
+		for (y = ya, yr = y - y0, yy = yr * yr; y < yb; y++, yr++, yy = yr * yr)
+		{
+			zz = rr - xx - yy; if (zz < 0) continue; zr = sqrt(zz);
+			z = z0 - zr; if ((z > 0) && (z < n)) map[x][y][z] = col;
+			z = z0 + zr; if ((z > 0) && (z < n)) map[x][y][z] = col;
+		}
+	// project xz plane
+	for (x = xa, xr = x - x0, xx = xr * xr; x < xb; x++, xr++, xx = xr * xr)
+		for (z = za, zr = z - z0, zz = zr * zr; z < zb; z++, zr++, zz = zr * zr)
+		{
+			yy = rr - xx - zz; if (yy < 0) continue; yr = sqrt(yy);
+			y = y0 - yr; if ((y > 0) && (y < n)) map[x][y][z] = col;
+			y = y0 + yr; if ((y > 0) && (y < n)) map[x][y][z] = col;
+		}
+	// project yz plane
+	for (y = ya, yr = y - y0, yy = yr * yr; y < yb; y++, yr++, yy = yr * yr)
+		for (z = za, zr = z - z0, zz = zr * zr; z < zb; z++, zr++, zz = zr * zr)
+		{
+			xx = rr - zz - yy; if (xx < 0) continue; xr = sqrt(xx);
+			x = x0 - xr; if ((x > 0) && (x < n)) map[x][y][z] = col;
+			x = x0 + xr; if ((x > 0) && (x < n)) map[x][y][z] = col;
+		}
+
+	std::vector<structure_node> a;
+	for (int x = 0; x < sphere_size; x++)
+		for (int y = 0; y < sphere_size; y++)
+			for (int z = 0; z < sphere_size; z++)
+			{
+				if (map[x][y][z] != 0)
+					a.push_back({ {x, y, z},{block_type::STONE} });
+			}
+	return a;
 }
 
 void init_chunks()
 {
 	using namespace std::chrono;
 
-	auto start_noise_gen = steady_clock::now();
 	if (CHUNK_DRAW_DISTANCE == 1)
 	{
 		create_and_init_chunk(0, 0);
@@ -319,268 +463,25 @@ void init_chunks()
 		}
 	}
 
-	for (auto& iter : chunks)
+	auto a = sphere_algo(5, 10, 5, 2);
+
+	for (auto& iter : GameState.chunks)
 	{
-		place_tree(&iter.second, glm::ivec3(CHUNK_SIZE_WIDTH / 2, 41, CHUNK_SIZE_WIDTH / 2));
+		place_tree(&iter.second, glm::ivec3(CHUNK_SIZE_WIDTH / 2, 41, CHUNK_SIZE_WIDTH / 2), a);
 	}
 
 	// ----------------- MESH GEN -----------------
-	auto start_meshgen = std::chrono::steady_clock::now();
-	std::for_each(std::execution::par_unseq, std::begin(chunks), std::end(chunks),
+	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
 		{
-			ChunkPrivate::generate_mesh(&iter.second, iter.first);
+			chunk_generate_mesh(&iter.second);
 		});
 
-	// ----------------- INIT BUFFERS -----------------
-	for (auto& iter : chunks)
+	for (auto& iter : GameState.chunks)
 	{
-		ChunkPrivate::init_buffers(&iter.second);
+		chunk_generate_buffers(&iter.second);
 	}
 }
-struct outline_block {
-	unsigned int vao;
-	unsigned int vbo;
-	glm::ivec3 position;
-} outline_b;
-
-void create_outline()
-{
-	const int vert_count = 30;
-	std::vector<int> gpu_data;
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_back_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_back_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_front_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_front_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_left_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_left_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_right_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_right_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_bottom_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(ChunkPrivate::m_top_verticies[index]);
-			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 1]);
-			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 2]);
-			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 3]);
-			gpu_data.push_back(ChunkPrivate::m_top_verticies[index + 4]);
-			index += 5;
-		}
-	}
-
-
-	glGenVertexArrays(1, &outline_b.vao);
-	glBindVertexArray(outline_b.vao);
-
-	glGenBuffers(1, &outline_b.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, outline_b.vbo);
-	glBufferData(GL_ARRAY_BUFFER, gpu_data.size() * sizeof(int), gpu_data.data(), GL_STATIC_DRAW);
-
-	// Position
-	glVertexAttribPointer(0, 3, GL_UNSIGNED_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Texture coord
-	glVertexAttribPointer(1, 2, GL_UNSIGNED_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)(3 * BLOCK_SIZE_BYTES));
-	glEnableVertexAttribArray(1);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-//
-//void outline_render(shader_program* s, glm::mat4 p, glm::mat4 v, glm::mat4 m)
-//{
-//	shader_use(s);
-//	shader_set_mat4(s, "projection", p);
-//	shader_set_mat4(s, "view", v);
-//	shader_set_mat4(s, "model", m);
-//
-//	glBindVertexArray(outline_b.vao);
-//
-//	glDrawArrays(GL_TRIANGLES, 0, 36);
-//	glBindVertexArray(0);
-//}
-
-
-#pragma region RAY_SHIT
-inline glm::vec3 intbound(glm::vec3 s, glm::vec3 ds)
-{
-	glm::vec3 res;
-	for (size_t i = 0; i < 3; i++)
-	{
-		res[i] =
-			(ds[i] > 0 ?
-				(glm::ceil(s[i]) - s[i])
-				: (s[i] - glm::floor(s[i])))
-			/ glm::abs(ds[i]);
-	}
-	return res;
-}
-
-struct ray_hit_result
-{
-	glm::ivec3 block_pos;
-	glm::ivec3 direction;
-	chunk* chunk_hit;
-	glm::ivec2 chunk_world_pos;
-};
-
-struct Ray {
-	glm::vec3 origin, direction;
-
-	Ray() = default;
-	Ray(const glm::vec3& o, const glm::vec3& d)
-		: origin(o), direction(d)
-	{
-	}
-
-	ray_hit_result intersect_block(float max_distance, bool inside = false)
-	{
-		ray_hit_result result;
-		glm::ivec3 p, step;
-		glm::vec3 t_max, t_delta;
-		float radius;
-
-		p = glm::floor(this->origin);
-		step = glm::sign(this->direction);
-		t_max = intbound(this->origin, this->direction);
-		t_delta = glm::vec3(step) / this->direction;
-		radius = max_distance / glm::l2Norm(this->direction);
-		glm::ivec3 d = glm::ivec3(0);
-
-		while (true)
-		{
-			//Check if we hit something, return block if we did
-			for (auto& it : chunks)
-			{
-				if (p.x < it.first.x + CHUNK_SIZE_WIDTH && p.x > it.first.x &&
-					p.z < it.first.y + CHUNK_SIZE_WIDTH && p.z > it.first.y)
-				{
-					int x = p.x - it.first.x;
-					int y = p.y;
-					int z = p.z - it.first.y;
-
-					auto& a = it.second.blocks[to_1d_array(x, y, z)];
-					if (a.type != block_type::AIR)
-					{
-						result.block_pos = glm::ivec3(x, y, z);
-						result.chunk_hit = &it.second;
-						result.chunk_world_pos = it.first;
-						result.direction = d;
-						return result;
-					}
-				}
-			}
-
-			if (t_max.x < t_max.y)
-			{
-				if (t_max.x < t_max.z)
-				{
-					if (t_max.x > radius)
-					{
-						break;
-					}
-
-					p.x += step.x;
-					t_max.x += t_delta.x;
-					d = glm::ivec3(-step.x, 0, 0);
-				}
-				else
-				{
-					if (t_max.z > radius)
-					{
-						break;
-					}
-
-					p.z += step.z;
-					t_max.z += t_delta.z;
-					d = glm::ivec3(0, 0, -step.z);
-				}
-			}
-			else
-			{
-				if (t_max.y < t_max.z)
-				{
-					if (t_max.y > radius)
-					{
-						break;
-					}
-
-					p.y += step.y;
-					t_max.y += t_delta.y;
-					d = glm::ivec3(0, -step.y, 0);
-				}
-				else
-				{
-					if (t_max.z > radius)
-					{
-						break;
-					}
-
-					p.z += step.z;
-					t_max.z += t_delta.z;
-					d = glm::ivec3(0, 0, -step.z);
-				}
-			}
-		}
-
-		result.chunk_hit = nullptr;
-		return result;
-	}
-};
 
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
 {
@@ -588,11 +489,9 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		return;
 
 	block_type type = block_type::STONE;
-	if (remove)
-		type = block_type::AIR;
 
 	chunk* hit_chunk;
-	glm::vec3 b_pos;
+	//block* hit_block = chunk_get_block(hit_chunk, ray_hit.block_pos + ray_hit.direction);
 
 	bool another_chunk = false;
 	if (ray_hit.block_pos.x >= CHUNK_SIZE_WIDTH)
@@ -606,166 +505,152 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	}
 
 	using namespace std::chrono;
-	if (another_chunk)
+	//if (another_chunk)
+	//{
+	//	auto a = steady_clock::now();
+	//	b_pos = glm::vec3((ray_hit.block_pos.x - CHUNK_SIZE_WIDTH - 1), ray_hit.block_pos.y, ray_hit.block_pos.z);
+
+	//	if (!remove)
+	//		b_pos += ray_hit.direction;
+
+	//	GameState.chunks[ray_hit.chunk_hit->right_neighbor->world_pos].blocks[to_1d_array(b_pos)].type = type;
+
+	//	auto aa = steady_clock::now();
+	//	auto aaa = duration_cast<milliseconds>(aa - a).count();
+	//	std::cout << "modify(another chunk): " << aaa << "ms\n";
+
+	//	chunk* c = &GameState.chunks[ray_hit.chunk_hit->right_neighbor->world_pos];
+	//	ChunkPrivate::generate_mesh(c, ray_hit.chunk_hit->right_neighbor->world_pos);
+	//	glDeleteBuffers(1, &c->vbo_handle);
+	//	glDeleteVertexArrays(1, &c->vao_handle);
+	//	ChunkPrivate::init_buffers(c);
+	//}
+	//else
 	{
-		auto a = steady_clock::now();
-		b_pos = glm::vec3((ray_hit.block_pos.x - CHUNK_SIZE_WIDTH - 1), ray_hit.block_pos.y, ray_hit.block_pos.z);
+		glm::ivec3 b_pos = ray_hit.block_pos;
 
 		if (!remove)
 			b_pos += ray_hit.direction;
 
-		chunks[ray_hit.chunk_hit->right_neighbor->world_pos].blocks[to_1d_array(b_pos)].type = type;
+		if (remove)
+		{
+			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
+			chunk_set_block(hit_chunk, b_pos, block_type::AIR);
+		}
+		else
+		{
+			chunk_set_block(hit_chunk, b_pos, type);
+			if (type != block_type::AIR)
+				sound_play_block_sound(&GameState.sound_manager, type, remove);
+		}
 
-		auto aa = steady_clock::now();
-		auto aaa = duration_cast<milliseconds>(aa - a).count();
-		std::cout << "modify(another chunk): " << aaa << "ms\n";
-
-		chunk* c = &chunks[ray_hit.chunk_hit->right_neighbor->world_pos];
-		ChunkPrivate::generate_mesh(c, ray_hit.chunk_hit->right_neighbor->world_pos);
-		glDeleteBuffers(1, &c->vbo_handle);
-		glDeleteVertexArrays(1, &c->vao_handle);
-		ChunkPrivate::init_buffers(c);
-	}
-	else
-	{
-		auto a = steady_clock::now();
-		b_pos = ray_hit.block_pos;
-
-		if (!remove)
-			b_pos += ray_hit.direction;
-
-		hit_chunk->blocks[to_1d_array(b_pos)].type = type;
-		auto kys = hit_chunk->blocks[to_1d_array(b_pos)];
-
+		//??
 		hit_chunk->blocks_in_use = 0;
-
-		auto c_gen_meshs = steady_clock::now();
-		ChunkPrivate::generate_mesh_timed(hit_chunk, hit_chunk->world_pos);
-		auto c_gen_meshst = steady_clock::now();
-
-		auto c_del_buffers = steady_clock::now();
-		glDeleteBuffers(1, &hit_chunk->vbo_handle);
-		glDeleteVertexArrays(1, &hit_chunk->vao_handle);
-		auto c_del_bufferst = steady_clock::now();
-
-		auto c_inits = steady_clock::now();
-		ChunkPrivate::init_buffers(hit_chunk);
-		auto c_initst = steady_clock::now();
-
-		std::cout << "genmesh: " << duration_cast<milliseconds>(c_gen_meshst - c_gen_meshs).count() << "ms\n";
-		std::cout << "del buffers: " << duration_cast<milliseconds>(c_del_bufferst - c_del_buffers).count() << "ms\n";
-		std::cout << "init_buffers: " << duration_cast<milliseconds>(c_initst - c_inits).count() << "ms\n";
+		hit_chunk->dirty = true;
 	}
 }
 
-#pragma endregion
+void chunk_init(const int x, const int z)
+{
+	chunk c;
+	c.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
+	c.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, sizeof(block_size_t) * BLOCKS_IN_CHUNK);
+	c.chunks = &GameState.chunks;
+	c.initialized = false;
+	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+	c.world_pos = pos;
 
-int lightingXD = 0;
-int lightingshaderID = 0;
+	generate_world(c.blocks, pos.x, pos.y);
+
+	GameState.chunks[pos] = c;
+}
+
+void opengl_clear_screen()
+{
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void game_render(Shader* lightingShader, unsigned int atlas)
+{
+	const glm::mat4 projection = glm::perspective(glm::radians(GameState.player.camera.Zoom), (float)GameState.SCR_WIDTH / (float)GameState.SCR_HEIGHT, 0.1f, 1000.0f);
+	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
+	const glm::mat4 model = glm::mat4(1.0f);
+
+	lightingShader->use();
+
+	lightingShader->setMat4("projection", projection);
+	lightingShader->setMat4("view", view);
+	lightingShader->setMat4("model", model);
+
+	// bind textures on corresponding texture units
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
+
+	for (auto& iter : GameState.chunks)
+	{
+		//std::cout << "game_render::chunks\n";
+		lightingShader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
+		chunk_render(iter.second);
+	}
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+	outline_render(&GameState.outline, projection, view);
+	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+
+	glfwSwapBuffers(GameState.window);
+	glfwPollEvents();
+}
+
+void game_update()
+{
+	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
+	chunk_update(&GameState.chunks);
+}
+
+void game_main_loop(unsigned int atlas)
+{
+	Shader lightingShader("resources\\opaque_world.shadervs", "resources\\opaque_world.shaderfs");
+
+	GameState.delta_time = 0.0005;
+	GameState.last_frame = 0;
+	while (!glfwWindowShouldClose(GameState.window))
+	{
+		int timeSimulatedThisIteration = 0;
+		double start_time = glfwGetTime();
+
+		opengl_clear_screen();
+		processInput(GameState.window);
+
+		while (GameState.last_frame >= GameState.delta_time)
+		{
+			game_update();
+
+			GameState.last_frame -= GameState.delta_time;
+			timeSimulatedThisIteration += GameState.delta_time;
+		}
+
+		game_render(&lightingShader, atlas);
+
+		GameState.last_frame += glfwGetTime() - start_time;
+	}
+}
+
 int main()
 {
-	auto window = init_and_create_window();
-
+	srand(time(NULL));
+	state_global_init();
 	set_opengl_constants();
-
-	// build and comple our shader zprogram
-	//shader_program lighting_shader;
-	//shader_load(lighting_shader, )
-
-	Shader lightingShader("resources\\opaque_world.shadervs", "resources\\opaque_world.shaderfs");
-	lightingshaderID = lightingShader.ID;
-	Shader outlineShader("resources\\outline.shadervs", "resources\\outline.shaderfs");
-	Shader crosshairShader("resources\\crosshair.shadervs", "resources\\crosshair.shaderfs");
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
-	const auto [atlas, texture2] = load_textures();
-
-	create_outline();
-	crosshair_t crosshair = crosshair_create();
-
-	memory_arena_init(&block_arena, (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
-	memory_arena_init(&noise_arena, sizeof(float) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE));
-	memory_arena_init(&chunk_arena, sizeof(block_size_t) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE));
+	const auto atlas = load_textures();
 
 	init_chunks();
+	memory_arena_dealloc(&GameState.noise_arena);
 
-	memory_arena_dealloc(&noise_arena);
-
-	int nbFrames = 0;
-	double lastTime = glfwGetTime();
-	while (!glfwWindowShouldClose(window))
-	{
-		float currentTime = glfwGetTime();
-		deltaTime = currentTime - lastFrame;
-		lastFrame = currentTime;
-
-		// measure frames
-		nbFrames++;
-		if (currentTime - lastTime >= 1.0)
-		{
-			double msPerFrame = 1000.0 / double(nbFrames);
-			double ms = 1000 / msPerFrame;
-			nbFrames = 0;
-			lastTime += 1.0;
-		}
-
-		processInput(window);
-
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// view/projection transformations
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 model = glm::mat4(1.0f);
-
-		Ray r(camera.Position, camera.Front);
-		ray_hit_result result = r.intersect_block(10);
-		if (result.chunk_hit != nullptr)
-		{
-			outlineShader.use();
-			outlineShader.setMat4("projection", projection);
-			outlineShader.setMat4("view", view);
-
-			outlineShader.setMat4("model", glm::translate(glm::mat4(1.0f),
-				glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
-					result.block_pos.y,
-					result.chunk_world_pos.y + result.block_pos.z)));
-
-			glBindVertexArray(outline_b.vao);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-			glBindVertexArray(0);
-		}
-
-		lightingShader.use();
-
-		int location = glGetUniformLocation(lightingshaderID, "lightingXD");
-		glUniform1i(location, lightingXD);
-
-		lightingShader.setMat4("projection", projection);
-		lightingShader.setMat4("view", view);
-		lightingShader.setMat4("model", model);
-
-		// bind textures on corresponding texture units
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
-
-		for (auto& iter : chunks)
-		{
-			lightingShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
-			ChunkPrivate::draw(iter.second);
-		}
-
-		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-
-		crosshair_draw(&crosshair, SCR_WIDTH, SCR_HEIGHT);
-
-		//outline_render(outlineShader, projection, view, model);
-
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
+	game_main_loop(atlas);
 
 	return 0;
 }
@@ -774,15 +659,14 @@ void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
+		GameState.player.camera.ProcessKeyboard(FORWARD, GameState.delta_time);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
+		GameState.player.camera.ProcessKeyboard(BACKWARD, GameState.delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
+		GameState.player.camera.ProcessKeyboard(LEFT, GameState.delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
+		GameState.player.camera.ProcessKeyboard(RIGHT, GameState.delta_time);
 }
 
 #pragma region INIT_OPENGL
@@ -807,7 +691,7 @@ GLFWwindow* init_and_create_window()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "opengltest", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(GameState.SCR_WIDTH, GameState.SCR_HEIGHT, "opengltest", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -845,9 +729,8 @@ unsigned char* load_png(const char* path)
 	return data;
 }
 
-std::tuple<GLuint, GLuint> load_textures()
+GLuint load_textures()
 {
-	unsigned int texture2;
 	unsigned char* dirt = load_png("resources\\new\\dirt.png");
 	unsigned char* dirt_grass_side = load_png("resources\\new\\dirt_grass_side.png");
 	unsigned char* dirt_grass_top = load_png("resources\\new\\dirt_grass_top.png");
@@ -861,6 +744,7 @@ std::tuple<GLuint, GLuint> load_textures()
 	unsigned int atlas;
 	GLsizei width = 16;
 	GLsizei height = 16;
+
 	// CURRENT NUMBER OF TEXTURES
 	GLsizei layerCount = 9;
 	GLsizei mipLevelCount = 4;
@@ -901,7 +785,7 @@ std::tuple<GLuint, GLuint> load_textures()
 
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
-	return std::make_tuple(atlas, texture2);
+	return atlas;
 }
 #pragma endregion
 
@@ -910,11 +794,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 {
 	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
 	{
-		lightingXD = 1;
-	}
-	else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
-	{
-		lightingXD = 0;
 	}
 }
 
@@ -923,8 +802,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
+float lastX = GameState.SCR_WIDTH / 2.0f;
+float lastY = GameState.SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 // find the smallest possible t such that s + t * ds is an integer
@@ -944,47 +823,35 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	lastX = xpos;
 	lastY = ypos;
 
-	camera.ProcessMouseMovement(xoffset, yoffset);
+	GameState.player.camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	camera.ProcessMouseScroll(yoffset);
+	GameState.player.camera.ProcessMouseScroll(yoffset);
 }
-
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+	double x;
+	double y;
+	glfwGetCursorPos(window, &x, &y);
+
+	glm::vec3 position = GameState.player.camera.Position;
+	glm::vec3 rotation = GameState.player.camera.Front;
+
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
-		// viewport, 0 top of screen
-		double x;
-		double y;
-		glfwGetCursorPos(window, &x, &y);
-
-		auto position = camera.Position;
-		auto rotation = camera.Front;
-
-		Ray r(camera.Position, camera.Front);
-		ray_hit_result result = r.intersect_block(100);
+		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+		ray_hit_result result = r.intersect_block(20, &GameState.chunks);
 
 		handle_block_hit(result, true);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
 	{
-		// viewport, 0 top of screen
-		double x;
-		double y;
-		glfwGetCursorPos(window, &x, &y);
-
-		auto position = camera.Position;
-		auto rotation = camera.Front;
-
-		Ray r(camera.Position, camera.Front);
-		ray_hit_result result = r.intersect_block(100);
+		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+		ray_hit_result result = r.intersect_block(20, &GameState.chunks);
 
 		handle_block_hit(result, false);
 	}
 }
-#pragma endregion
-

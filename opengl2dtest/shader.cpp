@@ -65,7 +65,7 @@ void shader_link(shader_program* sp)
 {
 	sp->handle = glCreateProgram();
 
-	for (int i = 0; i < sp->size; i++)
+	for (int i = 0; i <= sp->size; i++)
 		glAttachShader(sp->handle, sp->shaders[i]);
 
 	glLinkProgram(sp->handle);

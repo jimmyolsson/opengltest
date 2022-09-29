@@ -13,7 +13,7 @@ typedef struct crosshair_s {
 	shader_program s;
 }crosshair_t;
 
-void crosshair_draw(crosshair_t* c, float screen_w, float screen_h)
+void crosshair_render(crosshair_t* c, float screen_w, float screen_h)
 {
 	glBindVertexArray(c->vao);
 

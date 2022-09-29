@@ -4,24 +4,24 @@
 
 #include <vector>
 #include "blocks/block.h"
+#include "shader.h"
 
-enum class block_type : int;
+#include "common.h"
+
+enum block_type;
 enum class block_face_direction;
 
-const int CHUNK_SIZE_WIDTH = 64;
+const int CHUNK_SIZE_WIDTH = 32;
 const int CHUNK_SIZE_HEIGHT = 255;
 #if _DEBUG
-const int CHUNK_DRAW_DISTANCE = 1;
+const int CHUNK_DRAW_DISTANCE = 10;
 #else
 const int CHUNK_DRAW_DISTANCE = 10;
 #endif
-const int TOTAL_ELEMENTS_IN_QUAD = 30;
 const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
 // this needs to match gl type
-typedef int block_size_t;
-const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 
 struct chunk
 {
@@ -46,68 +46,20 @@ struct chunk
 	unsigned int vao_handle_transparent = -1;
 	unsigned int vbo_handle_transparent = -1;
 
+	shader_program shader;
+
 	bool initialized = false;
+	bool dirty = false;
 };
+// Exposed just so that we can multithread init
+void chunk_generate_mesh(chunk* chunk);
+void chunk_generate_buffers(chunk* chunk);
 
-void chunk_render(chunk* chunk);
+void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type);
+block* chunk_get_block(chunk* c, glm::ivec3 block_pos);
+block* chunk_get_block(chunk* c, short x, short y, short z);
 
-namespace ChunkPrivate
-{
-	void update_buffers(chunk* chunk);
-	void init_buffers(chunk* chunk);
-	void generate_mesh_timed(chunk* chunk, const glm::vec2& chunk_pos);
-	void generate_mesh(chunk* chunk, const glm::vec2& chunk_pos);
-	void calculate_lighting(chunk* chunk, const glm::vec2& chunk_pos);
-	void draw(const chunk& chunk);
+//void chunk_init(chunk* chunk);
+void chunk_update(chunk_map_t* chunks);
 
-	// x y z u v
-	const static block_size_t m_back_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		1, 1, 0, 1, 0,
-		1, 0, 0, 1, 1,
-		0, 1, 0, 0, 0,
-		1, 0, 0, 1, 1,
-		0, 0, 0, 0, 1,
-		0, 1, 0, 0, 0
-	};
-
-	const static block_size_t m_front_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		0, 1, 1, 1, 0,
-		0, 0, 1, 1, 1,
-		1, 1, 1, 0, 0,
-		0, 0, 1, 1, 1,
-		1, 0, 1, 0, 1,
-		1, 1, 1, 0, 0
-	};
-	const static block_size_t m_left_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		0, 1, 0, 1, 0,
-		0, 0, 0, 1, 1,
-		0, 1, 1, 0, 0,
-		0, 0, 0, 1, 1,
-		0, 0, 1, 0, 1,
-		0, 1, 1, 0, 0
-	};
-	const static block_size_t m_right_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		1, 1, 1, 1, 0,
-		1, 0, 1, 1, 1,
-		1, 1, 0, 0, 0,
-		1, 0, 1, 1, 1,
-		1, 0, 0, 0, 1,
-		1, 1, 0, 0, 0
-	};
-	const static block_size_t m_bottom_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		1, 0, 1, 1, 0,
-		0, 0, 1, 1, 1,
-		1, 0, 0, 0, 0,
-		0, 0, 1, 1, 1,
-		0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0
-	};
-	const static block_size_t m_top_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
-		0, 1, 1, 1, 0,
-		1, 1, 1, 1, 1,
-		0, 1, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 0, 0, 1,
-		0, 1, 0, 0, 0
-	};
-}
+void chunk_render(const chunk& chunk);

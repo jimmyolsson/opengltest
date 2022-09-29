@@ -8,3 +8,4 @@
 - Water
 - Skybox + sun
 - Pencil draw + scroll resize
+- Greedy meshing

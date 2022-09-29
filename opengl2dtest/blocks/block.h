@@ -2,7 +2,12 @@
 
 #include <iostream>
 
-enum class block_type : int {
+static const int BLOCK_NUM_TYPES = 8;
+const int TOTAL_ELEMENTS_IN_QUAD = 30;
+typedef int block_size_t;
+const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
+
+enum block_type : int {
 	AIR = 0,
 	STONE = 1,
 	DIRT = 2,
@@ -23,11 +28,6 @@ enum class block_face_direction : int
 	TOP = 5
 };
 
-struct block_face 
-{
-	short light_level = 0;
-};
-
 struct block
 {
 	block_type type = block_type::AIR;
@@ -41,93 +41,60 @@ struct block
 	char light_level_back = 0;
 };
 
-static int block_get_texture_stone(block_face_direction direction)
-{
-	return 0;
-}
+// x y z u v
+const static block_size_t m_back_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	1, 1, 0, 1, 0,
+	1, 0, 0, 1, 1,
+	0, 1, 0, 0, 0,
+	1, 0, 0, 1, 1,
+	0, 0, 0, 0, 1,
+	0, 1, 0, 0, 0
+};
 
-static int block_get_texture_dirt(block_face_direction direction)
-{
-	return 1;
-}
+const static block_size_t m_front_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	0, 1, 1, 1, 0,
+	0, 0, 1, 1, 1,
+	1, 1, 1, 0, 0,
+	0, 0, 1, 1, 1,
+	1, 0, 1, 0, 1,
+	1, 1, 1, 0, 0
+};
+const static block_size_t m_left_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	0, 1, 0, 1, 0,
+	0, 0, 0, 1, 1,
+	0, 1, 1, 0, 0,
+	0, 0, 0, 1, 1,
+	0, 0, 1, 0, 1,
+	0, 1, 1, 0, 0
+};
+const static block_size_t m_right_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	1, 1, 1, 1, 0,
+	1, 0, 1, 1, 1,
+	1, 1, 0, 0, 0,
+	1, 0, 1, 1, 1,
+	1, 0, 0, 0, 1,
+	1, 1, 0, 0, 0
+};
+const static block_size_t m_bottom_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	1, 0, 1, 1, 0,
+	0, 0, 1, 1, 1,
+	1, 0, 0, 0, 0,
+	0, 0, 1, 1, 1,
+	0, 0, 0, 0, 1,
+	1, 0, 0, 0, 0
+};
+const static block_size_t m_top_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
+	0, 1, 1, 1, 0,
+	1, 1, 1, 1, 1,
+	0, 1, 0, 0, 0,
+	1, 1, 1, 1, 1,
+	1, 1, 0, 0, 1,
+	0, 1, 0, 0, 0
+};
 
-static int block_get_texture_grass(block_face_direction direction)
-{
-	switch (direction)
-	{
-	case block_face_direction::BACK:
-	case block_face_direction::FRONT:
-	case block_face_direction::RIGHT:
-	case block_face_direction::LEFT:
-		return 2;
-		break;
-	case block_face_direction::TOP:
-		return 3;
-		break;
-	case block_face_direction::BOTTOM:
-		return 1;
-	}
-}
+int block_get_texture(block_face_direction direction, block_type type);
 
-static int block_get_texture_sand(block_face_direction direction)
-{
-	return 4;
-}
-
-static int block_get_texture_water(block_face_direction direction)
-{
-	return 5;
-}
-
-static int block_get_texture_leaves(block_face_direction direction)
-{
-	return 6;
-}
-
-static int block_get_texture_oak_log(block_face_direction direction)
-{
-	switch (direction)
-	{
-	case block_face_direction::BACK:
-	case block_face_direction::FRONT:
-	case block_face_direction::RIGHT:
-	case block_face_direction::LEFT:
-		return 7;
-		break;
-	case block_face_direction::TOP:
-	case block_face_direction::BOTTOM:
-		return 8;
-		break;
-	}
-}
-
-static int block_get_texture(block_face_direction direction, block_type type)
-{
-	switch (type)
-	{
-	case block_type::STONE:
-		return block_get_texture_stone(direction);
-		break;
-	case block_type::DIRT:
-		return block_get_texture_dirt(direction);
-		break;
-	case block_type::DIRT_GRASS:
-		return block_get_texture_grass(direction);
-		break;
-	case block_type::SAND:
-		return block_get_texture_sand(direction);
-		break;
-	case block_type::WATER:
-		return block_get_texture_water(direction);
-		break;
-	case block_type::LEAVES:
-		return block_get_texture_leaves(direction);
-		break;
-	case block_type::OAK_LOG:
-		return block_get_texture_oak_log(direction);
-		break;
-	}
-}
+void block_get_sound(block_type type, bool remove, char* name, int buffer_size);
 
 static bool block_is_transparent(block_type type)
 {
