@@ -59,7 +59,6 @@ void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type);
 block* chunk_get_block(chunk* c, glm::ivec3 block_pos);
 block* chunk_get_block(chunk* c, short x, short y, short z);
 
-//void chunk_init(chunk* chunk);
 void chunk_update(chunk_map_t* chunks);
 
 void chunk_render(const chunk& chunk);

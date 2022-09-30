@@ -138,8 +138,6 @@ void outline_render(outline_block* outline, glm::mat4 p, glm::mat4 v)
 
 	glBindVertexArray(outline->vao);
 
-	//std::cout << "asd\n";
-
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 	glBindVertexArray(0);
 }

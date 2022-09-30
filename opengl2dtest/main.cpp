@@ -51,6 +51,8 @@
 #include "sound_manager.h"
 #include "ray.h"
 
+const int SHADER_COUNT = 3;
+
 struct State
 {
 	GLFWwindow* window;
@@ -66,6 +68,8 @@ struct State
 	chunk_map_t chunks;
 	sound_manager_s sound_manager;
 
+	//shader_program shaders[SHADER_COUNT];
+
 	memory_arena block_arena;
 	memory_arena chunk_arena;
 	memory_arena noise_arena;
@@ -75,11 +79,6 @@ struct State
 } GameState;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
-void processInput(GLFWwindow* window);
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 GLFWwindow* init_and_create_window();
 GLuint load_textures();
 void set_opengl_constants();
@@ -205,7 +204,7 @@ static int to_1d_array(short x, short y, short z)
 	return (z * WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT) + (y * WORLD_GEN_WIDTH) + x;
 }
 
-void generate_world_noise(const chunk* chunk, const int xoffset, const int zoffset)
+void generate_world_noise(block* blocks, const int xoffset, const int zoffset)
 {
 	const float frequency = 0.002f;
 	const float threshold = 0.01f;
@@ -229,11 +228,11 @@ void generate_world_noise(const chunk* chunk, const int xoffset, const int zoffs
 				{
 					if (noise[to_1d_array(x, y + 1, z)] > threshold)
 					{
-						chunk->blocks[index].type = block_type::DIRT;
+						blocks[index].type = block_type::DIRT;
 					}
 					else
 					{
-						chunk->blocks[index].type = block_type::DIRT_GRASS;
+						blocks[index].type = block_type::DIRT_GRASS;
 					}
 				}
 			}
@@ -295,8 +294,8 @@ void generate_world(block* blocks, const int xoffset, const int zoffset)
 	}
 #endif // DEBUG
 
-	generate_world_flatgrass(blocks, xoffset, zoffset);
-	//generate_world_noise(chunk, xoffset, zoffset);
+	//generate_world_flatgrass(blocks, xoffset, zoffset);
+	generate_world_noise(blocks, xoffset, zoffset);
 }
 
 void state_allocate_memory_arenas()
@@ -570,6 +569,59 @@ void opengl_clear_screen()
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+float lastX = GameState.SCR_WIDTH / 2.0f;
+float lastY = GameState.SCR_HEIGHT / 2.0f;
+
+bool lmouse = false;
+bool rmouse = false;
+void processInput(GLFWwindow* window, double delta_time)
+{
+	double x, y;
+
+	glfwGetCursorPos(window, &x, &y);
+	float xoffset = x - lastX;
+	float yoffset = lastY - y;
+
+	lastX = x;
+	lastY = y;
+
+	GameState.player.camera.ProcessMouseMovement(xoffset, yoffset);
+
+	glm::vec3 position = GameState.player.camera.Position;
+	glm::vec3 rotation = GameState.player.camera.Front;
+
+	bool lcmouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+	if (!lmouse && lcmouse)
+	{
+		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+		ray_hit_result result = r.intersect_block(50, &GameState.chunks);
+
+		handle_block_hit(result, true);
+	}
+	lmouse = lcmouse;
+
+	bool rcmouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+	if (!rmouse && rcmouse)
+	{
+		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+		ray_hit_result result = r.intersect_block(50, &GameState.chunks);
+
+		handle_block_hit(result, false);
+	}
+	rmouse = rcmouse;
+
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, true);
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(FORWARD, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(BACKWARD, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(LEFT, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
+}
+
 
 void game_render(Shader* lightingShader, unsigned int atlas)
 {
@@ -598,9 +650,6 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 
 	outline_render(&GameState.outline, projection, view);
 	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
-
-	glfwSwapBuffers(GameState.window);
-	glfwPollEvents();
 }
 
 void game_update()
@@ -613,27 +662,24 @@ void game_main_loop(unsigned int atlas)
 {
 	Shader lightingShader("resources\\opaque_world.shadervs", "resources\\opaque_world.shaderfs");
 
-	GameState.delta_time = 0.0005;
-	GameState.last_frame = 0;
+	float delta_time = 0;
+	float last_frame = 0;
 	while (!glfwWindowShouldClose(GameState.window))
 	{
-		int timeSimulatedThisIteration = 0;
-		double start_time = glfwGetTime();
+		// calculate delta time
+		float current_frame = glfwGetTime();
+		delta_time = current_frame - last_frame;
+		last_frame = current_frame;
+		glfwPollEvents();
+
+		processInput(GameState.window, delta_time);
+
+		game_update();
 
 		opengl_clear_screen();
-		processInput(GameState.window);
-
-		while (GameState.last_frame >= GameState.delta_time)
-		{
-			game_update();
-
-			GameState.last_frame -= GameState.delta_time;
-			timeSimulatedThisIteration += GameState.delta_time;
-		}
-
 		game_render(&lightingShader, atlas);
 
-		GameState.last_frame += glfwGetTime() - start_time;
+		glfwSwapBuffers(GameState.window);
 	}
 }
 
@@ -653,20 +699,6 @@ int main()
 	game_main_loop(atlas);
 
 	return 0;
-}
-
-void processInput(GLFWwindow* window)
-{
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(FORWARD, GameState.delta_time);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(BACKWARD, GameState.delta_time);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(LEFT, GameState.delta_time);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(RIGHT, GameState.delta_time);
 }
 
 #pragma region INIT_OPENGL
@@ -700,10 +732,6 @@ GLFWwindow* init_and_create_window()
 	}
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetKeyCallback(window, key_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #ifndef __EMSCRIPTEN__
@@ -789,69 +817,7 @@ GLuint load_textures()
 }
 #pragma endregion
 
-#pragma region CALLBACKS
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
-	{
-	}
-}
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
-}
-
-float lastX = GameState.SCR_WIDTH / 2.0f;
-float lastY = GameState.SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
-
-// find the smallest possible t such that s + t * ds is an integer
-
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
-{
-	if (firstMouse)
-	{
-		lastX = xpos;
-		lastY = ypos;
-		firstMouse = false;
-	}
-
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-	lastX = xpos;
-	lastY = ypos;
-
-	GameState.player.camera.ProcessMouseMovement(xoffset, yoffset);
-}
-
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-	GameState.player.camera.ProcessMouseScroll(yoffset);
-}
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-{
-	double x;
-	double y;
-	glfwGetCursorPos(window, &x, &y);
-
-	glm::vec3 position = GameState.player.camera.Position;
-	glm::vec3 rotation = GameState.player.camera.Front;
-
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-	{
-		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
-		ray_hit_result result = r.intersect_block(20, &GameState.chunks);
-
-		handle_block_hit(result, true);
-	}
-	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-	{
-		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
-		ray_hit_result result = r.intersect_block(20, &GameState.chunks);
-
-		handle_block_hit(result, false);
-	}
 }

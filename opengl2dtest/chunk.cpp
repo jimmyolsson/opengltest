@@ -24,6 +24,8 @@ block* chunk_get_block(chunk* c, short x, short y, short z)
 	return &c->blocks[to_1d_array(x, y, z)];
 }
 
+
+
 void update_buffers(chunk* chunk)
 {
 	glBindVertexArray(chunk->vao_handle);
@@ -297,7 +299,6 @@ void calculate_lighting(chunk* c, const glm::vec2& chunk_pos)
 		}
 	}
 }
-
 
 void chunk_update(chunk_map_t* chunks)
 {
