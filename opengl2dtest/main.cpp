@@ -16,7 +16,7 @@
 #endif
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "vendor/stb_image/stb_image.h"
+#include "stb_image.h"
 
 #ifdef __EMSCRIPTEN__
 #include "glm/glm.hpp"
@@ -660,7 +660,7 @@ void game_update()
 
 void game_main_loop(unsigned int atlas)
 {
-	Shader lightingShader("resources\\opaque_world.shadervs", "resources\\opaque_world.shaderfs");
+	Shader lightingShader("..\\resources\\shaders\\opaque_world.shadervs", "..\\resources\\shaders\\opaque_world.shaderfs");
 
 	float delta_time = 0;
 	float last_frame = 0;
@@ -759,15 +759,15 @@ unsigned char* load_png(const char* path)
 
 GLuint load_textures()
 {
-	unsigned char* dirt = load_png("resources\\new\\dirt.png");
-	unsigned char* dirt_grass_side = load_png("resources\\new\\dirt_grass_side.png");
-	unsigned char* dirt_grass_top = load_png("resources\\new\\dirt_grass_top.png");
-	unsigned char* stone = load_png("resources\\new\\stone.png");
-	unsigned char* sand = load_png("resources\\new\\sand.png");
-	unsigned char* water = load_png("resources\\new\\water.png");
-	unsigned char* leaves = load_png("resources\\new\\leaves.png");
-	unsigned char* oak_log = load_png("resources\\new\\oak_log.png");
-	unsigned char* oak_log_top = load_png("resources\\new\\oak_log_top.png");
+	unsigned char* dirt = load_png("..\\resources\\textures\\dirt.png");
+	unsigned char* dirt_grass_side = load_png("..\\resources\\textures\\dirt_grass_side.png");
+	unsigned char* dirt_grass_top = load_png("..\\resources\\textures\\dirt_grass_top.png");
+	unsigned char* stone = load_png("..\\resources\\textures\\stone.png");
+	unsigned char* sand = load_png("..\\resources\\textures\\sand.png");
+	unsigned char* water = load_png("..\\resources\\textures\\water.png");
+	unsigned char* leaves = load_png("..\\resources\\textures\\leaves.png");
+	unsigned char* oak_log = load_png("..\\resources\\textures\\oak_log.png");
+	unsigned char* oak_log_top = load_png("..\\resources\\textures\\oak_log_top.png");
 
 	unsigned int atlas;
 	GLsizei width = 16;

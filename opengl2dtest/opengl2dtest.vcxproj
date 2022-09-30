@@ -78,12 +78,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\stb_image;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\lib;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\stb_image;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\lib;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -173,18 +173,6 @@
     <ClInclude Include="shader_m.h" />
     <ClInclude Include="sound_manager.h" />
     <ClInclude Include="state.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="resources\6.light_cube.shaderfs" />
-    <None Include="resources\6.light_cube.shadervs" />
-    <None Include="resources\7.4.camera.shader" />
-    <None Include="resources\7.4.camera.vs" />
-    <None Include="resources\crosshair.shaderfs" />
-    <None Include="resources\crosshair.shadervs" />
-    <None Include="resources\opaque_world.shaderfs" />
-    <None Include="resources\opaque_world.shadervs" />
-    <None Include="resources\outline.shaderfs" />
-    <None Include="resources\outline.shadervs" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="todo.txt" />

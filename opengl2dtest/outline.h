@@ -24,8 +24,8 @@ outline_block outline_create()
 {
 	outline_block outline_b;
 
-	shader_load(&outline_b.sp, "resources\\outline.shadervs", GL_VERTEX_SHADER);
-	shader_load(&outline_b.sp, "resources\\outline.shaderfs", GL_FRAGMENT_SHADER);
+	shader_load(&outline_b.sp, "..\\resources\\shaders\\outline.shadervs", GL_VERTEX_SHADER);
+	shader_load(&outline_b.sp, "..\\resources\\shaders\\outline.shaderfs", GL_FRAGMENT_SHADER);
 
 	shader_link(&outline_b.sp);
 

@@ -85,38 +85,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\7.4.camera.shader">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\7.4.camera.vs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\6.light_cube.shaderfs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\6.light_cube.shadervs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\crosshair.shaderfs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\crosshair.shadervs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\opaque_world.shaderfs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\opaque_world.shadervs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\outline.shaderfs">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\outline.shadervs">
-      <Filter>Resource Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <Text Include="todo.txt" />
   </ItemGroup>
 </Project>
