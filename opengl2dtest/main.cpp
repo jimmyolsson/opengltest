@@ -489,14 +489,23 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 	block_type type = block_type::STONE;
 
-	chunk* hit_chunk;
-	//block* hit_block = chunk_get_block(hit_chunk, ray_hit.block_pos + ray_hit.direction);
+	// what chunk and block to process
+	chunk* hit_chunk = nullptr;
+	glm::ivec3 b_pos = ray_hit.block_pos;
 
 	bool another_chunk = false;
-	if (ray_hit.block_pos.x >= CHUNK_SIZE_WIDTH)
+	if (!remove)
 	{
-		hit_chunk = ray_hit.chunk_hit->right_neighbor;
-		another_chunk = true;
+		b_pos += ray_hit.direction;
+		if ((ray_hit.block_pos + ray_hit.direction).x >= CHUNK_SIZE_WIDTH)
+		{
+			hit_chunk = ray_hit.chunk_hit->right_neighbor;
+			another_chunk = true;
+		}
+		else
+		{
+			hit_chunk = ray_hit.chunk_hit;
+		}
 	}
 	else
 	{
@@ -504,32 +513,14 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	}
 
 	using namespace std::chrono;
-	//if (another_chunk)
-	//{
-	//	auto a = steady_clock::now();
-	//	b_pos = glm::vec3((ray_hit.block_pos.x - CHUNK_SIZE_WIDTH - 1), ray_hit.block_pos.y, ray_hit.block_pos.z);
-
-	//	if (!remove)
-	//		b_pos += ray_hit.direction;
-
-	//	GameState.chunks[ray_hit.chunk_hit->right_neighbor->world_pos].blocks[to_1d_array(b_pos)].type = type;
-
-	//	auto aa = steady_clock::now();
-	//	auto aaa = duration_cast<milliseconds>(aa - a).count();
-	//	std::cout << "modify(another chunk): " << aaa << "ms\n";
-
-	//	chunk* c = &GameState.chunks[ray_hit.chunk_hit->right_neighbor->world_pos];
-	//	ChunkPrivate::generate_mesh(c, ray_hit.chunk_hit->right_neighbor->world_pos);
-	//	glDeleteBuffers(1, &c->vbo_handle);
-	//	glDeleteVertexArrays(1, &c->vao_handle);
-	//	ChunkPrivate::init_buffers(c);
-	//}
-	//else
+	if (another_chunk)
 	{
-		glm::ivec3 b_pos = ray_hit.block_pos;
-
-		if (!remove)
-			b_pos += ray_hit.direction;
+		sound_play_block_sound(&GameState.sound_manager, type, remove);
+		b_pos = glm::vec3((ray_hit.block_pos.x - (CHUNK_SIZE_WIDTH - 1)), ray_hit.block_pos.y, ray_hit.block_pos.z);
+		chunk_set_block(hit_chunk, b_pos, type);
+	}
+	else
+	{
 
 		if (remove)
 		{
@@ -543,7 +534,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 				sound_play_block_sound(&GameState.sound_manager, type, remove);
 		}
 
-		//??
 		hit_chunk->blocks_in_use = 0;
 		hit_chunk->dirty = true;
 	}
