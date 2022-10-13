@@ -24,8 +24,6 @@ block* chunk_get_block(chunk* c, short x, short y, short z)
 	return &c->blocks[to_1d_array(x, y, z)];
 }
 
-
-
 void update_buffers(chunk* chunk)
 {
 	glBindVertexArray(chunk->vao_handle);
@@ -259,6 +257,13 @@ void genm(chunk* chunk)
 				int current = to_1d_array(x, y, z);
 				if (chunk->blocks[current].type == block_type::AIR)
 					continue;
+
+				//add_face_and_texture(chunk, m_back_verticies, block_face_direction::BACK, x, y, z);
+				//add_face_and_texture(chunk, m_front_verticies, block_face_direction::FRONT, x, y, z);
+				//add_face_and_texture(chunk, m_left_verticies, block_face_direction::LEFT, x, y, z);
+				//add_face_and_texture(chunk, m_right_verticies, block_face_direction::RIGHT, x, y, z);
+				//add_face_and_texture(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
+				//add_face_and_texture(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
 
 				generate_face(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
 				generate_face(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);

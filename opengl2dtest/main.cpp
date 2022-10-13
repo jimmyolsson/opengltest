@@ -206,12 +206,12 @@ static int to_1d_array(short x, short y, short z)
 
 void generate_world_noise(block* blocks, const int xoffset, const int zoffset)
 {
-	const float frequency = 0.002f;
+	const float frequency = 0.0050f;
 	const float threshold = 0.01f;
 
 	float* noise = (float*)memory_arena_get(&GameState.noise_arena, sizeof(float) * (WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH));
 
-	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -WORLD_GEN_HEIGHT / 2, zoffset, WORLD_GEN_WIDTH, WORLD_GEN_HEIGHT, WORLD_GEN_WIDTH, frequency, 1337);
+	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -WORLD_GEN_HEIGHT / 2, zoffset, WORLD_GEN_WIDTH, WORLD_GEN_HEIGHT, WORLD_GEN_WIDTH, frequency, 1338);
 
 	for (int i = 0; i < WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH; i++)
 		noise[i] *= -1;
@@ -238,28 +238,19 @@ void generate_world_noise(block* blocks, const int xoffset, const int zoffset)
 			}
 		}
 	}
-	//for (int z = 0; z < WORLD_GEN_WIDTH; z++)
-	//{
-	//	for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
-	//	{
-	//		for (int x = 0; x < WORLD_GEN_WIDTH; x++)
-	//		{
-	//			auto& curr_c = chunk->blocks[to_1d_array(x, y, z)];
-	//			if (y < sea_level && curr_c.type == block_type::AIR)
-	//			{
-	//				curr_c.type = block_type::WATER;
-	//			}
-	//		}
-	//	}
-	//}
 }
 
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
+	if (WORLD_GEN_HEIGHT == 1) {
+		int index = to_1d_array(0, 0, 0);
+		blocks[index].type = block_type::DIRT_GRASS;
+		return;
+	}
 	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
 	{
 		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
-		{
+
 			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
 			{
 				int index = to_1d_array(x, y, z);
@@ -272,7 +263,6 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 					blocks[index].type = block_type::DIRT_GRASS;
 				}
 			}
-		}
 	}
 }
 
@@ -301,11 +291,12 @@ void generate_world(block* blocks, const int xoffset, const int zoffset)
 void state_allocate_memory_arenas()
 {
 	auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	auto noise_arena_size = sizeof(float) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
-	auto size_chunk = sizeof(block_size_t) * ((CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE);
-	std::cout << "block: " << block_arena_size << "bytes\n";
-	std::cout << "noise: " << noise_arena_size << "bytes\n";
-	std::cout << "chunk: " << size_chunk << "bytes\n";
+	auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	auto size_chunk = sizeof(block_size_t) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	int mb = 1024 * 1024;
+	std::cout << "block: " << block_arena_size / mb << "MB\n";
+	std::cout << "noise: " << noise_arena_size / mb << "MB\n";
+	std::cout << "chunk: " << size_chunk / mb << "MB\n";
 
 	memory_arena_init(&GameState.block_arena, block_arena_size);
 	memory_arena_init(&GameState.noise_arena, noise_arena_size);
@@ -314,7 +305,7 @@ void state_allocate_memory_arenas()
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 50.0f, 0.0f));
+	GameState.player.camera = Camera(glm::vec3(0.0f, 150.0f, 0.0f));
 	GameState.window = init_and_create_window();
 	GameState.chunks = {};
 
@@ -334,7 +325,7 @@ void create_and_init_chunk(const int x, const int z)
 	chunk chunk;
 
 	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
-	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, sizeof(block_size_t) * BLOCKS_IN_CHUNK);
+	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
@@ -487,7 +478,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	block_type type = block_type::STONE;
+	block_type type = block_type::LEAVES;
 
 	// what chunk and block to process
 	chunk* hit_chunk = nullptr;
@@ -500,6 +491,21 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		if ((ray_hit.block_pos + ray_hit.direction).x >= CHUNK_SIZE_WIDTH)
 		{
 			hit_chunk = ray_hit.chunk_hit->right_neighbor;
+			another_chunk = true;
+		}
+		else if ((ray_hit.block_pos + ray_hit.direction).x <= 0)
+		{
+			hit_chunk = ray_hit.chunk_hit->left_neighbor;
+			another_chunk = true;
+		}
+		else if ((ray_hit.block_pos + ray_hit.direction).z <= 0)
+		{
+			hit_chunk = ray_hit.chunk_hit->back_neighbor;
+			another_chunk = true;
+		}
+		else if ((ray_hit.block_pos + ray_hit.direction).z >= CHUNK_SIZE_WIDTH)
+		{
+			hit_chunk = ray_hit.chunk_hit->front_neighbor;
 			another_chunk = true;
 		}
 		else
@@ -521,7 +527,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	}
 	else
 	{
-
 		if (remove)
 		{
 			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
@@ -650,7 +655,7 @@ void game_update()
 
 void game_main_loop(unsigned int atlas)
 {
-	Shader lightingShader("..\\resources\\shaders\\opaque_world.shadervs", "..\\resources\\shaders\\opaque_world.shaderfs");
+	Shader lightingShader("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
 
 	float delta_time = 0;
 	float last_frame = 0;
@@ -696,12 +701,8 @@ void set_opengl_constants()
 {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-	glFrontFace(GL_CCW);
 
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
@@ -754,7 +755,6 @@ GLuint load_textures()
 	unsigned char* dirt_grass_top = load_png("..\\resources\\textures\\dirt_grass_top.png");
 	unsigned char* stone = load_png("..\\resources\\textures\\stone.png");
 	unsigned char* sand = load_png("..\\resources\\textures\\sand.png");
-	unsigned char* water = load_png("..\\resources\\textures\\water.png");
 	unsigned char* leaves = load_png("..\\resources\\textures\\leaves.png");
 	unsigned char* oak_log = load_png("..\\resources\\textures\\oak_log.png");
 	unsigned char* oak_log_top = load_png("..\\resources\\textures\\oak_log_top.png");
@@ -764,7 +764,7 @@ GLuint load_textures()
 	GLsizei height = 16;
 
 	// CURRENT NUMBER OF TEXTURES
-	GLsizei layerCount = 9;
+	GLsizei layerCount = BLOCK_TYPE_LAST+1;
 	GLsizei mipLevelCount = 4;
 
 	glGenTextures(1, &atlas);
@@ -784,10 +784,9 @@ GLuint load_textures()
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
 	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, sand);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, water);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 6, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, leaves);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 7, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 8, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log_top);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, leaves);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 6, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 7, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log_top);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);

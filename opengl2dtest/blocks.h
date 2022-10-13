@@ -23,7 +23,7 @@ struct block_info
 };
 
 // DEFINED IN THE ORDER OF THE block_type ENUM
-static block_info block_infos[BLOCK_NUM_TYPES] =
+static block_info block_infos[BLOCK_TYPE_LAST+1] =
 {
 	// AIR
 	{
@@ -60,17 +60,10 @@ static block_info block_infos[BLOCK_NUM_TYPES] =
 		block_type::SAND,
 		block_type::SAND
 	},
-	// WATER
-	{
-		block_type::WATER,
-		5, 5, 5, 5, 5, 5,
-		block_type::WATER,
-		block_type::WATER
-	},
 	// LEAVES
 	{
 		block_type::LEAVES,
-		6, 6, 6, 6, 6, 6,
+		5, 5, 5, 5, 5, 5,
 		block_type::DIRT_GRASS,
 		block_type::DIRT_GRASS
 	},

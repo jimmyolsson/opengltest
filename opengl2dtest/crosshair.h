@@ -43,8 +43,8 @@ crosshair_t crosshair_create()
 	};
 
 	shader_program sp;
-	shader_load(&sp, "..\\resources\\shaders\\crosshair.shadervs", GL_VERTEX_SHADER);
-	shader_load(&sp, "..\\resources\\shaders\\crosshair.shaderfs", GL_FRAGMENT_SHADER);
+	shader_load(&sp, "..\\resources\\shaders\\crosshair_vert.glsl", GL_VERTEX_SHADER);
+	shader_load(&sp, "..\\resources\\shaders\\crosshair_frag.glsl", GL_FRAGMENT_SHADER);
 	shader_link(&sp);
 
 	c.s = sp;

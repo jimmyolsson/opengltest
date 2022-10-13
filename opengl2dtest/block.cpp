@@ -21,9 +21,6 @@ void block_get_name(block_type type, char* name, int buffer_size)
 	case block_type::SAND:
 		strncpy_s(name, buffer_size, "SAND", buff_s);
 		return;
-	case block_type::WATER:
-		strncpy_s(name, buffer_size, "WATER", buff_s);
-		return;
 	case block_type::LEAVES:
 		strncpy_s(name, buffer_size, "LEAVES", buff_s);
 		return;

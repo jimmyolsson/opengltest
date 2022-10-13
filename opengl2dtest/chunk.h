@@ -13,8 +13,10 @@ enum class block_face_direction;
 
 const int CHUNK_SIZE_WIDTH = 32;
 const int CHUNK_SIZE_HEIGHT = 255;
+//const int CHUNK_SIZE_WIDTH = 1;
+//const int CHUNK_SIZE_HEIGHT = 1;
 #if _DEBUG
-const int CHUNK_DRAW_DISTANCE = 10;
+const int CHUNK_DRAW_DISTANCE = 2;
 #else
 const int CHUNK_DRAW_DISTANCE = 10;
 #endif
