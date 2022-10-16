@@ -164,6 +164,7 @@
     <ClInclude Include="chunk.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="crosshair.h" />
+    <ClInclude Include="item_menu.h" />
     <ClInclude Include="memory_arena.h" />
     <ClInclude Include="outline.h" />
     <ClInclude Include="player.h" />
@@ -178,11 +179,13 @@
     <Text Include="todo.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\shaders\crosshair_frag.glsl" />
-    <None Include="..\resources\shaders\crosshair_vert.glsl" />
+    <None Include="..\resources\shaders\basic_texture_frag.glsl" />
+    <None Include="..\resources\shaders\basic_texture_vert.glsl" />
+    <None Include="..\resources\shaders\basic_color_frag.glsl" />
+    <None Include="..\resources\shaders\basic_color_vert.glsl" />
     <None Include="..\resources\shaders\opaque_frag.glsl" />
     <None Include="..\resources\shaders\opaque_vert.glsl" />
-    <None Include="..\resources\shaders\outline_fragment.glsl" />
+    <None Include="..\resources\shaders\outline_frag.glsl" />
     <None Include="..\resources\shaders\outline_vert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

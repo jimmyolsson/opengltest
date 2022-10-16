@@ -53,14 +53,12 @@ struct chunk
 	bool initialized = false;
 	bool dirty = false;
 };
+
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(chunk* chunk);
 void chunk_generate_buffers(chunk* chunk);
-
 void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type);
 block* chunk_get_block(chunk* c, glm::ivec3 block_pos);
 block* chunk_get_block(chunk* c, short x, short y, short z);
-
 void chunk_update(chunk_map_t* chunks);
-
 void chunk_render(const chunk& chunk);

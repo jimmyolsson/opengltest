@@ -29,7 +29,6 @@ outline_block outline_create()
 
 	shader_link(&outline_b.sp);
 
-	const int vert_count = 30;
 	std::vector<int> gpu_data;
 	{
 		int index = 0;
@@ -128,8 +127,8 @@ outline_block outline_create()
 
 void outline_render(outline_block* outline, glm::mat4 p, glm::mat4 v)
 {
-	if (!outline->visible)
-		return;
+	//if (!outline->visible)
+		//return;
 
 	shader_use(&outline->sp);
 	shader_set_mat4(&outline->sp, "projection", p);
@@ -147,9 +146,16 @@ void outline_update(outline_block* outline, glm::vec3 origin, glm::vec3 directio
 	Ray r(origin, direction);
 	ray_hit_result result = r.intersect_block(20, chunks);
 
-	outline->position = glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
-		result.block_pos.y,
-		result.chunk_world_pos.y + result.block_pos.z);
+	if (result.chunk_hit != nullptr)
+	{
+		outline->position = glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
+			result.block_pos.y,
+			result.chunk_world_pos.y + result.block_pos.z);
+		
+		outline->visible = true;
+	}
+	else
+		outline->visible = false;
 
-	outline->visible = result.chunk_hit != nullptr;
+	//outline->visible = result.chunk_hit != nullptr;
 }

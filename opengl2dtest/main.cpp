@@ -50,9 +50,9 @@
 #include "outline.h"
 #include "sound_manager.h"
 #include "ray.h"
+#include "item_menu.h"
 
 const int SHADER_COUNT = 3;
-
 struct State
 {
 	GLFWwindow* window;
@@ -61,6 +61,7 @@ struct State
 	const unsigned int SCR_HEIGHT = 960;
 
 	// TODO: UI
+	ItemMenu menu;
 	crosshair_t crosshair;
 	outline_block outline;
 
@@ -317,6 +318,10 @@ void state_global_init()
 
 	sound_init(&GameState.sound_manager);
 
+	GameState.menu = menu_create();
+	// TODO: This loads from GL_TEXTURE1
+	menu_loadtexture(&GameState.menu);
+
 	state_allocate_memory_arenas();
 }
 
@@ -564,6 +569,7 @@ void opengl_clear_screen()
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+
 float lastX = GameState.SCR_WIDTH / 2.0f;
 float lastY = GameState.SCR_HEIGHT / 2.0f;
 
@@ -636,7 +642,6 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 
 	for (auto& iter : GameState.chunks)
 	{
-		//std::cout << "game_render::chunks\n";
 		lightingShader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
 		chunk_render(iter.second);
 	}
@@ -644,6 +649,7 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 
 	outline_render(&GameState.outline, projection, view);
+	menu_render(&GameState.menu, projection, view);
 	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 }
 
@@ -699,14 +705,15 @@ int main()
 #pragma region INIT_OPENGL
 void set_opengl_constants()
 {
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_BACK);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_DEPTH_TEST);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
-
+#include <Windows.h>
 GLFWwindow* init_and_create_window()
 {
 	glfwInit();
@@ -721,6 +728,9 @@ GLFWwindow* init_and_create_window()
 		glfwTerminate();
 		return nullptr;
 	}
+	int max_width = GetSystemMetrics(SM_CXSCREEN);
+	int max_hieght = GetSystemMetrics(SM_CYSCREEN);
+	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_hieght / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH , GameState.SCR_HEIGHT, GLFW_DONT_CARE);
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -741,7 +751,6 @@ GLFWwindow* init_and_create_window()
 unsigned char* load_png(const char* path)
 {
 	int width, height, nrChannels;
-	//stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
 	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
 
 	//std::cout << nrChannels << "\n";
@@ -764,7 +773,7 @@ GLuint load_textures()
 	GLsizei height = 16;
 
 	// CURRENT NUMBER OF TEXTURES
-	GLsizei layerCount = BLOCK_TYPE_LAST+1;
+	GLsizei layerCount = BLOCK_TYPE_LAST + 1;
 	GLsizei mipLevelCount = 4;
 
 	glGenTextures(1, &atlas);

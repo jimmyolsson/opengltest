@@ -88,10 +88,10 @@
     <Text Include="todo.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\shaders\crosshair_frag.glsl">
+    <None Include="..\resources\shaders\basic_color_frag.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\resources\shaders\crosshair_vert.glsl">
+    <None Include="..\resources\shaders\basic_color_vert.glsl">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="..\resources\shaders\outline_fragment.glsl">
@@ -104,6 +104,12 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="..\resources\shaders\opaque_vert.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\resources\shaders\basic_texture_frag.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\resources\shaders\basic_texture_vert.glsl">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

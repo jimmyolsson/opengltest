@@ -46,8 +46,9 @@ void shader_load(shader_program* sp, const char* path, unsigned int type)
 
 		fileContents = file_stream.str();
 	}
-	catch (std::exception e)
+	catch (std::ifstream::failure& e)
 	{
+		std::cout << "SHADER::FILE_NOT_SUCCESSFULLY_READ, " << path << "\n";
 	}
 
 	const char* code = fileContents.c_str();
@@ -80,7 +81,13 @@ void shader_use(shader_program* sp)
 	glUseProgram(sp->handle);
 }
 
+// TODO: log properly, uniform shit fails silently
 void shader_set_mat4(shader_program* sp, const char* name, glm::mat4 value)
 {
 	glUniformMatrix4fv(glGetUniformLocation(sp->handle, name), 1, GL_FALSE, &value[0][0]);
+}
+
+void shader_set_int(shader_program* sp, const char* name, int value)
+{
+	glUniform1i(glGetUniformLocation(sp->handle, name), value);
 }
