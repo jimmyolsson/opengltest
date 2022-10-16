@@ -4,44 +4,75 @@ struct ItemMenu
 {
 	unsigned int vao;
 	unsigned int vbo;
-	glm::vec3 position;
+	unsigned int svbo;
+	unsigned int svao;
+
+	short item_selected;
 	shader_program sp;
 
 	unsigned int handle;
+	unsigned int shandle;
 };
 
-void menu_loadtexture(ItemMenu* self)
+void menu_loadtexture(unsigned int* handle, unsigned int* shandle)
 {
-	unsigned int texture1;
-	glGenTextures(1, &texture1);
-	glBindTexture(GL_TEXTURE_2D, texture1);
+	glGenTextures(1, handle);
+	glBindTexture(GL_TEXTURE_2D, *handle);
+
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load("..\\resources\\textures\\gui\\item_menu.png", &width, &height, &nrChannels, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	// set texture wrapping to GL_REPEAT (default wrapping method)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load("..\\resources\\textures\\gui\\item_menu.png", &width, &height, &nrChannels, 0);
+	glGenTextures(1, shandle);
+	glBindTexture(GL_TEXTURE_2D, *shandle);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	// set texture wrapping to GL_REPEAT (default wrapping method)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+
+	unsigned char* sdata = stbi_load("..\\resources\\textures\\gui\\selected_item.png", &width, &height, &nrChannels, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, sdata);
+
 	if (data)
 	{
-		GLenum format;
-		if (nrChannels == 1)
-			format = GL_RED;
-		else if (nrChannels == 3)
-			format = GL_RGB;
-		else if (nrChannels == 4)
-			format = GL_RGBA;
-
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	}
 	else
 	{
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
+	stbi_image_free(sdata);
+}
 
-	self->handle = texture1;
+void menu_render_hightlight(ItemMenu* self)
+{
+	shader_use(&self->sp);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, self->shandle);
+
+	glm::mat4 transform = glm::mat4(1.0f);
+
+	// Theres gotta be a better way of doing this..
+	transform = glm::scale(transform, glm::vec3(0.11f, 0.151f, 0.1f));
+	//4th
+	//transform = glm::translate(transform, glm::vec3(-1.29f, -6.60, 0.0f));
+	float step = 0.81f;
+	transform = glm::translate(transform, glm::vec3(-3.719 - (step*self->item_selected * -1), -6.60, 0.0f));
+
+	shader_set_mat4(&self->sp, "transform", transform);
+	shader_set_int(&self->sp, "texture1", self->shandle);
+
+	glBindVertexArray(self->svao);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void menu_render(ItemMenu* menu, glm::mat4 p, glm::mat4 v)
@@ -62,6 +93,8 @@ void menu_render(ItemMenu* menu, glm::mat4 p, glm::mat4 v)
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+
+	menu_render_hightlight(menu);
 }
 
 void static quad_create(unsigned int* vao, unsigned int* vbo)
@@ -94,12 +127,16 @@ void static quad_create(unsigned int* vao, unsigned int* vbo)
 ItemMenu menu_create()
 {
 	ItemMenu menu;
+	menu.item_selected = 0;
 
 	shader_load(&menu.sp, "..\\resources\\shaders\\basic_texture_vert.glsl", GL_VERTEX_SHADER);
 	shader_load(&menu.sp, "..\\resources\\shaders\\basic_texture_frag.glsl", GL_FRAGMENT_SHADER);
 	shader_link(&menu.sp);
 
 	quad_create(&menu.vao, &menu.vbo);
+	quad_create(&menu.svao, &menu.svbo);
+
+	menu_loadtexture(&menu.handle, &menu.shandle);
 
 	return menu;
 }

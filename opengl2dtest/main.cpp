@@ -320,7 +320,7 @@ void state_global_init()
 
 	GameState.menu = menu_create();
 	// TODO: This loads from GL_TEXTURE1
-	menu_loadtexture(&GameState.menu);
+	//menu_loadtexture(&GameState.menu);
 
 	state_allocate_memory_arenas();
 }
@@ -630,6 +630,10 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
 	const glm::mat4 model = glm::mat4(1.0f);
 
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+
 	lightingShader->use();
 
 	lightingShader->setMat4("projection", projection);
@@ -649,6 +653,10 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 
 	outline_render(&GameState.outline, projection, view);
+
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+
 	menu_render(&GameState.menu, projection, view);
 	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 }
@@ -705,14 +713,26 @@ int main()
 #pragma region INIT_OPENGL
 void set_opengl_constants()
 {
-	//glEnable(GL_CULL_FACE);
-	//glCullFace(GL_BACK);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_DEPTH_TEST);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	if (yoffset == -1)
+	{
+		if(GameState.menu.item_selected != 8)
+			GameState.menu.item_selected++;
+	}
+	if (yoffset == 1)
+	{
+		if(GameState.menu.item_selected != 0)
+			GameState.menu.item_selected--;
+	}
+}
+
 #include <Windows.h>
 GLFWwindow* init_and_create_window()
 {
@@ -730,9 +750,10 @@ GLFWwindow* init_and_create_window()
 	}
 	int max_width = GetSystemMetrics(SM_CXSCREEN);
 	int max_hieght = GetSystemMetrics(SM_CYSCREEN);
-	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_hieght / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH , GameState.SCR_HEIGHT, GLFW_DONT_CARE);
+	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_hieght / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH, GameState.SCR_HEIGHT, GLFW_DONT_CARE);
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 #ifndef __EMSCRIPTEN__
