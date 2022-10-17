@@ -6,6 +6,7 @@ using namespace irrklang;
 void sound_init(sound_manager_s* s)
 {
 	s->sound_engine = irrklang::createIrrKlangDevice();
+	s->sound_engine->setSoundVolume(0.4);
 }
 
 // Expand action, for now its only two

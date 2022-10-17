@@ -50,18 +50,17 @@
 #include "outline.h"
 #include "sound_manager.h"
 #include "ray.h"
-#include "item_menu.h"
+#include "item_toolbar.h"
 
 const int SHADER_COUNT = 3;
 struct State
 {
 	GLFWwindow* window;
 
-	const unsigned int SCR_WIDTH = 1360;
-	const unsigned int SCR_HEIGHT = 960;
+	const float SCR_WIDTH = 1360;
+	const float SCR_HEIGHT = 960;
 
-	// TODO: UI
-	ItemMenu menu;
+	ItemToolbar menu;
 	crosshair_t crosshair;
 	outline_block outline;
 
@@ -626,38 +625,47 @@ void processInput(GLFWwindow* window, double delta_time)
 
 void game_render(Shader* lightingShader, unsigned int atlas)
 {
-	const glm::mat4 projection = glm::perspective(glm::radians(GameState.player.camera.Zoom), (float)GameState.SCR_WIDTH / (float)GameState.SCR_HEIGHT, 0.1f, 1000.0f);
-	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
-	const glm::mat4 model = glm::mat4(1.0f);
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glEnable(GL_DEPTH_TEST);
-
-	lightingShader->use();
-
-	lightingShader->setMat4("projection", projection);
-	lightingShader->setMat4("view", view);
-	lightingShader->setMat4("model", model);
-
-	// bind textures on corresponding texture units
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
-
-	for (auto& iter : GameState.chunks)
 	{
-		lightingShader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
-		chunk_render(iter.second);
+		const float projection_fov = glm::radians(GameState.player.camera.Zoom) * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
+		const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
+		const glm::mat4 projection = glm::perspective(projection_fov, projection_aspect, 0.1f, 1000.0f);
+		const glm::mat4 view = GameState.player.camera.GetViewMatrix();
+		const glm::mat4 model = glm::mat4(1.0f);
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glEnable(GL_DEPTH_TEST);
+
+		lightingShader->use();
+
+		lightingShader->setMat4("projection", projection);
+		lightingShader->setMat4("view", view);
+		lightingShader->setMat4("model", model);
+
+		// bind textures on corresponding texture units
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
+
+		for (auto& iter : GameState.chunks)
+		{
+			lightingShader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
+			chunk_render(iter.second);
+		}
+
+		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+		outline_render(&GameState.outline, projection, view);
 	}
 
-	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-
-	outline_render(&GameState.outline, projection, view);
+	// Render 2D
 
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 
-	menu_render(&GameState.menu, projection, view);
+	//const glm::mat4 projection_ortho = glm::ortho()
+	menu_render(&GameState.menu);
 	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 }
 
@@ -696,7 +704,6 @@ int main()
 {
 	srand(time(NULL));
 	state_global_init();
-	set_opengl_constants();
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
@@ -713,8 +720,6 @@ int main()
 #pragma region INIT_OPENGL
 void set_opengl_constants()
 {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
