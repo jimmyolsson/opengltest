@@ -156,6 +156,7 @@
     <ClCompile Include="memory_arena.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="sound_manager.cpp" />
+    <ClCompile Include="world_gen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks.h" />
@@ -174,6 +175,7 @@
     <ClInclude Include="shader_m.h" />
     <ClInclude Include="sound_manager.h" />
     <ClInclude Include="state.h" />
+    <ClInclude Include="world_gen.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="todo.txt" />

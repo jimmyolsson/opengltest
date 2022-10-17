@@ -51,6 +51,7 @@
 #include "sound_manager.h"
 #include "ray.h"
 #include "item_toolbar.h"
+#include "world_gen.h"
 
 const int SHADER_COUNT = 3;
 struct State
@@ -82,211 +83,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 GLFWwindow* init_and_create_window();
 GLuint load_textures();
 void set_opengl_constants();
-
-const int WORLD_GEN_HEIGHT = CHUNK_SIZE_HEIGHT;
-const int WORLD_GEN_WIDTH = CHUNK_SIZE_WIDTH;
-
-#include <FastNoise/FastNoise.h>
-FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
-
-struct structure_node
-{
-	glm::ivec3 pos;
-	block_type type;
-};
-std::vector<structure_node> tree_structure = {
-	{{0, 1, 0}, block_type::OAK_LOG},
-	{{0, 2, 0}, block_type::OAK_LOG},
-	{{0, 3, 0}, block_type::OAK_LOG},
-	{{0, 4, 0}, block_type::OAK_LOG},
-	{{0, 5, 0}, block_type::OAK_LOG},
-	{{0, 6, 0}, block_type::OAK_LOG},
-
-	{{-2, 4, 1}, block_type::LEAVES},
-	{{-1, 4, 1}, block_type::LEAVES},
-	{{1, 4, 1}, block_type::LEAVES},
-	{{2, 4, 1}, block_type::LEAVES},
-
-	{{-2, 4, 0}, block_type::LEAVES},
-	{{-1, 4, 0}, block_type::LEAVES},
-	{{1, 4, 0}, block_type::LEAVES},
-	{{2, 4, 0}, block_type::LEAVES},
-
-	{{-2, 4, -1}, block_type::LEAVES},
-	{{-1, 4, -1}, block_type::LEAVES},
-	{{1, 4, -1}, block_type::LEAVES},
-	{{2, 4, -1}, block_type::LEAVES},
-
-	{{1, 4, -2}, block_type::LEAVES},
-	{{1, 4, -1}, block_type::LEAVES},
-	{{1, 4, 1}, block_type::LEAVES},
-	{{1, 4, 2}, block_type::LEAVES},
-
-	{{0, 4, -2}, block_type::LEAVES},
-	{{0, 4, -1}, block_type::LEAVES},
-	{{0, 4, 1}, block_type::LEAVES},
-	{{0, 4, 2}, block_type::LEAVES},
-
-	{{-1, 4, -2}, block_type::LEAVES},
-	{{-1, 4, -1}, block_type::LEAVES},
-	{{-1, 4, 1}, block_type::LEAVES},
-	{{-1, 4, 2}, block_type::LEAVES},
-
-	{{-2, 5, 1}, block_type::LEAVES},
-	{{-1, 5, 1}, block_type::LEAVES},
-	{{1, 5, 1}, block_type::LEAVES},
-	{{2, 5, 1}, block_type::LEAVES},
-
-	{{-2, 5, 0}, block_type::LEAVES},
-	{{-1, 5, 0}, block_type::LEAVES},
-	{{1, 5, 0}, block_type::LEAVES},
-	{{2, 5, 0}, block_type::LEAVES},
-
-	{{-2, 5, -1}, block_type::LEAVES},
-	{{-1, 5, -1}, block_type::LEAVES},
-	{{1, 5, -1}, block_type::LEAVES},
-	{{2, 5, -1}, block_type::LEAVES},
-
-	{{1, 5, -2}, block_type::LEAVES},
-	{{1, 5, -1}, block_type::LEAVES},
-	{{1, 5, 1}, block_type::LEAVES},
-	{{1, 5, 2}, block_type::LEAVES},
-
-	{{0, 5, -2}, block_type::LEAVES},
-	{{0, 5, -1}, block_type::LEAVES},
-	{{0, 5, 1}, block_type::LEAVES},
-	{{0, 5, 2}, block_type::LEAVES},
-
-	{{-1, 5, -2}, block_type::LEAVES},
-	{{-1, 5, -1}, block_type::LEAVES},
-	{{-1, 5, 1}, block_type::LEAVES},
-	{{-1, 5, 2}, block_type::LEAVES},
-
-	{{-1, 6, 1}, block_type::LEAVES},
-	{{1, 6, 1}, block_type::LEAVES},
-
-	{{-1, 6, 0}, block_type::LEAVES},
-	{{1, 6, 0}, block_type::LEAVES},
-
-	{{-1, 6, -1}, block_type::LEAVES},
-
-	{{1, 6, -1}, block_type::LEAVES},
-
-	{{1, 6, -1}, block_type::LEAVES},
-	{{1, 6, 1}, block_type::LEAVES},
-
-	{{0, 6, -1}, block_type::LEAVES},
-	{{0, 6, 1}, block_type::LEAVES},
-
-	{{-1, 6, -1}, block_type::LEAVES},
-	{{-1, 6, 1}, block_type::LEAVES},
-
-	{{0, 7, 0}, block_type::LEAVES},
-	{{-1, 7, 0}, block_type::LEAVES},
-	{{1, 7, 0}, block_type::LEAVES},
-	{{0, 7, -1}, block_type::LEAVES},
-	{{0, 7, 1}, block_type::LEAVES},
-};
-
-void place_tree(chunk* c, glm::ivec3 spawn_point_pos, std::vector<structure_node> n)
-{
-	// TODO: bounds check
-	//std::cout << "SPHERE::size: " << n.size() << '\n';
-	for (int i = 0; i < n.size(); i++)
-	{
-		auto& node = n[i];
-		glm::ivec3 pos = spawn_point_pos + node.pos;
-		chunk_set_block(c, pos, node.type);
-	}
-}
-static int to_1d_array(short x, short y, short z)
-{
-	return (z * WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT) + (y * WORLD_GEN_WIDTH) + x;
-}
-
-void generate_world_noise(block* blocks, const int xoffset, const int zoffset)
-{
-	const float frequency = 0.0050f;
-	const float threshold = 0.01f;
-
-	float* noise = (float*)memory_arena_get(&GameState.noise_arena, sizeof(float) * (WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH));
-
-	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -WORLD_GEN_HEIGHT / 2, zoffset, WORLD_GEN_WIDTH, WORLD_GEN_HEIGHT, WORLD_GEN_WIDTH, frequency, 1338);
-
-	for (int i = 0; i < WORLD_GEN_WIDTH * WORLD_GEN_HEIGHT * WORLD_GEN_WIDTH; i++)
-		noise[i] *= -1;
-
-	const static int sea_level = 130;
-	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
-	{
-		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
-		{
-			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
-			{
-				int index = to_1d_array(x, y, z);
-				if (noise[index] > threshold)
-				{
-					if (noise[to_1d_array(x, y + 1, z)] > threshold)
-					{
-						blocks[index].type = block_type::DIRT;
-					}
-					else
-					{
-						blocks[index].type = block_type::DIRT_GRASS;
-					}
-				}
-			}
-		}
-	}
-}
-
-void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
-{
-	if (WORLD_GEN_HEIGHT == 1) {
-		int index = to_1d_array(0, 0, 0);
-		blocks[index].type = block_type::DIRT_GRASS;
-		return;
-	}
-	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
-	{
-		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
-
-			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
-			{
-				int index = to_1d_array(x, y, z);
-				if (y < WORLD_GEN_HEIGHT / 6)
-				{
-					blocks[index].type = block_type::DIRT_GRASS;
-				}
-				if (y < (WORLD_GEN_HEIGHT / 6) - 1)
-				{
-					blocks[index].type = block_type::DIRT_GRASS;
-				}
-			}
-	}
-}
-
-void generate_world(block* blocks, const int xoffset, const int zoffset)
-{
-#if _DEBUG
-	// dosent work in debug otherwise..
-	for (int z = 0; z < WORLD_GEN_WIDTH; z++)
-	{
-		for (int y = 0; y < WORLD_GEN_HEIGHT; y++)
-		{
-			for (int x = 0; x < WORLD_GEN_WIDTH; x++)
-			{
-				int index = to_1d_array(x, y, z);
-				blocks[index].type = block_type::AIR;
-				blocks[index].sky = false;
-			}
-		}
-	}
-#endif // DEBUG
-
-	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	generate_world_noise(blocks, xoffset, zoffset);
-}
 
 void state_allocate_memory_arenas()
 {
@@ -335,107 +131,9 @@ void create_and_init_chunk(const int x, const int z)
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
 
-	generate_world(chunk.blocks, pos.x, pos.y);
+	world_generate(chunk.blocks, &GameState.noise_arena, pos.x, pos.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 
 	GameState.chunks[pos] = chunk;
-}
-
-std::vector<structure_node> sphere;
-// Function to put pixels
-// at subsequence points
-void drawCircle(int xc, int yc, int x, int y, int world_y, std::vector<structure_node>& sphere)
-{
-	sphere.push_back({ { xc + x, world_y, yc + y }, block_type::STONE });
-	sphere.push_back({ { xc - x, world_y, yc + y }, block_type::STONE });
-	sphere.push_back({ { xc + x, world_y, yc - y }, block_type::STONE });
-	sphere.push_back({ { xc - x, world_y, yc - y }, block_type::STONE });
-	sphere.push_back({ { xc + y, world_y, yc + x }, block_type::STONE });
-	sphere.push_back({ { xc - y, world_y, yc + x }, block_type::STONE });
-	sphere.push_back({ { xc + y, world_y, yc - x }, block_type::STONE });
-	sphere.push_back({ { xc - y, world_y, yc - x }, block_type::STONE });
-}
-
-// Function for circle-generation
-// using Bresenham's algorithm
-void circleBres(int xc, int yc, int r, int world_y, std::vector<structure_node>& sphere)
-{
-	int x = 0, y = r;
-	int d = 3 - 2 * r;
-	drawCircle(xc, yc, x, y, world_y, sphere);
-	while (y >= x)
-	{
-		// for each pixel we will
-		// draw all eight pixels
-
-		x++;
-
-		// check for decision parameter
-		// and correspondingly
-		// update d, x, y
-		if (d > 0)
-		{
-			y--;
-			d = d + 4 * (x - y) + 10;
-		}
-		else
-			d = d + 4 * x + 6;
-		drawCircle(xc, yc, x, y, world_y, sphere);
-	}
-}
-
-const int sphere_size = 16;
-int map[sphere_size][sphere_size][sphere_size];
-
-std::vector<structure_node> sphere_algo(int x0, int y0, int z0, int r)
-{
-	int col = 1;
-	int n = sphere_size;
-	for (int x = 0; x < sphere_size; x++)
-		for (int y = 0; y < sphere_size; y++)
-			for (int z = 0; z < sphere_size; z++)
-			{
-				map[x][y][z] = 0;
-			}
-
-	int x, y, z, xa, ya, za, xb, yb, zb, xr, yr, zr, xx, yy, zz, rr = r * r;
-	// bounding box
-	xa = x0 - r; if (xa < 0) xa = 0; xb = x0 + r; if (xb > n) xb = n;
-	ya = y0 - r; if (ya < 0) ya = 0; yb = y0 + r; if (yb > n) yb = n;
-	za = z0 - r; if (za < 0) za = 0; zb = z0 + r; if (zb > n) zb = n;
-	// project xy plane
-	for (x = xa, xr = x - x0, xx = xr * xr; x < xb; x++, xr++, xx = xr * xr)
-		for (y = ya, yr = y - y0, yy = yr * yr; y < yb; y++, yr++, yy = yr * yr)
-		{
-			zz = rr - xx - yy; if (zz < 0) continue; zr = sqrt(zz);
-			z = z0 - zr; if ((z > 0) && (z < n)) map[x][y][z] = col;
-			z = z0 + zr; if ((z > 0) && (z < n)) map[x][y][z] = col;
-		}
-	// project xz plane
-	for (x = xa, xr = x - x0, xx = xr * xr; x < xb; x++, xr++, xx = xr * xr)
-		for (z = za, zr = z - z0, zz = zr * zr; z < zb; z++, zr++, zz = zr * zr)
-		{
-			yy = rr - xx - zz; if (yy < 0) continue; yr = sqrt(yy);
-			y = y0 - yr; if ((y > 0) && (y < n)) map[x][y][z] = col;
-			y = y0 + yr; if ((y > 0) && (y < n)) map[x][y][z] = col;
-		}
-	// project yz plane
-	for (y = ya, yr = y - y0, yy = yr * yr; y < yb; y++, yr++, yy = yr * yr)
-		for (z = za, zr = z - z0, zz = zr * zr; z < zb; z++, zr++, zz = zr * zr)
-		{
-			xx = rr - zz - yy; if (xx < 0) continue; xr = sqrt(xx);
-			x = x0 - xr; if ((x > 0) && (x < n)) map[x][y][z] = col;
-			x = x0 + xr; if ((x > 0) && (x < n)) map[x][y][z] = col;
-		}
-
-	std::vector<structure_node> a;
-	for (int x = 0; x < sphere_size; x++)
-		for (int y = 0; y < sphere_size; y++)
-			for (int z = 0; z < sphere_size; z++)
-			{
-				if (map[x][y][z] != 0)
-					a.push_back({ {x, y, z},{block_type::STONE} });
-			}
-	return a;
 }
 
 void init_chunks()
@@ -457,13 +155,6 @@ void init_chunks()
 		}
 	}
 
-	auto a = sphere_algo(5, 10, 5, 2);
-
-	for (auto& iter : GameState.chunks)
-	{
-		place_tree(&iter.second, glm::ivec3(CHUNK_SIZE_WIDTH / 2, 41, CHUNK_SIZE_WIDTH / 2), a);
-	}
-
 	// ----------------- MESH GEN -----------------
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
@@ -482,7 +173,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	block_type type = block_type::LEAVES;
+	block_type type = block_type::STONE;
 
 	// what chunk and block to process
 	chunk* hit_chunk = nullptr;
@@ -546,21 +237,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		hit_chunk->blocks_in_use = 0;
 		hit_chunk->dirty = true;
 	}
-}
-
-void chunk_init(const int x, const int z)
-{
-	chunk c;
-	c.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
-	c.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, sizeof(block_size_t) * BLOCKS_IN_CHUNK);
-	c.chunks = &GameState.chunks;
-	c.initialized = false;
-	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
-	c.world_pos = pos;
-
-	generate_world(c.blocks, pos.x, pos.y);
-
-	GameState.chunks[pos] = c;
 }
 
 void opengl_clear_screen()
