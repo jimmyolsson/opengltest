@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "blocks/block.h"
-#include "shader.h"
+#include "graphics/shader.h"
 
 #include "common.h"
 

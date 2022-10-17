@@ -8,7 +8,7 @@
 #include "common.h"
 // should not be here
 #include "chunk.h"
-#include "shader.h"
+#include "graphics/shader.h"
 #include "ray.h"
 
 struct outline_block

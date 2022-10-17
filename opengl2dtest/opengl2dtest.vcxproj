@@ -149,30 +149,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="block.cpp" />
+    <ClCompile Include="blocks\block.cpp" />
     <ClCompile Include="chunk.cpp" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="memory_arena.cpp" />
-    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="util\memory_arena.cpp" />
+    <ClCompile Include="graphics\shader.cpp" />
     <ClCompile Include="sound_manager.cpp" />
     <ClCompile Include="world_gen.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="blocks.h" />
+    <ClInclude Include="blocks\blocks.h" />
     <ClInclude Include="blocks\block.h" />
-    <ClInclude Include="camera.h" />
+    <ClInclude Include="graphics\camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="common.h" />
-    <ClInclude Include="crosshair.h" />
-    <ClInclude Include="item_toolbar.h" />
-    <ClInclude Include="memory_arena.h" />
+    <ClInclude Include="ui\crosshair.h" />
+    <ClInclude Include="ui\item_toolbar.h" />
+    <ClInclude Include="util\memory_arena.h" />
     <ClInclude Include="outline.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="ray.h" />
     <ClInclude Include="robin_hood.h" />
-    <ClInclude Include="shader.h" />
-    <ClInclude Include="shader_m.h" />
+    <ClInclude Include="graphics\shader.h" />
+    <ClInclude Include="graphics\shader_m.h" />
     <ClInclude Include="sound_manager.h" />
     <ClInclude Include="state.h" />
     <ClInclude Include="world_gen.h" />

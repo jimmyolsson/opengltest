@@ -40,17 +40,17 @@
 #include "common.h"
 
 #include "robin_hood.h"
-#include "camera.h"
+#include "graphics/camera.h"
 #include "chunk.h"
 #include "player.h"
-#include "shader_m.h"
+#include "graphics/shader_m.h"
 #include "blocks/block.h"
-#include "memory_arena.h"
-#include "crosshair.h"
+#include "util/memory_arena.h"
+#include "ui/crosshair.h"
 #include "outline.h"
 #include "sound_manager.h"
 #include "ray.h"
-#include "item_toolbar.h"
+#include "ui/item_toolbar.h"
 #include "world_gen.h"
 
 const int SHADER_COUNT = 3;

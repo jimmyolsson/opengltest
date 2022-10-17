@@ -21,19 +21,19 @@
     <ClCompile Include="chunk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="memory_arena.cpp">
+    <ClCompile Include="util\memory_arena.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="shader.cpp">
+    <ClCompile Include="graphics\shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sound_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="block.cpp">
+    <ClCompile Include="blocks\block.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="world_gen.cpp">
@@ -41,10 +41,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="shader_m.h">
+    <ClInclude Include="graphics\shader_m.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="camera.h">
+    <ClInclude Include="graphics\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="blocks\block.h">
@@ -56,16 +56,16 @@
     <ClInclude Include="robin_hood.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="memory_arena.h">
+    <ClInclude Include="util\memory_arena.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="outline.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="shader.h">
+    <ClInclude Include="graphics\shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="crosshair.h">
+    <ClInclude Include="ui\crosshair.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ray.h">
@@ -83,10 +83,10 @@
     <ClInclude Include="common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="blocks.h">
+    <ClInclude Include="blocks\blocks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="item_toolbar.h">
+    <ClInclude Include="ui\item_toolbar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="world_gen.h">

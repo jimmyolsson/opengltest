@@ -1,5 +1,5 @@
 #pragma once
-#include "blocks/block.h"
+#include "block.h"
 
 struct block_info
 {

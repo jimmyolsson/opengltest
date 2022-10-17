@@ -142,7 +142,6 @@ void generate_face(chunk* current_chunk, const chunk* neighbor, const block_size
 	}
 }
 
-#include "memory_arena.h"
 void genm(chunk* chunk);
 
 void chunk_generate_mesh(chunk* chunk)

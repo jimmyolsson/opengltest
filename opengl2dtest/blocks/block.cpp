@@ -1,4 +1,4 @@
-#include "blocks/block.h"
+#include "block.h"
 
 #include <assert.h>
 #include "blocks.h"

@@ -5,7 +5,7 @@
 
 #include "sound_manager.h"
 #include "player.h"
-#include "crosshair.h"
+#include "ui/crosshair.h"
 #include "outline.h"
-#include "memory_arena.h"
+#include "util/memory_arena.h"
 

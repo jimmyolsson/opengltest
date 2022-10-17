@@ -1,5 +1,5 @@
 #pragma once
-#include "camera.h"
+#include "graphics/camera.h"
 
 struct player_s
 {
