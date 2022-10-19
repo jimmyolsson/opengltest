@@ -58,8 +58,8 @@ struct State
 {
 	GLFWwindow* window;
 
-	const float SCR_WIDTH = 1360;
-	const float SCR_HEIGHT = 960;
+	float SCR_WIDTH = 1360;
+	float SCR_HEIGHT = 960;
 
 	ItemToolbar menu;
 	crosshair_t crosshair;
@@ -105,7 +105,6 @@ void state_global_init()
 	GameState.window = init_and_create_window();
 	GameState.chunks = {};
 
-	GameState.crosshair = crosshair_create();
 	GameState.outline = outline_create();
 
 	GameState.delta_time = 0;
@@ -114,6 +113,7 @@ void state_global_init()
 	sound_init(&GameState.sound_manager);
 
 	GameState.menu = menu_create();
+	GameState.crosshair = crosshair_create();
 	// TODO: This loads from GL_TEXTURE1
 	//menu_loadtexture(&GameState.menu);
 
@@ -298,11 +298,11 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
 }
 
-
 void game_render(Shader* lightingShader, unsigned int atlas)
 {
+	// Render 3D
 	{
-		const float projection_fov = glm::radians(GameState.player.camera.Zoom) * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
+		const float projection_fov = glm::radians(GameState.player.camera.Zoom);// * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
 		const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
 		const glm::mat4 projection = glm::perspective(projection_fov, projection_aspect, 0.1f, 1000.0f);
 		const glm::mat4 view = GameState.player.camera.GetViewMatrix();
@@ -336,13 +336,13 @@ void game_render(Shader* lightingShader, unsigned int atlas)
 	}
 
 	// Render 2D
-
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 
-	//const glm::mat4 projection_ortho = glm::ortho()
-	menu_render(&GameState.menu);
-	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	const glm::mat4 projection_ortho = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
+	const glm::mat4 projection_view = glm::mat4(1.0f);
+	menu_render(&GameState.menu, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, projection_ortho, projection_view);
+	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, projection_ortho, projection_view);
 }
 
 void game_update()
@@ -400,18 +400,37 @@ void set_opengl_constants()
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
+glm::dvec2 last_x;
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
+	double step = 80;
+	(GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected;
 	if (yoffset == -1)
 	{
-		if(GameState.menu.item_selected != 8)
+		if (GameState.menu.item_selected != 8)
+		{
+			last_x = GameState.menu.pos;
 			GameState.menu.item_selected++;
+
+			GameState.menu.pos = glm::vec2((GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected, 0);
+
+			std::cout << last_x.x - GameState.menu.pos.x << "\n";
+		}
 	}
 	if (yoffset == 1)
 	{
-		if(GameState.menu.item_selected != 0)
+		if (GameState.menu.item_selected != 0)
+		{
+			last_x = GameState.menu.pos;
 			GameState.menu.item_selected--;
+
+			GameState.menu.pos = glm::vec2((GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected, 0);
+
+			std::cout << (double)((double)last_x.x - (double)GameState.menu.pos.x) << "\n";
+		}
 	}
+
+	std::cout << GameState.menu.pos.x << "\n";
 }
 
 #include <Windows.h>
@@ -519,5 +538,7 @@ GLuint load_textures()
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+	GameState.SCR_WIDTH = width;
+	GameState.SCR_HEIGHT = height;
 	glViewport(0, 0, width, height);
 }

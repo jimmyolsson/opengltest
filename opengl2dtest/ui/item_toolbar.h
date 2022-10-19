@@ -11,6 +11,9 @@ struct ItemToolbar
 	short item_selected;
 	shader_program sp;
 
+	glm::dvec2 pos;
+	glm::dvec2 toolbar_pos;
+
 	unsigned int handle;
 	unsigned int shandle;
 };
@@ -50,51 +53,55 @@ void menu_loadtexture(unsigned int* handle, unsigned int* shandle)
 	stbi_image_free(sdata);
 }
 
-void menu_render_hightlight(ItemToolbar* self)
+void menu_render_hightlight(ItemToolbar* self, glm::mat4 p, glm::mat4 v)
 {
+}
+
+void menu_render(ItemToolbar* self, float width, float height, glm::mat4 p, glm::mat4 v)
+{
+	shader_use(&self->sp);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, self->handle);
+
+	glm::mat4 transform = glm::mat4(1);
+	int menu_scale_x = 732;
+	int menu_scale_y = 85;
+	self->toolbar_pos = glm::vec2(width / 2 - menu_scale_x / 2, 0);
+	transform = glm::translate(transform, glm::vec3(self->toolbar_pos, 1));
+	transform = glm::scale(transform, glm::vec3(732, 85, 0));
+
+	shader_set_mat4(&self->sp, "model", transform);
+	shader_set_mat4(&self->sp, "projection", p);
+	shader_set_mat4(&self->sp, "view", v);
+	shader_set_int(&self->sp, "texture1", self->handle);
+
+	glBindVertexArray(self->vao);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// Render hightlight box
 	shader_use(&self->sp);
 
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, self->shandle);
 
-	glm::mat4 transform = glm::mat4(1.0f);
+	transform = glm::dmat4(1);
+	// I have no idea why the offset on screen grows larger when the position diff stays the same :(
+	int step = 80;
+	transform = glm::translate(transform, glm::vec3(self->pos, 1));
+	transform = glm::scale(transform, glm::vec3(98, 88, 0));
 
-	// Theres gotta be a better way of doing this..
-	transform = glm::scale(transform, glm::vec3(0.11f, 0.151f, 0.1f));
-	//4th
-	//transform = glm::translate(transform, glm::vec3(-1.29f, -6.60, 0.0f));
-	float step = 0.81f;
-	transform = glm::translate(transform, glm::vec3(-3.719 - (step*self->item_selected * -1), -6.60, 0.0f));
-
-	shader_set_mat4(&self->sp, "transform", transform);
+	shader_set_mat4(&self->sp, "model", transform);
+	shader_set_mat4(&self->sp, "projection", p);
+	shader_set_mat4(&self->sp, "view", v);
 	shader_set_int(&self->sp, "texture1", self->shandle);
 
 	glBindVertexArray(self->svao);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void menu_render(ItemToolbar* menu)
-{
-	shader_use(&menu->sp);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, menu->handle);
-
-	glm::mat4 transform = glm::mat4(1.0f);
-	transform = glm::scale(transform, glm::vec3(0.8f, 0.15f, 1.0f));
-	transform = glm::translate(transform, glm::vec3(-0.5f, -6.67f, 0.0f));
-
-	shader_set_mat4(&menu->sp, "transform", transform);
-	shader_set_int(&menu->sp, "texture1", menu->handle);
-
-	glBindVertexArray(menu->vao);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	menu_render_hightlight(menu);
 }
 
 void static quad_create(unsigned int* vao, unsigned int* vbo)

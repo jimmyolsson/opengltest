@@ -217,14 +217,26 @@ void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type)
 {
 	c->blocks[to_1d_array(block_pos)].type = new_type;
 	c->dirty = true;
-	if (block_pos.x == CHUNK_SIZE_WIDTH-1)
+	if (block_pos.x == CHUNK_SIZE_WIDTH - 1)
+	{
+		assert(c->right_neighbor != nullptr);
 		c->right_neighbor->dirty = true;
-	else if(block_pos.x == 0)
+	}
+	else if (block_pos.x == 0)
+	{
+		assert(c->left_neighbor != nullptr);
 		c->left_neighbor->dirty = true;
-	else if (block_pos.z == CHUNK_SIZE_WIDTH-1)
+	}
+	else if (block_pos.z == CHUNK_SIZE_WIDTH - 1)
+	{
+		assert(c->front_neighbor != nullptr);
 		c->front_neighbor->dirty = true;
-	else if (block_pos.z == 0) 
+	}
+	else if (block_pos.z == 0)
+	{
+		assert(c->back_neighbor != nullptr);
 		c->back_neighbor->dirty = true;
+	}
 }
 
 void genm(chunk* chunk)

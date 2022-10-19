@@ -33,7 +33,11 @@ void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, 
 				int index = to_1d_array(x, y, z);
 				if (noise[index] > threshold)
 				{
-					if (noise[to_1d_array(x, y + 1, z)] > threshold)
+					if (noise[to_1d_array(x, y + 2, z)] > threshold)
+					{
+						blocks[index].type = block_type::STONE;
+					}
+					else if (noise[to_1d_array(x, y + 1, z)] > threshold)
 					{
 						blocks[index].type = block_type::DIRT;
 					}
@@ -56,8 +60,8 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 	}
 	for (int z = 0; z < world_width; z++)
 	{
-		for (int y = 0; y < world_height; y++)
-
+		for (int y = 0; y < world_height; y++) 
+		{
 			for (int x = 0; x < world_width; x++)
 			{
 				int index = to_1d_array(x, y, z);
@@ -70,6 +74,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 					blocks[index].type = block_type::DIRT_GRASS;
 				}
 			}
+		}
 	}
 }
 

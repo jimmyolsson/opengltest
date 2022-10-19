@@ -9,4 +9,3 @@ struct memory_arena
 void memory_arena_init(memory_arena* arena, unsigned long long size);
 void* memory_arena_get(memory_arena* arena, unsigned long long size);
 void memory_arena_dealloc(memory_arena* arena);
-

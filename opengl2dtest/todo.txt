@@ -1,11 +1,16 @@
-- Chunk resize
-- Chunk outline
+- Debug
+	- Chunk outline
+	- Info text
 - Infinite terrain
-- Add glass
-- Vegitation
+- Fog
+- Translucency 
+	- Add glass
+	- Vegitation
+- Water, solid
 - Lighting
+	- Sun
+	- Moon
 - Ambient occlusion
-- Water
-- Skybox + sun
-- Pencil draw + scroll resize
+- Skybox 
 - Greedy meshing
+- Player
