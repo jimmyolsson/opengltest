@@ -17,13 +17,6 @@ Renderer renderer_create()
 	renderer.shaders[SHADER_BASIC_TEXTURE] = shader_create("..\\resources\\shaders\\basic_texture_vert.glsl", "..\\resources\\shaders\\basic_texture_frag.glsl");
 	renderer.shaders[SHADER_BASIC_COLOR] = shader_create("..\\resources\\shaders\\basic_color_vert.glsl", "..\\resources\\shaders\\basic_color_frag.glsl");
 
-//..\resources\textures\block\dirt.png
-//..\resources\textures\block\dirt_grass_side.png
-//..\resources\textures\block\dirt_grass_top.png
-//..\resources\textures\block\sand.png
-//..\resources\textures\block\leaves.png
-//..\resources\textures\block\oak_log.png
-//..\resources\textures\block\oak_log_top.png
 	renderer.textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(8,
 		"..\\resources\\textures\\block\\stone.png",
 		"..\\resources\\textures\\block\\dirt.png",
