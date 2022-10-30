@@ -4,8 +4,7 @@
 
 #include <vector>
 #include "blocks/block.h"
-#include "graphics/shader.h"
-
+#include "graphics/renderer.h"
 #include "common.h"
 
 enum block_type;
@@ -18,7 +17,7 @@ const int CHUNK_SIZE_HEIGHT = 255;
 #if _DEBUG
 const int CHUNK_DRAW_DISTANCE = 2;
 #else
-const int CHUNK_DRAW_DISTANCE = 10;
+const int CHUNK_DRAW_DISTANCE = 20;
 #endif
 const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
@@ -48,7 +47,7 @@ struct chunk
 	unsigned int vao_handle_transparent = -1;
 	unsigned int vbo_handle_transparent = -1;
 
-	shader_program shader;
+	ShaderProgram shader;
 
 	bool initialized = false;
 	bool dirty = false;
@@ -61,4 +60,4 @@ void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type);
 block* chunk_get_block(chunk* c, glm::ivec3 block_pos);
 block* chunk_get_block(chunk* c, short x, short y, short z);
 void chunk_update(chunk_map_t* chunks);
-void chunk_render(const chunk& chunk);
+void chunk_render(const chunk& chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);

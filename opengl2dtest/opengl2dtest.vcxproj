@@ -152,6 +152,10 @@
     <ClCompile Include="blocks\block.cpp" />
     <ClCompile Include="chunk.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="graphics\cube.cpp" />
+    <ClCompile Include="graphics\quad.cpp" />
+    <ClCompile Include="graphics\renderer.cpp" />
+    <ClCompile Include="graphics\texture.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="util\memory_arena.cpp" />
     <ClCompile Include="graphics\shader.cpp" />
@@ -164,6 +168,11 @@
     <ClInclude Include="graphics\camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="graphics\cube.h" />
+    <ClInclude Include="graphics\quad.h" />
+    <ClInclude Include="graphics\renderer.h" />
+    <ClInclude Include="graphics\renderer_resources.h" />
+    <ClInclude Include="graphics\texture.h" />
     <ClInclude Include="ui\crosshair.h" />
     <ClInclude Include="ui\item_toolbar.h" />
     <ClInclude Include="util\memory_arena.h" />
@@ -172,7 +181,6 @@
     <ClInclude Include="ray.h" />
     <ClInclude Include="robin_hood.h" />
     <ClInclude Include="graphics\shader.h" />
-    <ClInclude Include="graphics\shader_m.h" />
     <ClInclude Include="sound_manager.h" />
     <ClInclude Include="state.h" />
     <ClInclude Include="world_gen.h" />

@@ -1,6 +1,8 @@
 #include "chunk.h"
 
 #include "glad/glad.h"
+
+
 #include <glm/gtx/hash.hpp>
 #include <chrono>
 
@@ -331,10 +333,17 @@ void chunk_update(chunk_map_t* chunks)
 	}
 }
 
-void chunk_render(const chunk& chunk)
+void chunk_render(const chunk& chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
 {
+	renderer_render_custom(renderer,
+		view,
+		TEXTURE_ATLAS_CHUNK,
+		SHADER_CHUNK,
+		chunk.vao_handle,
+		chunk.blocks_in_use,
+		position,
+		glm::vec3(1));
+
 	if (chunk.dirty)
 		return;
-	glBindVertexArray(chunk.vao_handle);
-	glDrawArrays(GL_TRIANGLES, 0, chunk.blocks_in_use);
 }

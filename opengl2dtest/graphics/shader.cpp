@@ -31,7 +31,7 @@ void check_errors(unsigned int shader_handle, bool linking)
 	}
 }
 
-void shader_load(shader_program* sp, const char* path, unsigned int type)
+void _load_from_file(ShaderProgram* sp, const char* path, unsigned int type)
 {
 	std::string fileContents;
 	std::ifstream file;
@@ -62,7 +62,7 @@ void shader_load(shader_program* sp, const char* path, unsigned int type)
 	check_errors(sp->shaders[sp->size], false);
 }
 
-void shader_link(shader_program* sp)
+void _link(ShaderProgram* sp)
 {
 	sp->handle = glCreateProgram();
 
@@ -76,19 +76,29 @@ void shader_link(shader_program* sp)
 		glDeleteShader(sp->shaders[i]);
 }
 
-void shader_use(shader_program* sp)
+ShaderProgram shader_create(const char* vs_path, const char* fs_path)
+{
+	ShaderProgram sp;
+	_load_from_file(&sp, vs_path, GL_VERTEX_SHADER);
+	_load_from_file(&sp, fs_path, GL_FRAGMENT_SHADER);
+	_link(&sp);
+
+	return sp;
+}
+
+void shader_use(ShaderProgram* sp)
 {
 	glUseProgram(sp->handle);
 }
 
 // TODO: log properly, uniform shit fails silently
-void shader_set_mat4(shader_program* sp, const char* name, glm::mat4 value)
+void shader_set_mat4(ShaderProgram* sp, const char* name, glm::mat4 value)
 {
 	GLint l = glGetUniformLocation(sp->handle, name);
 	glUniformMatrix4fv(l, 1, GL_FALSE, &value[0][0]);
 }
 
-void shader_set_int(shader_program* sp, const char* name, int value)
+void shader_set_int(ShaderProgram* sp, const char* name, int value)
 {
 	glUniform1i(glGetUniformLocation(sp->handle, name), value);
 }

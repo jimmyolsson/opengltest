@@ -98,8 +98,8 @@ void world_generate(block* blocks, memory_arena* pool, const int xoffset, const 
 	}
 #endif // DEBUG
 
-	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	generate_world_noise(blocks, pool, xoffset, zoffset);
+	generate_world_flatgrass(blocks, xoffset, zoffset);
+	//generate_world_noise(blocks, pool, xoffset, zoffset);
 }
 
 // TODO:

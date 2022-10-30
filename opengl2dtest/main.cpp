@@ -15,9 +15,6 @@
 #include "GLFW/glfw3.h"
 #endif
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #ifdef __EMSCRIPTEN__
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -39,11 +36,11 @@
 
 #include "common.h"
 
+#include "graphics/renderer.h"
 #include "robin_hood.h"
 #include "graphics/camera.h"
 #include "chunk.h"
 #include "player.h"
-#include "graphics/shader_m.h"
 #include "blocks/block.h"
 #include "util/memory_arena.h"
 #include "ui/crosshair.h"
@@ -57,19 +54,18 @@ const int SHADER_COUNT = 3;
 struct State
 {
 	GLFWwindow* window;
+	Renderer renderer;
 
 	float SCR_WIDTH = 1360;
 	float SCR_HEIGHT = 960;
 
-	ItemToolbar menu;
-	crosshair_t crosshair;
-	outline_block outline;
+	UIToolbar menu;
+	UICrosshair crosshair;
+	OutlineBlock outline;
 
 	player_s player;
 	chunk_map_t chunks;
 	sound_manager_s sound_manager;
-
-	//shader_program shaders[SHADER_COUNT];
 
 	memory_arena block_arena;
 	memory_arena chunk_arena;
@@ -77,11 +73,12 @@ struct State
 
 	float delta_time = 0.0f;	// time between current frame and last frame
 	float last_frame = 0.0f;
+
+	int texture_slot_counter = 0;
 } GameState;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 GLFWwindow* init_and_create_window();
-GLuint load_textures();
 void set_opengl_constants();
 
 void state_allocate_memory_arenas()
@@ -101,8 +98,9 @@ void state_allocate_memory_arenas()
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 150.0f, 0.0f));
+	GameState.player.camera = Camera(glm::vec3(0.0f, 70.0f, 0.0f));
 	GameState.window = init_and_create_window();
+	GameState.renderer = renderer_create();
 	GameState.chunks = {};
 
 	GameState.outline = outline_create();
@@ -112,10 +110,8 @@ void state_global_init()
 
 	sound_init(&GameState.sound_manager);
 
-	GameState.menu = menu_create();
-	GameState.crosshair = crosshair_create();
-	// TODO: This loads from GL_TEXTURE1
-	//menu_loadtexture(&GameState.menu);
+	GameState.menu = menu_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	GameState.crosshair = crosshair_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 
 	state_allocate_memory_arenas();
 }
@@ -298,63 +294,48 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
 }
 
-void game_render(Shader* lightingShader, unsigned int atlas)
+void game_render()
 {
-	// Render 3D
+	// Render 3D 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+
+	glm::mat4 view = GameState.player.camera.GetViewMatrix();
+	for (auto& iter : GameState.chunks)
 	{
-		const float projection_fov = glm::radians(GameState.player.camera.Zoom);// * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
-		const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
-		const glm::mat4 projection = glm::perspective(projection_fov, projection_aspect, 0.1f, 1000.0f);
-		const glm::mat4 view = GameState.player.camera.GetViewMatrix();
-		const glm::mat4 model = glm::mat4(1.0f);
-
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glEnable(GL_DEPTH_TEST);
-
-		lightingShader->use();
-
-		lightingShader->setMat4("projection", projection);
-		lightingShader->setMat4("view", view);
-		lightingShader->setMat4("model", model);
-
-		// bind textures on corresponding texture units
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
-
-		for (auto& iter : GameState.chunks)
-		{
-			lightingShader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(iter.first.x, 0, iter.first.y)));
-			chunk_render(iter.second);
-		}
-
-		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-
-		outline_render(&GameState.outline, projection, view);
+		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
+		chunk_render(iter.second, &GameState.renderer, view, position);
 	}
+
+	outline_render(&GameState.outline, &GameState.renderer, view);
 
 	// Render 2D
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 
-	const glm::mat4 projection_ortho = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
 	const glm::mat4 projection_view = glm::mat4(1.0f);
-	menu_render(&GameState.menu, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, projection_ortho, projection_view);
-	crosshair_render(&GameState.crosshair, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, projection_ortho, projection_view);
+	menu_render(&GameState.menu, &GameState.renderer, projection_view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	crosshair_render(&GameState.crosshair, &GameState.renderer, projection_view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 }
 
 void game_update()
 {
+	const float projection_fov = glm::radians(GameState.player.camera.Zoom);// * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
+	const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
+
+	const glm::mat4 perspective = glm::perspective(projection_fov, projection_aspect, 0.1f, 1000.0f);
+	const glm::mat4 orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
+
+	renderer_update(&GameState.renderer, perspective, orthographic);
 	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks);
 }
 
-void game_main_loop(unsigned int atlas)
+void game_main_loop()
 {
-	Shader lightingShader("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
-
 	float delta_time = 0;
 	float last_frame = 0;
 	while (!glfwWindowShouldClose(GameState.window))
@@ -370,7 +351,7 @@ void game_main_loop(unsigned int atlas)
 		game_update();
 
 		opengl_clear_screen();
-		game_render(&lightingShader, atlas);
+		game_render();
 
 		glfwSwapBuffers(GameState.window);
 	}
@@ -383,12 +364,10 @@ int main()
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
-	const auto atlas = load_textures();
-
 	init_chunks();
 	memory_arena_dealloc(&GameState.noise_arena);
 
-	game_main_loop(atlas);
+	game_main_loop();
 
 	return 0;
 }
@@ -404,33 +383,33 @@ glm::dvec2 last_x;
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	double step = 80;
-	(GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected;
+	(GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected;
 	if (yoffset == -1)
 	{
 		if (GameState.menu.item_selected != 8)
 		{
-			last_x = GameState.menu.pos;
+			last_x = GameState.menu.highlight.position;
 			GameState.menu.item_selected++;
 
-			GameState.menu.pos = glm::vec2((GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected, 0);
+			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
 
-			std::cout << last_x.x - GameState.menu.pos.x << "\n";
+			std::cout << last_x.x - GameState.menu.highlight.position.x << "\n";
 		}
 	}
 	if (yoffset == 1)
 	{
 		if (GameState.menu.item_selected != 0)
 		{
-			last_x = GameState.menu.pos;
+			last_x = GameState.menu.highlight.position;
 			GameState.menu.item_selected--;
 
-			GameState.menu.pos = glm::vec2((GameState.menu.toolbar_pos.x - 5) + step * GameState.menu.item_selected, 0);
+			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
 
-			std::cout << (double)((double)last_x.x - (double)GameState.menu.pos.x) << "\n";
+			std::cout << (double)((double)last_x.x - (double)GameState.menu.highlight.position.x) << "\n";
 		}
 	}
 
-	std::cout << GameState.menu.pos.x << "\n";
+	std::cout << GameState.menu.highlight.position.x << "\n";
 }
 
 #include <Windows.h>
@@ -465,74 +444,6 @@ GLFWwindow* init_and_create_window()
 #endif
 
 	return window;
-}
-#pragma endregion
-
-#pragma region LOAD_TEXTURES
-unsigned char* load_png(const char* path)
-{
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
-
-	//std::cout << nrChannels << "\n";
-	return data;
-}
-
-GLuint load_textures()
-{
-	unsigned char* dirt = load_png("..\\resources\\textures\\dirt.png");
-	unsigned char* dirt_grass_side = load_png("..\\resources\\textures\\dirt_grass_side.png");
-	unsigned char* dirt_grass_top = load_png("..\\resources\\textures\\dirt_grass_top.png");
-	unsigned char* stone = load_png("..\\resources\\textures\\stone.png");
-	unsigned char* sand = load_png("..\\resources\\textures\\sand.png");
-	unsigned char* leaves = load_png("..\\resources\\textures\\leaves.png");
-	unsigned char* oak_log = load_png("..\\resources\\textures\\oak_log.png");
-	unsigned char* oak_log_top = load_png("..\\resources\\textures\\oak_log_top.png");
-
-	unsigned int atlas;
-	GLsizei width = 16;
-	GLsizei height = 16;
-
-	// CURRENT NUMBER OF TEXTURES
-	GLsizei layerCount = BLOCK_TYPE_LAST + 1;
-	GLsizei mipLevelCount = 4;
-
-	glGenTextures(1, &atlas);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, atlas);
-
-	// Allocate the storage.
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
-
-	// Upload pixel data.
-	// The first 0 refers to the mipmap level (level 0, since there's only 1)
-	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
-	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
-	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
-
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, stone);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, dirt);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 2, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_side);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 3, width, height, 1, GL_RGB, GL_UNSIGNED_BYTE, dirt_grass_top);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 4, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, sand);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 5, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, leaves);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 6, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log);
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 7, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, oak_log_top);
-
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	//// set texture filtering parameters
-	//glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//GLfloat value, max_anisotropy = 8.0f;
-	//glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &value);
-
-	//value = (value > max_anisotropy) ? max_anisotropy : value;
-	//glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY, value);
-
-	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
-
-	return atlas;
 }
 #pragma endregion
 

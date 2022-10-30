@@ -5,157 +5,48 @@
 
 #include <glad/glad.h>
 
-#include "common.h"
-// should not be here
-#include "chunk.h"
-#include "graphics/shader.h"
+#include "graphics/renderer.h"
+
 #include "ray.h"
 
-struct outline_block
+struct OutlineBlock
 {
-	unsigned int vao;
-	unsigned int vbo;
-	glm::vec3 position;
-	shader_program sp;
 	bool visible = false;
+	Cube cube;
 };
 
-outline_block outline_create()
+OutlineBlock outline_create()
 {
-	outline_block outline_b;
+	OutlineBlock outline;
+	outline.cube = cube_create(TEXTURE_NONE,
+		SHADER_OUTLINE,
+		glm::vec3(0),
+		glm::vec3(1));
 
-	shader_load(&outline_b.sp, "..\\resources\\shaders\\outline_vert.glsl", GL_VERTEX_SHADER);
-	shader_load(&outline_b.sp, "..\\resources\\shaders\\outline_frag.glsl", GL_FRAGMENT_SHADER);
-
-	shader_link(&outline_b.sp);
-
-	std::vector<int> gpu_data;
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_back_verticies[index]);
-			gpu_data.push_back(m_back_verticies[index + 1]);
-			gpu_data.push_back(m_back_verticies[index + 2]);
-			gpu_data.push_back(m_back_verticies[index + 3]);
-			gpu_data.push_back(m_back_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_front_verticies[index]);
-			gpu_data.push_back(m_front_verticies[index + 1]);
-			gpu_data.push_back(m_front_verticies[index + 2]);
-			gpu_data.push_back(m_front_verticies[index + 3]);
-			gpu_data.push_back(m_front_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_left_verticies[index]);
-			gpu_data.push_back(m_left_verticies[index + 1]);
-			gpu_data.push_back(m_left_verticies[index + 2]);
-			gpu_data.push_back(m_left_verticies[index + 3]);
-			gpu_data.push_back(m_left_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_right_verticies[index]);
-			gpu_data.push_back(m_right_verticies[index + 1]);
-			gpu_data.push_back(m_right_verticies[index + 2]);
-			gpu_data.push_back(m_right_verticies[index + 3]);
-			gpu_data.push_back(m_right_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_bottom_verticies[index]);
-			gpu_data.push_back(m_bottom_verticies[index + 1]);
-			gpu_data.push_back(m_bottom_verticies[index + 2]);
-			gpu_data.push_back(m_bottom_verticies[index + 3]);
-			gpu_data.push_back(m_bottom_verticies[index + 4]);
-			index += 5;
-		}
-	}
-	{
-		int index = 0;
-		for (int i = 0; i < 6; i++)
-		{
-			gpu_data.push_back(m_top_verticies[index]);
-			gpu_data.push_back(m_top_verticies[index + 1]);
-			gpu_data.push_back(m_top_verticies[index + 2]);
-			gpu_data.push_back(m_top_verticies[index + 3]);
-			gpu_data.push_back(m_top_verticies[index + 4]);
-			index += 5;
-		}
-	}
-
-	glGenVertexArrays(1, &outline_b.vao);
-	glBindVertexArray(outline_b.vao);
-
-	glGenBuffers(1, &outline_b.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, outline_b.vbo);
-	glBufferData(GL_ARRAY_BUFFER, gpu_data.size() * sizeof(int), gpu_data.data(), GL_STATIC_DRAW);
-
-	// Position
-	glVertexAttribPointer(0, 3, GL_UNSIGNED_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Texture coord
-	glVertexAttribPointer(1, 2, GL_UNSIGNED_INT, GL_FALSE, 5 * BLOCK_SIZE_BYTES, (void*)(3 * BLOCK_SIZE_BYTES));
-	glEnableVertexAttribArray(1);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	return outline_b;
-}
-#include <iostream>
-
-void outline_render(outline_block* outline, glm::mat4 p, glm::mat4 v)
-{
-	//if (!outline->visible)
-		//return;
-
-	shader_use(&outline->sp);
-	shader_set_mat4(&outline->sp, "projection", p);
-	shader_set_mat4(&outline->sp, "view", v);
-	shader_set_mat4(&outline->sp, "model", glm::translate(glm::mat4(1.0f), outline->position));
-
-	glBindVertexArray(outline->vao);
-
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
+	return outline;
 }
 
-void outline_update(outline_block* outline, glm::vec3 origin, glm::vec3 direction, chunk_map_t* chunks)
+void outline_render(OutlineBlock* self, Renderer* renderer, glm::mat4 view)
+{
+	if (!self->visible)
+		return;
+
+	renderer_render_cube(renderer, view, &self->cube);
+}
+
+void outline_update(OutlineBlock* self, glm::vec3 origin, glm::vec3 direction, chunk_map_t* chunks)
 {
 	Ray r(origin, direction);
 	ray_hit_result result = r.intersect_block(20, chunks);
 
 	if (result.chunk_hit != nullptr)
 	{
-		outline->position = glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
+		self->cube.position = glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
 			result.block_pos.y,
 			result.chunk_world_pos.y + result.block_pos.z);
 		
-		outline->visible = true;
+		self->visible = true;
 	}
 	else
-		outline->visible = false;
-
-	//outline->visible = result.chunk_hit != nullptr;
+		self->visible = false;
 }
