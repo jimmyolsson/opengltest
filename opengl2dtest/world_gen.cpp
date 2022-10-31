@@ -35,15 +35,15 @@ void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, 
 				{
 					if (noise[to_1d_array(x, y + 2, z)] > threshold)
 					{
-						blocks[index].type = block_type::STONE;
+						blocks[index].type = BlockType::STONE;
 					}
 					else if (noise[to_1d_array(x, y + 1, z)] > threshold)
 					{
-						blocks[index].type = block_type::DIRT;
+						blocks[index].type = BlockType::DIRT;
 					}
 					else
 					{
-						blocks[index].type = block_type::DIRT_GRASS;
+						blocks[index].type = BlockType::DIRT_GRASS;
 					}
 				}
 			}
@@ -55,7 +55,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 {
 	if (world_height == 1) {
 		int index = to_1d_array(0, 0, 0);
-		blocks[index].type = block_type::DIRT_GRASS;
+		blocks[index].type = BlockType::DIRT_GRASS;
 		return;
 	}
 	for (int z = 0; z < world_width; z++)
@@ -67,11 +67,11 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 				int index = to_1d_array(x, y, z);
 				if (y < world_height / 6)
 				{
-					blocks[index].type = block_type::DIRT_GRASS;
+					blocks[index].type = BlockType::DIRT_GRASS;
 				}
 				if (y < (world_height / 6) - 1)
 				{
-					blocks[index].type = block_type::DIRT_GRASS;
+					blocks[index].type = BlockType::DIRT_GRASS;
 				}
 			}
 		}
@@ -91,7 +91,7 @@ void world_generate(block* blocks, memory_arena* pool, const int xoffset, const 
 			for (int x = 0; x < world_width; x++)
 			{
 				int index = to_1d_array(x, y, z);
-				blocks[index].type = block_type::AIR;
+				blocks[index].type = BlockType::AIR;
 				blocks[index].sky = false;
 			}
 		}
@@ -108,7 +108,7 @@ void world_generate(block* blocks, memory_arena* pool, const int xoffset, const 
 struct structure_node
 {
 	glm::ivec3 pos;
-	block_type type;
+	BlockType type;
 };
 
 std::vector<structure_node> sphere;
@@ -116,14 +116,14 @@ std::vector<structure_node> sphere;
 // at subsequence points
 void drawCircle(int xc, int yc, int x, int y, int world_y, std::vector<structure_node>& sphere)
 {
-	sphere.push_back({ { xc + x, world_y, yc + y }, block_type::STONE });
-	sphere.push_back({ { xc - x, world_y, yc + y }, block_type::STONE });
-	sphere.push_back({ { xc + x, world_y, yc - y }, block_type::STONE });
-	sphere.push_back({ { xc - x, world_y, yc - y }, block_type::STONE });
-	sphere.push_back({ { xc + y, world_y, yc + x }, block_type::STONE });
-	sphere.push_back({ { xc - y, world_y, yc + x }, block_type::STONE });
-	sphere.push_back({ { xc + y, world_y, yc - x }, block_type::STONE });
-	sphere.push_back({ { xc - y, world_y, yc - x }, block_type::STONE });
+	sphere.push_back({ { xc + x, world_y, yc + y }, BlockType::STONE });
+	sphere.push_back({ { xc - x, world_y, yc + y }, BlockType::STONE });
+	sphere.push_back({ { xc + x, world_y, yc - y }, BlockType::STONE });
+	sphere.push_back({ { xc - x, world_y, yc - y }, BlockType::STONE });
+	sphere.push_back({ { xc + y, world_y, yc + x }, BlockType::STONE });
+	sphere.push_back({ { xc - y, world_y, yc + x }, BlockType::STONE });
+	sphere.push_back({ { xc + y, world_y, yc - x }, BlockType::STONE });
+	sphere.push_back({ { xc - y, world_y, yc - x }, BlockType::STONE });
 }
 
 // Function for circle-generation
@@ -204,102 +204,102 @@ std::vector<structure_node> sphere_algo(int x0, int y0, int z0, int r)
 			for (int z = 0; z < sphere_size; z++)
 			{
 				if (map[x][y][z] != 0)
-					a.push_back({ {x, y, z},{block_type::STONE} });
+					a.push_back({ {x, y, z},{BlockType::STONE} });
 			}
 	return a;
 }
 
 std::vector<structure_node> tree_structure = {
-	{{0, 1, 0}, block_type::OAK_LOG},
-	{{0, 2, 0}, block_type::OAK_LOG},
-	{{0, 3, 0}, block_type::OAK_LOG},
-	{{0, 4, 0}, block_type::OAK_LOG},
-	{{0, 5, 0}, block_type::OAK_LOG},
-	{{0, 6, 0}, block_type::OAK_LOG},
+	{{0, 1, 0}, BlockType::OAK_LOG},
+	{{0, 2, 0}, BlockType::OAK_LOG},
+	{{0, 3, 0}, BlockType::OAK_LOG},
+	{{0, 4, 0}, BlockType::OAK_LOG},
+	{{0, 5, 0}, BlockType::OAK_LOG},
+	{{0, 6, 0}, BlockType::OAK_LOG},
 
-	{{-2, 4, 1}, block_type::LEAVES},
-	{{-1, 4, 1}, block_type::LEAVES},
-	{{1, 4, 1}, block_type::LEAVES},
-	{{2, 4, 1}, block_type::LEAVES},
+	{{-2, 4, 1}, BlockType::LEAVES},
+	{{-1, 4, 1}, BlockType::LEAVES},
+	{{1, 4, 1}, BlockType::LEAVES},
+	{{2, 4, 1}, BlockType::LEAVES},
 
-	{{-2, 4, 0}, block_type::LEAVES},
-	{{-1, 4, 0}, block_type::LEAVES},
-	{{1, 4, 0}, block_type::LEAVES},
-	{{2, 4, 0}, block_type::LEAVES},
+	{{-2, 4, 0}, BlockType::LEAVES},
+	{{-1, 4, 0}, BlockType::LEAVES},
+	{{1, 4, 0}, BlockType::LEAVES},
+	{{2, 4, 0}, BlockType::LEAVES},
 
-	{{-2, 4, -1}, block_type::LEAVES},
-	{{-1, 4, -1}, block_type::LEAVES},
-	{{1, 4, -1}, block_type::LEAVES},
-	{{2, 4, -1}, block_type::LEAVES},
+	{{-2, 4, -1}, BlockType::LEAVES},
+	{{-1, 4, -1}, BlockType::LEAVES},
+	{{1, 4, -1}, BlockType::LEAVES},
+	{{2, 4, -1}, BlockType::LEAVES},
 
-	{{1, 4, -2}, block_type::LEAVES},
-	{{1, 4, -1}, block_type::LEAVES},
-	{{1, 4, 1}, block_type::LEAVES},
-	{{1, 4, 2}, block_type::LEAVES},
+	{{1, 4, -2}, BlockType::LEAVES},
+	{{1, 4, -1}, BlockType::LEAVES},
+	{{1, 4, 1}, BlockType::LEAVES},
+	{{1, 4, 2}, BlockType::LEAVES},
 
-	{{0, 4, -2}, block_type::LEAVES},
-	{{0, 4, -1}, block_type::LEAVES},
-	{{0, 4, 1}, block_type::LEAVES},
-	{{0, 4, 2}, block_type::LEAVES},
+	{{0, 4, -2}, BlockType::LEAVES},
+	{{0, 4, -1}, BlockType::LEAVES},
+	{{0, 4, 1}, BlockType::LEAVES},
+	{{0, 4, 2}, BlockType::LEAVES},
 
-	{{-1, 4, -2}, block_type::LEAVES},
-	{{-1, 4, -1}, block_type::LEAVES},
-	{{-1, 4, 1}, block_type::LEAVES},
-	{{-1, 4, 2}, block_type::LEAVES},
+	{{-1, 4, -2}, BlockType::LEAVES},
+	{{-1, 4, -1}, BlockType::LEAVES},
+	{{-1, 4, 1}, BlockType::LEAVES},
+	{{-1, 4, 2}, BlockType::LEAVES},
 
-	{{-2, 5, 1}, block_type::LEAVES},
-	{{-1, 5, 1}, block_type::LEAVES},
-	{{1, 5, 1}, block_type::LEAVES},
-	{{2, 5, 1}, block_type::LEAVES},
+	{{-2, 5, 1}, BlockType::LEAVES},
+	{{-1, 5, 1}, BlockType::LEAVES},
+	{{1, 5, 1}, BlockType::LEAVES},
+	{{2, 5, 1}, BlockType::LEAVES},
 
-	{{-2, 5, 0}, block_type::LEAVES},
-	{{-1, 5, 0}, block_type::LEAVES},
-	{{1, 5, 0}, block_type::LEAVES},
-	{{2, 5, 0}, block_type::LEAVES},
+	{{-2, 5, 0}, BlockType::LEAVES},
+	{{-1, 5, 0}, BlockType::LEAVES},
+	{{1, 5, 0}, BlockType::LEAVES},
+	{{2, 5, 0}, BlockType::LEAVES},
 
-	{{-2, 5, -1}, block_type::LEAVES},
-	{{-1, 5, -1}, block_type::LEAVES},
-	{{1, 5, -1}, block_type::LEAVES},
-	{{2, 5, -1}, block_type::LEAVES},
+	{{-2, 5, -1}, BlockType::LEAVES},
+	{{-1, 5, -1}, BlockType::LEAVES},
+	{{1, 5, -1}, BlockType::LEAVES},
+	{{2, 5, -1}, BlockType::LEAVES},
 
-	{{1, 5, -2}, block_type::LEAVES},
-	{{1, 5, -1}, block_type::LEAVES},
-	{{1, 5, 1}, block_type::LEAVES},
-	{{1, 5, 2}, block_type::LEAVES},
+	{{1, 5, -2}, BlockType::LEAVES},
+	{{1, 5, -1}, BlockType::LEAVES},
+	{{1, 5, 1}, BlockType::LEAVES},
+	{{1, 5, 2}, BlockType::LEAVES},
 
-	{{0, 5, -2}, block_type::LEAVES},
-	{{0, 5, -1}, block_type::LEAVES},
-	{{0, 5, 1}, block_type::LEAVES},
-	{{0, 5, 2}, block_type::LEAVES},
+	{{0, 5, -2}, BlockType::LEAVES},
+	{{0, 5, -1}, BlockType::LEAVES},
+	{{0, 5, 1}, BlockType::LEAVES},
+	{{0, 5, 2}, BlockType::LEAVES},
 
-	{{-1, 5, -2}, block_type::LEAVES},
-	{{-1, 5, -1}, block_type::LEAVES},
-	{{-1, 5, 1}, block_type::LEAVES},
-	{{-1, 5, 2}, block_type::LEAVES},
+	{{-1, 5, -2}, BlockType::LEAVES},
+	{{-1, 5, -1}, BlockType::LEAVES},
+	{{-1, 5, 1}, BlockType::LEAVES},
+	{{-1, 5, 2}, BlockType::LEAVES},
 
-	{{-1, 6, 1}, block_type::LEAVES},
-	{{1, 6, 1}, block_type::LEAVES},
+	{{-1, 6, 1}, BlockType::LEAVES},
+	{{1, 6, 1}, BlockType::LEAVES},
 
-	{{-1, 6, 0}, block_type::LEAVES},
-	{{1, 6, 0}, block_type::LEAVES},
+	{{-1, 6, 0}, BlockType::LEAVES},
+	{{1, 6, 0}, BlockType::LEAVES},
 
-	{{-1, 6, -1}, block_type::LEAVES},
+	{{-1, 6, -1}, BlockType::LEAVES},
 
-	{{1, 6, -1}, block_type::LEAVES},
+	{{1, 6, -1}, BlockType::LEAVES},
 
-	{{1, 6, -1}, block_type::LEAVES},
-	{{1, 6, 1}, block_type::LEAVES},
+	{{1, 6, -1}, BlockType::LEAVES},
+	{{1, 6, 1}, BlockType::LEAVES},
 
-	{{0, 6, -1}, block_type::LEAVES},
-	{{0, 6, 1}, block_type::LEAVES},
+	{{0, 6, -1}, BlockType::LEAVES},
+	{{0, 6, 1}, BlockType::LEAVES},
 
-	{{-1, 6, -1}, block_type::LEAVES},
-	{{-1, 6, 1}, block_type::LEAVES},
+	{{-1, 6, -1}, BlockType::LEAVES},
+	{{-1, 6, 1}, BlockType::LEAVES},
 
-	{{0, 7, 0}, block_type::LEAVES},
-	{{-1, 7, 0}, block_type::LEAVES},
-	{{1, 7, 0}, block_type::LEAVES},
-	{{0, 7, -1}, block_type::LEAVES},
-	{{0, 7, 1}, block_type::LEAVES},
+	{{0, 7, 0}, BlockType::LEAVES},
+	{{-1, 7, 0}, BlockType::LEAVES},
+	{{1, 7, 0}, BlockType::LEAVES},
+	{{0, 7, -1}, BlockType::LEAVES},
+	{{0, 7, 1}, BlockType::LEAVES},
 };
 

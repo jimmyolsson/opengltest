@@ -2,7 +2,6 @@
 
 #include "glad/glad.h"
 
-
 #include <glm/gtx/hash.hpp>
 #include <chrono>
 
@@ -17,16 +16,16 @@ static int to_1d_array(short x, short y, short z)
 	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
-block* chunk_get_block(chunk* c, glm::ivec3 block_pos) 
+block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
 {
 	return &c->blocks[to_1d_array(block_pos)];
 }
-block* chunk_get_block(chunk* c, short x, short y, short z) 
+block* chunk_get_block(Chunk* c, short x, short y, short z)
 {
 	return &c->blocks[to_1d_array(x, y, z)];
 }
 
-void update_buffers(chunk* chunk)
+void update_buffers(Chunk* chunk)
 {
 	glBindVertexArray(chunk->vao_handle);
 
@@ -43,7 +42,7 @@ void update_buffers(chunk* chunk)
 	chunk->initialized = true;
 }
 
-void init_transparent_buffers(chunk* c)
+void init_transparent_buffers(Chunk* c)
 {
 	glGenVertexArrays(1, &c->vao_handle_transparent);
 	glBindVertexArray(c->vao_handle_transparent);
@@ -60,7 +59,7 @@ void init_transparent_buffers(chunk* c)
 	glBindVertexArray(0);
 }
 
-void chunk_generate_buffers(chunk* chunk)
+void chunk_generate_buffers(Chunk* chunk)
 {
 	//init_transparent_buffers(chunk);
 
@@ -101,11 +100,11 @@ int extend(block_size_t** src, int used, int amount)
 	return used + amount;
 }
 
-void add_face_and_texture(chunk* chunk, const block_size_t* data, block_face_direction direction, int x, int y, int z)
+void add_face_and_texture(Chunk* chunk, const block_size_t* data, block_face_direction direction, int x, int y, int z)
 {
 	const int vert_count = 30;
 	int i = 0;
-	while (i != 30)
+	while (i != vert_count)
 	{
 		int result = 0;
 		result = (data[i] + x) << 24;								//x
@@ -114,7 +113,7 @@ void add_face_and_texture(chunk* chunk, const block_size_t* data, block_face_dir
 		result |= (data[i + 3]) << 7;								//u
 		result |= (data[i + 4]) << 6;								//v
 		result |= (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type)) << 2;		//b
-		result |= (direction == block_face_direction::RIGHT || direction == block_face_direction::LEFT) ? 2 : 1;
+		result |= (direction == block_face_direction::RIGHT || direction == block_face_direction::LEFT) ? 2 : 1; // basic lighting
 
 		chunk->gpu_data_arr[chunk->blocks_in_use] = result;
 
@@ -123,14 +122,10 @@ void add_face_and_texture(chunk* chunk, const block_size_t* data, block_face_dir
 	}
 }
 
-void generate_face(chunk* current_chunk, const chunk* neighbor, const block_size_t data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
+void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
 {
 	if (on_edge)
 	{
-		//if (current_chunk->blocks[current_chunk_index].type == block_type::WATER && neighbor->blocks[other_chunk_index].type == block_type::WATER)
-		//{
-		//	return;
-		//}
 		//If i have a neighbor that is transparent
 		if (neighbor != nullptr && block_is_transparent(neighbor->blocks[other_chunk_index].type))
 		{
@@ -144,104 +139,30 @@ void generate_face(chunk* current_chunk, const chunk* neighbor, const block_size
 	}
 }
 
-void genm(chunk* chunk);
-
-void chunk_generate_mesh(chunk* chunk)
+void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 {
-	return genm(chunk);
-}
+	if (c == nullptr)
+		return;
 
-void generate_mesh_timed(chunk* chunk)
-{
-	using namespace std::chrono;
-
-	auto c_in = steady_clock::now();
-	if (chunk->back_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y - CHUNK_SIZE_WIDTH)))
-	{
-		chunk->back_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y - CHUNK_SIZE_WIDTH));
-	}
-	if (chunk->front_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y + CHUNK_SIZE_WIDTH)))
-	{
-		chunk->front_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y + CHUNK_SIZE_WIDTH));
-	}
-	if (chunk->left_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x - CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y)))
-	{
-		chunk->left_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x - CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y));
-	}
-	if (chunk->right_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x + CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y)))
-	{
-		chunk->right_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x + CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y));
-	}
-	auto c_ins = steady_clock::now();
-
-	auto c_m = steady_clock::now();
-	long long esc = 0;
-	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
-	{
-		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
-		{
-			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
-			{
-				int current = to_1d_array(x, y, z);
-				if (chunk->blocks[current].type == block_type::AIR)
-					continue;
-				generate_face(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
-				generate_face(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
-
-				generate_face(chunk, chunk->left_neighbor, m_left_verticies, block_face_direction::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
-				generate_face(chunk, chunk->right_neighbor, m_right_verticies, block_face_direction::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH));
-
-				// no chunk neighbors on the Y-axis
-				if (y != 0 && (y == 0 || block_is_transparent(chunk->blocks[to_1d_array(x, y - 1, z)].type)))
-				{
-					add_face_and_texture(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
-				}
-
-				if (y + 1 > CHUNK_SIZE_HEIGHT || block_is_transparent(chunk->blocks[to_1d_array(x, y + 1, z)].type))
-				{
-					add_face_and_texture(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
-				}
-			}
-		}
-	}
-	auto c_ms = steady_clock::now();
-
-	auto l_m = steady_clock::now();
-	//calculate_lighting(chunk, chunk->world_pos);
-	auto l_ms = steady_clock::now();
-
-	//std::cout << "init_neighbors: " << duration_cast<milliseconds>(c_ins - c_in).count() << "ms\n";
-	//std::cout << "meshing: " << duration_cast<milliseconds>(c_ms - c_m).count() << "ms\n";
-	//std::cout << "lighting: " << duration_cast<milliseconds>(l_ms - l_ms).count() << "ms\n";
-}
-
-void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type)
-{
 	c->blocks[to_1d_array(block_pos)].type = new_type;
 	c->dirty = true;
-	if (block_pos.x == CHUNK_SIZE_WIDTH - 1)
-	{
-		assert(c->right_neighbor != nullptr);
+
+	if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
 		c->right_neighbor->dirty = true;
-	}
-	else if (block_pos.x == 0)
-	{
-		assert(c->left_neighbor != nullptr);
+	else if (block_pos.x == 0 && c->left_neighbor != nullptr)
 		c->left_neighbor->dirty = true;
-	}
-	else if (block_pos.z == CHUNK_SIZE_WIDTH - 1)
-	{
-		assert(c->front_neighbor != nullptr);
+	else if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
 		c->front_neighbor->dirty = true;
-	}
-	else if (block_pos.z == 0)
-	{
-		assert(c->back_neighbor != nullptr);
+	else if (block_pos.z == 0 && c->back_neighbor != nullptr)
 		c->back_neighbor->dirty = true;
-	}
 }
 
-void genm(chunk* chunk)
+void generate_transparent_mesh(Chunk* chunk)
+{
+
+}
+
+void chunk_generate_mesh(Chunk* chunk)
 {
 	using namespace std::chrono;
 
@@ -261,6 +182,7 @@ void genm(chunk* chunk)
 	{
 		chunk->right_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x + CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y));
 	}
+
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
@@ -268,7 +190,7 @@ void genm(chunk* chunk)
 			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
 				int current = to_1d_array(x, y, z);
-				if (chunk->blocks[current].type == block_type::AIR)
+				if (chunk->blocks[current].type == BlockType::AIR)
 					continue;
 
 				//add_face_and_texture(chunk, m_back_verticies, block_face_direction::BACK, x, y, z);
@@ -299,7 +221,7 @@ void genm(chunk* chunk)
 	}
 }
 
-void calculate_lighting(chunk* c, const glm::vec2& chunk_pos)
+void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
 {
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
@@ -308,7 +230,7 @@ void calculate_lighting(chunk* c, const glm::vec2& chunk_pos)
 			for (int y = CHUNK_SIZE_HEIGHT - 1; y != 0; --y)
 			{
 				block* b = &c->blocks[to_1d_array(x, y, z)];
-				if (b->type != block_type::AIR)
+				if (b->type != BlockType::AIR)
 				{
 					b->sky = true;
 					break;
@@ -324,7 +246,7 @@ void chunk_update(chunk_map_t* chunks)
 	{
 		if (it.second.dirty)
 		{
-			generate_mesh_timed(&it.second);
+			chunk_generate_mesh(&it.second);
 			glDeleteBuffers(1, &it.second.vbo_handle);
 			glDeleteVertexArrays(1, &it.second.vao_handle);
 			chunk_generate_buffers(&it.second);
@@ -333,17 +255,17 @@ void chunk_update(chunk_map_t* chunks)
 	}
 }
 
-void chunk_render(const chunk& chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
+void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
 {
+	if (chunk->dirty)
+		return;
+
 	renderer_render_custom(renderer,
 		view,
 		TEXTURE_ATLAS_CHUNK,
 		SHADER_CHUNK,
-		chunk.vao_handle,
-		chunk.blocks_in_use,
+		chunk->vao_handle,
+		chunk->blocks_in_use,
 		position,
 		glm::vec3(1));
-
-	if (chunk.dirty)
-		return;
 }

@@ -10,7 +10,7 @@ void sound_init(sound_manager_s* s)
 }
 
 // Expand action, for now its only two
-void sound_play_block_sound(sound_manager_s* s, block_type type, bool remove)
+void sound_play_block_sound(sound_manager_s* s, BlockType type, bool remove)
 {
 	char block_name[50];
 	block_get_sound(type, remove, block_name, sizeof(block_name));

@@ -25,7 +25,8 @@ Renderer renderer_create()
 		"..\\resources\\textures\\block\\sand.png",
 		"..\\resources\\textures\\block\\leaves.png",
 		"..\\resources\\textures\\block\\oak_log.png",
-		"..\\resources\\textures\\block\\oak_log_top.png"
+		"..\\resources\\textures\\block\\oak_log_top.png",
+		"..\\resources\\textures\\block\\water.png"
 	);
 
 	renderer.textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");

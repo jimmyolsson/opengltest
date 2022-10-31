@@ -118,7 +118,7 @@ void state_global_init()
 
 void create_and_init_chunk(const int x, const int z)
 {
-	chunk chunk;
+	Chunk chunk;
 
 	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
 	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
@@ -169,10 +169,10 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	block_type type = block_type::STONE;
+	BlockType type = BlockType::STONE;
 
 	// what chunk and block to process
-	chunk* hit_chunk = nullptr;
+	Chunk* hit_chunk = nullptr;
 	glm::ivec3 b_pos = ray_hit.block_pos;
 
 	bool another_chunk = false;
@@ -221,12 +221,12 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		if (remove)
 		{
 			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
-			chunk_set_block(hit_chunk, b_pos, block_type::AIR);
+			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
 		else
 		{
 			chunk_set_block(hit_chunk, b_pos, type);
-			if (type != block_type::AIR)
+			if (type != BlockType::AIR)
 				sound_play_block_sound(&GameState.sound_manager, type, remove);
 		}
 
@@ -307,7 +307,7 @@ void game_render()
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render(iter.second, &GameState.renderer, view, position);
+		chunk_render(&iter.second, &GameState.renderer, view, position);
 	}
 
 	outline_render(&GameState.outline, &GameState.renderer, view);

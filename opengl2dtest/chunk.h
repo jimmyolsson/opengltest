@@ -7,7 +7,7 @@
 #include "graphics/renderer.h"
 #include "common.h"
 
-enum block_type;
+enum BlockType;
 enum class block_face_direction;
 
 const int CHUNK_SIZE_WIDTH = 32;
@@ -22,12 +22,10 @@ const int CHUNK_DRAW_DISTANCE = 20;
 const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
-// this needs to match gl type
-
-struct chunk
+struct Chunk
 {
 	block* blocks;
-	robin_hood::unordered_flat_map<glm::ivec2, chunk>* chunks;
+	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
 	glm::ivec2 world_pos;
 
 	block_size_t* gpu_data_arr = nullptr;
@@ -36,10 +34,10 @@ struct chunk
 	block_size_t* gpu_data_arr_transparent = nullptr;
 	int blocks_in_use_transparent = 0;
 
-	chunk* front_neighbor = nullptr;
-	chunk* back_neighbor = nullptr;
-	chunk* right_neighbor = nullptr;
-	chunk* left_neighbor = nullptr;
+	Chunk* front_neighbor = nullptr;
+	Chunk* back_neighbor = nullptr;
+	Chunk* right_neighbor = nullptr;
+	Chunk* left_neighbor = nullptr;
 
 	unsigned int vao_handle = -1;
 	unsigned int vbo_handle = -1;
@@ -53,11 +51,13 @@ struct chunk
 	bool dirty = false;
 };
 
+void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
+block* chunk_get_block(Chunk* c, glm::ivec3 block_pos);
+block* chunk_get_block(Chunk* c, short x, short y, short z);
+
 // Exposed just so that we can multithread init
-void chunk_generate_mesh(chunk* chunk);
-void chunk_generate_buffers(chunk* chunk);
-void chunk_set_block(chunk* c, glm::ivec3 block_pos, block_type new_type);
-block* chunk_get_block(chunk* c, glm::ivec3 block_pos);
-block* chunk_get_block(chunk* c, short x, short y, short z);
+void chunk_generate_mesh(Chunk* chunk);
+void chunk_generate_buffers(Chunk* chunk);
+
 void chunk_update(chunk_map_t* chunks);
-void chunk_render(const chunk& chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);

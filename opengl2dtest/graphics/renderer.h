@@ -6,6 +6,13 @@
 #include "camera.h"
 #include "cube.h"
 
+struct Transform
+{
+	glm::mat4 position;
+	glm::mat4 scale;
+	glm::mat4 rotation;
+};
+
 struct Renderer
 {
 	ShaderProgram shaders[SHADERS_LAST+1];

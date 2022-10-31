@@ -17,9 +17,3 @@ enum ShaderType {
 	SHADER_BASIC_TEXTURE,
 	SHADER_BASIC_COLOR
 };
-
-#define RENDERTYPE_LAST RENDER_TYPE_QUAD
-enum RenderType
-{
-	RENDER_TYPE_QUAD = 0
-};

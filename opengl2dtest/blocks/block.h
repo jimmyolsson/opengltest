@@ -6,30 +6,31 @@ const int TOTAL_ELEMENTS_IN_QUAD = 30;
 typedef int block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 
-#define BLOCK_TYPE_LAST OAK_LOG
-enum block_type : int {
+#define BLOCK_TYPE_LAST WATER
+enum BlockType : int {
 	AIR = 0,
-	STONE = 1,
-	DIRT = 2,
-	DIRT_GRASS = 3,
-	SAND = 4,
-	LEAVES = 5,
-	OAK_LOG = 6,
+	STONE,
+	DIRT,
+	DIRT_GRASS,
+	SAND,
+	LEAVES,
+	OAK_LOG,
+	WATER
 };
 
 enum class block_face_direction : int
 {
 	BACK = 0,
-	FRONT = 1,
-	RIGHT = 2,
-	LEFT = 3,
-	BOTTOM = 4,
-	TOP = 5
+	FRONT,
+	RIGHT,
+	LEFT,
+	BOTTOM,
+	TOP
 };
 
 struct block
 {
-	block_type type = block_type::AIR;
+	BlockType type = BlockType::AIR;
 	bool sky = false;
 
 	//char light_level_top = 0;
@@ -91,16 +92,28 @@ const static block_size_t m_top_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
 	0, 1, 0, 0, 0
 };
 
-int block_get_texture(block_face_direction direction, block_type type);
+int block_get_texture(block_face_direction direction, BlockType type);
 
-void block_get_sound(block_type type, bool remove, char* name, int buffer_size);
+void block_get_sound(BlockType type, bool remove, char* name, int buffer_size);
 
-static bool block_is_transparent(block_type type)
+static bool block_is_translucent(BlockType type)
 {
 	switch (type)
 	{
-	case block_type::AIR:
-	case block_type::LEAVES:
+	case WATER:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool block_is_transparent(BlockType type)
+{
+	switch (type)
+	{
+	case BlockType::AIR:
+	case BlockType::LEAVES:
+	case BlockType::WATER:
 		return true;
 		break;
 	default:

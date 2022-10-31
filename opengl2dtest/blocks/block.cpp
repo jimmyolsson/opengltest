@@ -3,30 +3,34 @@
 #include <assert.h>
 #include "blocks.h"
 
-void block_get_name(block_type type, char* name, int buffer_size)
+void block_get_name(BlockType type, char* name, int buffer_size)
 {
 	assert(buffer_size > 20);
 	int buff_s = buffer_size - 1;
 	switch (type)
 	{
-	case block_type::STONE:
+	case BlockType::STONE:
 		strncpy_s(name, buffer_size, "STONE", buff_s);
 		return;
-	case block_type::DIRT:
+	case BlockType::DIRT:
 		strncpy_s(name, buffer_size, "DIRT", buff_s);
 		return;
-	case block_type::DIRT_GRASS:
+	case BlockType::DIRT_GRASS:
 		strncpy_s(name, buffer_size, "DIRT_GRASS", buff_s);
 		return;
-	case block_type::SAND:
+	case BlockType::SAND:
 		strncpy_s(name, buffer_size, "SAND", buff_s);
 		return;
-	case block_type::LEAVES:
+	case BlockType::LEAVES:
 		strncpy_s(name, buffer_size, "LEAVES", buff_s);
 		return;
-	case block_type::OAK_LOG:
+	case BlockType::OAK_LOG:
 		strncpy_s(name, buffer_size, "OAK_LOG", buff_s);
 		return;
+	case BlockType::WATER:
+		strncpy_s(name, buffer_size, "WATER", buff_s);
+		return;
+
 	default:
 		assert(false);
 	}
@@ -38,7 +42,7 @@ int random(int min, int max)
 	return (rand() % (max - min + 1)) + min;
 }
 
-int block_get_texture(block_face_direction direction, block_type type)
+int block_get_texture(block_face_direction direction, BlockType type)
 {
 	switch (direction)
 	{
@@ -65,10 +69,10 @@ int block_get_texture(block_face_direction direction, block_type type)
 	}
 }
 
-void block_get_sound(block_type type, bool remove, char* name, int buffer_size)
+void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 {
 	char n[50];
-	block_type sound_type = remove ? block_infos[type].sound_remove : block_infos[type].sound_place;
+	BlockType sound_type = remove ? block_infos[type].sound_remove : block_infos[type].sound_place;
 	block_get_name(sound_type, n, sizeof(n));
 
 	int num = random(1, 4);

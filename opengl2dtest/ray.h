@@ -24,7 +24,7 @@ struct ray_hit_result
 {
 	glm::ivec3 block_pos;
 	glm::ivec3 direction;
-	chunk* chunk_hit;
+	Chunk* chunk_hit;
 	glm::ivec2 chunk_world_pos;
 };
 
@@ -67,7 +67,7 @@ struct Ray
 
 					
 					const auto a = chunk_get_block(&it.second, x, y, z);
-					if (a->type != block_type::AIR)
+					if (a->type != BlockType::AIR)
 					{
 						result.block_pos = glm::ivec3(x, y, z);
 						result.chunk_hit = &it.second;
