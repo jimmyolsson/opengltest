@@ -69,6 +69,7 @@ struct State
 
 	memory_arena block_arena;
 	memory_arena chunk_arena;
+	memory_arena chunk_arena_transparent;
 	memory_arena noise_arena;
 
 	float delta_time = 0.0f;	// time between current frame and last frame
@@ -94,11 +95,12 @@ void state_allocate_memory_arenas()
 	memory_arena_init(&GameState.block_arena, block_arena_size);
 	memory_arena_init(&GameState.noise_arena, noise_arena_size);
 	memory_arena_init(&GameState.chunk_arena, size_chunk);
+	memory_arena_init(&GameState.chunk_arena_transparent, size_chunk);
 }
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 70.0f, 0.0f));
+	GameState.player.camera = Camera(glm::vec3(0.0f, 150.0f, 0.0f));
 	GameState.window = init_and_create_window();
 	GameState.renderer = renderer_create();
 	GameState.chunks = {};
@@ -122,6 +124,8 @@ void create_and_init_chunk(const int x, const int z)
 
 	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
 	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
+	// this is retarded
+	chunk.gpu_data_arr_transparent = (block_size_t*)memory_arena_get(&GameState.chunk_arena_transparent, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
@@ -156,11 +160,13 @@ void init_chunks()
 		[&](auto& iter)
 		{
 			chunk_generate_mesh(&iter.second);
+			chunk_generate_mesh_transparent(&iter.second);
 		});
 
 	for (auto& iter : GameState.chunks)
 	{
 		chunk_generate_buffers(&iter.second);
+		chunk_generate_buffers_transparent(&iter.second);
 	}
 }
 
@@ -312,6 +318,12 @@ void game_render()
 
 	outline_render(&GameState.outline, &GameState.renderer, view);
 
+	for (auto& iter : GameState.chunks)
+	{
+		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
+		chunk_render_transparent(&iter.second, &GameState.renderer, view, position);
+	}
+
 	// Render 2D
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -326,7 +338,7 @@ void game_update()
 	const float projection_fov = glm::radians(GameState.player.camera.Zoom);// * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
 	const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
 
-	const glm::mat4 perspective = glm::perspective(projection_fov, projection_aspect, 0.1f, 1000.0f);
+	const glm::mat4 perspective = glm::perspective(projection_fov, projection_aspect, 0.1f, 2000.0f);
 	const glm::mat4 orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
 
 	renderer_update(&GameState.renderer, perspective, orthographic);

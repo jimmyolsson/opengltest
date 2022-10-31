@@ -67,7 +67,7 @@ struct Ray
 
 					
 					const auto a = chunk_get_block(&it.second, x, y, z);
-					if (a->type != BlockType::AIR)
+					if (a->type != BlockType::AIR && a->type != BlockType::WATER)
 					{
 						result.block_pos = glm::ivec3(x, y, z);
 						result.chunk_hit = &it.second;

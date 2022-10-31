@@ -42,7 +42,7 @@ void update_buffers(Chunk* chunk)
 	chunk->initialized = true;
 }
 
-void init_transparent_buffers(Chunk* c)
+void chunk_generate_buffers_transparent(Chunk* c)
 {
 	glGenVertexArrays(1, &c->vao_handle_transparent);
 	glBindVertexArray(c->vao_handle_transparent);
@@ -138,7 +138,6 @@ void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size
 		add_face_and_texture(current_chunk, data, direction, x, y, z);
 	}
 }
-
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 {
 	if (c == nullptr)
@@ -157,15 +156,8 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 		c->back_neighbor->dirty = true;
 }
 
-void generate_transparent_mesh(Chunk* chunk)
+void check_neighbors(Chunk* chunk)
 {
-
-}
-
-void chunk_generate_mesh(Chunk* chunk)
-{
-	using namespace std::chrono;
-
 	if (chunk->back_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y - CHUNK_SIZE_WIDTH)))
 	{
 		chunk->back_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y - CHUNK_SIZE_WIDTH));
@@ -182,6 +174,50 @@ void chunk_generate_mesh(Chunk* chunk)
 	{
 		chunk->right_neighbor = &chunk->chunks->at(glm::ivec2((int)chunk->world_pos.x + CHUNK_SIZE_WIDTH, (int)chunk->world_pos.y));
 	}
+}
+
+void add_face_and_texture_t(Chunk* chunk, const block_size_t* data, block_face_direction direction, int x, int y, int z)
+{
+	const int vert_count = 30;
+	int i = 0;
+	while (i != vert_count)
+	{
+		int result = 0;
+		result = (data[i] + x) << 24;								//x
+		result |= (data[i + 1] + y) << 16;							//y
+		result |= (data[i + 2] + z) << 8;							//z
+		result |= (data[i + 3]) << 7;								//u
+		result |= (data[i + 4]) << 6;								//v
+		result |= (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type)) << 2;		//b
+		result |= (direction == block_face_direction::RIGHT || direction == block_face_direction::LEFT) ? 2 : 1; // basic lighting
+
+		chunk->gpu_data_arr_transparent[chunk->blocks_in_use_transparent] = result;
+
+		chunk->blocks_in_use_transparent += ATTRIBUTES_PER_VERTEX;
+		i += 5;
+	}
+}
+
+void generate_face_t(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
+{
+	if (on_edge)
+	{
+		//If i have a neighbor that is transparent
+		if (neighbor != nullptr && !block_is_translucent(neighbor->blocks[other_chunk_index].type))
+		{
+			add_face_and_texture_t(current_chunk, data, direction, x, y, z);
+		}
+	}
+	// Is the block next to me occupied?
+	else if (!block_is_translucent(current_chunk->blocks[current_chunk_index].type))
+	{
+		add_face_and_texture_t(current_chunk, data, direction, x, y, z);
+	}
+}
+
+void chunk_generate_mesh_transparent(Chunk* chunk)
+{
+	check_neighbors(chunk);
 
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
@@ -190,15 +226,45 @@ void chunk_generate_mesh(Chunk* chunk)
 			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
 				int current = to_1d_array(x, y, z);
-				if (chunk->blocks[current].type == BlockType::AIR)
+				if (chunk->blocks[current].type != BlockType::WATER)
 					continue;
 
-				//add_face_and_texture(chunk, m_back_verticies, block_face_direction::BACK, x, y, z);
-				//add_face_and_texture(chunk, m_front_verticies, block_face_direction::FRONT, x, y, z);
-				//add_face_and_texture(chunk, m_left_verticies, block_face_direction::LEFT, x, y, z);
-				//add_face_and_texture(chunk, m_right_verticies, block_face_direction::RIGHT, x, y, z);
-				//add_face_and_texture(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
-				//add_face_and_texture(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
+				generate_face_t(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
+				generate_face_t(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
+
+				generate_face_t(chunk, chunk->left_neighbor, m_left_verticies, block_face_direction::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
+				generate_face_t(chunk, chunk->right_neighbor, m_right_verticies, block_face_direction::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH));
+
+				// no chunk neighbors on the Y-axis
+				if (y != 0 && (y == 0 || chunk->blocks[to_1d_array(x, y-1, z)].type != BlockType::WATER))
+				{
+					add_face_and_texture_t(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
+				}
+
+				if (y + 1 > CHUNK_SIZE_HEIGHT || chunk->blocks[to_1d_array(x, y+1, z)].type == BlockType::AIR)
+				{
+					add_face_and_texture_t(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
+				}
+			}
+		}
+	}
+}
+
+void chunk_generate_mesh(Chunk* chunk)
+{
+	using namespace std::chrono;
+
+	check_neighbors(chunk);
+
+	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+	{
+		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+			{
+				int current = to_1d_array(x, y, z);
+				if (chunk->blocks[current].type == BlockType::AIR || chunk->blocks[current].type == BlockType::WATER)
+					continue;
 
 				generate_face(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
 				generate_face(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
@@ -266,6 +332,21 @@ void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 po
 		SHADER_CHUNK,
 		chunk->vao_handle,
 		chunk->blocks_in_use,
+		position,
+		glm::vec3(1));
+}
+
+void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
+{
+	if (chunk->dirty)
+		return;
+
+	renderer_render_custom(renderer,
+		view,
+		TEXTURE_ATLAS_CHUNK,
+		SHADER_CHUNK,
+		chunk->vao_handle_transparent,
+		chunk->blocks_in_use_transparent,
 		position,
 		glm::vec3(1));
 }

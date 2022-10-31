@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 
 #include "graphics/renderer.h"
+#include "chunk.h"
 
 #include "ray.h"
 
@@ -44,8 +45,8 @@ void outline_update(OutlineBlock* self, glm::vec3 origin, glm::vec3 direction, c
 		self->cube.position = glm::vec3(result.chunk_world_pos.x + result.block_pos.x,
 			result.block_pos.y,
 			result.chunk_world_pos.y + result.block_pos.z);
-		
 		self->visible = true;
+
 	}
 	else
 		self->visible = false;
