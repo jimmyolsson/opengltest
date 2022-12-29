@@ -184,8 +184,8 @@ void init_chunks()
 		chunk_generate_mesh(&iter.second);
 		chunk_generate_buffers(&iter.second);
 
-		chunk_generate_buffers_transparent(&iter.second);
 		chunk_generate_mesh_transparent(&iter.second);
+		chunk_generate_buffers_transparent(&iter.second);
 		iter.second.initialized = true;
 	}
 #endif
