@@ -5,10 +5,15 @@ out vec3 FragPos;
 out vec2 TexCoords;
 out float BType;
 out float vert_lighting;
+out float border;
+out vec4 DebugColor;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform int enabled;
+
+uniform vec4 debug_color;
 
 void main()
 {
@@ -23,14 +28,18 @@ void main()
     vec3 aPos = vec3(ax, ay, az);
     vec2 aTexCoords = vec2(au, av);
     float aBType = ab;
-    if(am == 1)
-    {
-		vert_lighting = 1;
-    }
-    else if(am == 2)
-    {
-		vert_lighting = 0.7;
-    }
+
+    if(ax >= 30 || ax == 0 || az >= 31 || az == 0)
+		border = 1;
+    else
+        border = 0;
+
+    if(enabled == 0)
+        am = 0;
+
+    vert_lighting = 0.8f - 0.2f * am;
+
+    DebugColor = debug_color;
 
     FragPos = vec3(model * vec4(aPos, 1.0));
     gl_Position = projection * view * vec4(FragPos, 1.0);

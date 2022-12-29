@@ -1,5 +1,6 @@
 #include "world_gen.h"
 #include "chunk.h"
+#include "util/common.h"
 
 int world_width = 0;
 int world_height = 0;
@@ -10,27 +11,24 @@ static int to_1d_array(short x, short y, short z)
 	return (z * world_width * world_height) + (y * world_width) + x;
 }
 
-FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
-//
-//bool is_next_to_water(block* blocks, short x, short y, short z)
-//{
-//	if (x != 0 && (x == 0 || blocks[to_1d_array(x, y - 1, z)].type != BlockType::WATER))
-//	{
-//	}
-//	else if (y + 1 > CHUNK_SIZE_HEIGHT || blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
-//	{
-//
-//	}
-//}
+static FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
 
+void generate_world_cube(block* blocks, const int xoffset, const int zoffset);
 void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, const int zoffset)
 {
+	if (xoffset == -128 && zoffset == -128)
+	{
+		generate_world_cube(blocks, xoffset, zoffset);
+		return;
+	}
 	const float frequency = 0.0050f;
 	const float threshold = 0.01f;
 
-	float* noise = (float*)memory_arena_get(pool, sizeof(float) * (world_width * world_height * world_width));
+	float* noise = (float*)memory_arena_get(pool);
 
+	TIMER_START(WORLD_GEN_GENUNIFORMGRID);
 	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -world_height / 2, zoffset, world_width, world_height, world_width, frequency, 1338);
+	TIMER_END(WORLD_GEN_GENUNIFORMGRID);
 
 	for (int i = 0; i < world_width * world_height * world_width; i++)
 		noise[i] *= -1;
@@ -83,6 +81,20 @@ void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, 
 	}
 }
 
+void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
+{
+	for (int z = 0; z < world_width; z++)
+	{
+		for (int y = 0; y < world_height; y++)
+		{
+			for (int x = 0; x < world_width; x++)
+			{
+				int index = to_1d_array(x, y, z);
+				blocks[index].type = BlockType::DIRT;
+			}
+		}
+	}
+}
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
 	if (world_height == 1) {
@@ -130,8 +142,11 @@ void world_generate(block* blocks, memory_arena* pool, const int xoffset, const 
 	}
 #endif // DEBUG
 
+	//generate_world_cube(blocks, xoffset, zoffset);
 	//generate_world_flatgrass(blocks, xoffset, zoffset);
+	TIMER_START(WORLD_GEN);
 	generate_world_noise(blocks, pool, xoffset, zoffset);
+	TIMER_END(WORLD_GEN)
 }
 
 // TODO:

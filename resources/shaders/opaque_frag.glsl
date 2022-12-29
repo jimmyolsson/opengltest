@@ -6,6 +6,7 @@ in vec2 TexCoords;
 in float LightValue;
 in float BType;
 in float vert_lighting;
+in vec4 DebugColor;
 
 uniform sampler2DArray atlas;
 
@@ -15,5 +16,9 @@ void main()
 		discard;
 
     vec4 texture = texture(atlas, vec3(TexCoords.xy, BType));
+
+	if(DebugColor != vec4(0, 0, 0, 0))
+		texture *= DebugColor;
+
 	FragColor = vec4(texture.xyz * vert_lighting, texture.w);
 }

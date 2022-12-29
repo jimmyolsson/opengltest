@@ -10,20 +10,22 @@
 enum BlockType;
 enum class block_face_direction;
 
-const int CHUNK_SIZE_WIDTH = 32;
-const int CHUNK_SIZE_HEIGHT = 255;
-//const int CHUNK_SIZE_WIDTH = 1;
-//const int CHUNK_SIZE_HEIGHT = 1;
+static const int CHUNK_SIZE_WIDTH = 32;
+static const int CHUNK_SIZE_HEIGHT = 255;
 #if _DEBUG
-const int CHUNK_DRAW_DISTANCE = 2;
+const int CHUNK_DRAW_DISTANCE = 8;
 #else
-const int CHUNK_DRAW_DISTANCE = 30;
+//const int CHUNK_DRAW_DISTANCE = 30;
+static const int CHUNK_DRAW_DISTANCE = 10;
 #endif
-const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
+static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
 struct Chunk
 {
+	char* block_types;
+
+	char* block_neighbors;
 	block* blocks;
 	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
 	glm::ivec2 world_pos;
@@ -52,6 +54,8 @@ struct Chunk
 };
 
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
+
+// If the coordinates are outside of the bounds of the chunk, it will return the neighboring chunk
 block* chunk_get_block(Chunk* c, glm::ivec3 block_pos);
 block* chunk_get_block(Chunk* c, short x, short y, short z);
 
@@ -63,5 +67,5 @@ void chunk_generate_mesh_transparent(Chunk* chunk);
 void chunk_generate_buffers_transparent(Chunk* chunk);
 
 void chunk_update(chunk_map_t* chunks);
-void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
-void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled);
+void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled);

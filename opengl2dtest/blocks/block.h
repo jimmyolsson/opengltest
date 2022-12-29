@@ -30,8 +30,8 @@ enum class block_face_direction : int
 
 struct block
 {
-	BlockType type = BlockType::AIR;
 	bool sky = false;
+	BlockType type = BlockType::AIR;
 
 	//char light_level_top = 0;
 	//char light_level_bottom = 0;

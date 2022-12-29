@@ -150,7 +150,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="blocks\block.cpp" />
-    <ClCompile Include="chunk.cpp" />
+    <ClCompile Include="chunk.cpp">
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
     <ClCompile Include="glad.c" />
     <ClCompile Include="graphics\cube.cpp" />
     <ClCompile Include="graphics\quad.cpp" />
@@ -175,6 +178,7 @@
     <ClInclude Include="graphics\texture.h" />
     <ClInclude Include="ui\crosshair.h" />
     <ClInclude Include="ui\item_toolbar.h" />
+    <ClInclude Include="util\common.h" />
     <ClInclude Include="util\memory_arena.h" />
     <ClInclude Include="outline.h" />
     <ClInclude Include="player.h" />

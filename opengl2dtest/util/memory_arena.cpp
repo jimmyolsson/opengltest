@@ -2,24 +2,33 @@
 #include <stdlib.h>
 #include <assert.h>
 
-void memory_arena_init(memory_arena* arena, unsigned long long size)
+void memory_arena_init(memory_arena* self, unsigned long long total_size, unsigned long long piece_size)
 {
-	arena->base = (char*)malloc(size);
-	arena->total_size = size;
-	arena->used = 0;
+	self->base = (char*)malloc(total_size);
+	self->total_size = total_size;
+	self->piece_size = piece_size;
+	self->used = 0;
 }
 
-void* memory_arena_get(memory_arena* arena, unsigned long long size)
+void memory_arena_init(memory_arena* self, unsigned long long total_size, unsigned long long piece_size, short alignment)
 {
-	assert(arena->used + size <= arena->total_size && "Arena is full");
+	self->base = (char*)_aligned_malloc(total_size, alignment);
+	self->total_size = total_size;
+	self->piece_size = piece_size;
+	self->used = 0;
+}
 
-	auto ptr = (char*)arena->base + arena->used;
-	arena->used += size;
+void* memory_arena_get(memory_arena* self)
+{
+	assert(self->used + self->piece_size <= self->total_size && "Arena is full");
+
+	char* ptr = (char*)self->base + self->used;
+	self->used += self->piece_size;
 
 	return ptr;
 }
 
-void memory_arena_dealloc(memory_arena* arena)
+void memory_arena_dealloc(memory_arena* self)
 {
-	free(arena->base);
+	free(self->base);
 }

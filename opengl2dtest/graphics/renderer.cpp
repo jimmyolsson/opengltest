@@ -10,6 +10,8 @@ void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthograph
 
 Renderer renderer_create()
 {
+
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	Renderer renderer;
 
 	renderer.shaders[SHADER_CHUNK] = shader_create("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
@@ -97,7 +99,7 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	glBindTexture(texture->type, 0);
 }
 
-void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale)
+void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale, int enabled)
 {
 	ShaderProgram* shader = &self->shaders[shader_type];
 	Texture* texture = &self->textures[texture_type];
@@ -110,11 +112,13 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	model = glm::translate(model, position);
 	model = glm::scale(model, scale);
 	shader_set_mat4(shader, "model", model);
+	shader_set_int(shader, "enabled", enabled);
 
 	glActiveTexture(GL_TEXTURE0 + texture->handle);
 	glBindTexture(texture->type, texture->handle);	
 	
 	glBindVertexArray(vao);
+
 	glDrawArrays(GL_TRIANGLES, 0, indicies);
 
 	glBindVertexArray(0);

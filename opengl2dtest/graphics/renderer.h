@@ -26,4 +26,4 @@ Renderer renderer_create();
 void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthographic);
 void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad);
 void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube);
-void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale);
+void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale, int enabled);

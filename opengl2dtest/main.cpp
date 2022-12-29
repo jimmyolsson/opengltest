@@ -6,6 +6,7 @@
 #else
 #include "glad/glad.h"
 #endif
+#include <Windows.h>
 
 #ifdef __EMSCRIPTEN__
 //#include <GL/glfw.h>
@@ -36,6 +37,7 @@
 
 #include "common.h"
 
+#include "util/common.h"
 #include "graphics/renderer.h"
 #include "robin_hood.h"
 #include "graphics/camera.h"
@@ -69,6 +71,7 @@ struct State
 
 	memory_arena block_arena;
 	memory_arena chunk_arena;
+	memory_arena chunk_block_neighbor_arena;
 	memory_arena chunk_arena_transparent;
 	memory_arena noise_arena;
 
@@ -82,25 +85,30 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 GLFWwindow* init_and_create_window();
 void set_opengl_constants();
 
-void state_allocate_memory_arenas()
+void state_allocate_memory()
 {
-	auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	auto size_chunk = sizeof(block_size_t) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	int mb = 1024 * 1024;
+	const auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	const auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	const auto size_chunk = ((sizeof(int) * 6) * 6) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	const auto size_chunk_neighbor = (sizeof(char) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	const int mb = 1024 * 1024;
 	std::cout << "block: " << block_arena_size / mb << "MB\n";
 	std::cout << "noise: " << noise_arena_size / mb << "MB\n";
 	std::cout << "chunk: " << size_chunk / mb << "MB\n";
+	std::cout << "block_chunk_neighbors: " << size_chunk_neighbor / mb << "MB\n";
 
-	memory_arena_init(&GameState.block_arena, block_arena_size);
-	memory_arena_init(&GameState.noise_arena, noise_arena_size);
-	memory_arena_init(&GameState.chunk_arena, size_chunk);
-	memory_arena_init(&GameState.chunk_arena_transparent, size_chunk);
+	memory_arena_init(&GameState.block_arena, block_arena_size, sizeof(block) * BLOCKS_IN_CHUNK);
+	memory_arena_init(&GameState.noise_arena, noise_arena_size, sizeof(float) * (CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH));
+	TIMER_START(mem);
+	memory_arena_init(&GameState.chunk_arena, size_chunk, (((sizeof(int) * 6) * 6) * BLOCKS_IN_CHUNK));
+	memory_arena_init(&GameState.chunk_block_neighbor_arena, sizeof(char) * BLOCKS_IN_CHUNK, 32);
+	memory_arena_init(&GameState.chunk_arena_transparent, size_chunk, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
+	TIMER_END(mem);
 }
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 150.0f, 0.0f));
+	GameState.player.camera = Camera(glm::vec3(0.0f, 140.0f, 0.0f));
 	GameState.window = init_and_create_window();
 	GameState.renderer = renderer_create();
 	GameState.chunks = {};
@@ -115,24 +123,25 @@ void state_global_init()
 	GameState.menu = menu_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 	GameState.crosshair = crosshair_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 
-	state_allocate_memory_arenas();
+	state_allocate_memory();
 }
 
 void create_and_init_chunk(const int x, const int z)
 {
 	Chunk chunk;
 
-	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena, sizeof(block) * BLOCKS_IN_CHUNK);
-	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
+	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
+	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena);
+	chunk.block_neighbors = (char*)memory_arena_get(&GameState.chunk_block_neighbor_arena);
+
 	// this is retarded
-	chunk.gpu_data_arr_transparent = (block_size_t*)memory_arena_get(&GameState.chunk_arena_transparent, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
+	chunk.gpu_data_arr_transparent = (block_size_t*)memory_arena_get(&GameState.chunk_arena_transparent);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
 
 	world_generate(chunk.blocks, &GameState.noise_arena, pos.x, pos.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
-
 	GameState.chunks[pos] = chunk;
 }
 
@@ -156,18 +165,30 @@ void init_chunks()
 	}
 
 	// ----------------- MESH GEN -----------------
+#ifndef _DEBUG
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
 		{
 			chunk_generate_mesh(&iter.second);
 			chunk_generate_mesh_transparent(&iter.second);
+			iter.second.initialized = true;
 		});
-
 	for (auto& iter : GameState.chunks)
 	{
 		chunk_generate_buffers(&iter.second);
 		chunk_generate_buffers_transparent(&iter.second);
 	}
+#else
+	for (auto& iter : GameState.chunks)
+	{
+		chunk_generate_mesh(&iter.second);
+		chunk_generate_buffers(&iter.second);
+
+		chunk_generate_buffers_transparent(&iter.second);
+		chunk_generate_mesh_transparent(&iter.second);
+		iter.second.initialized = true;
+	}
+#endif
 }
 
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
@@ -180,6 +201,10 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;
 	glm::ivec3 b_pos = ray_hit.block_pos;
+	std::cout << "BLOCK HIT:\n";
+	std::cout << "x: " << b_pos.x << "\n";
+	std::cout << "y: " << b_pos.y << "\n";
+	std::cout << "z: " << b_pos.z << "\n";
 
 	bool another_chunk = false;
 	if (!remove)
@@ -252,6 +277,8 @@ float lastY = GameState.SCR_HEIGHT / 2.0f;
 
 bool lmouse = false;
 bool rmouse = false;
+static bool keyc = false;
+static int aokey = 0;
 void processInput(GLFWwindow* window, double delta_time)
 {
 	double x, y;
@@ -288,6 +315,11 @@ void processInput(GLFWwindow* window, double delta_time)
 	}
 	rmouse = rcmouse;
 
+
+	bool keycc = glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS;
+	if (!keyc && keycc)
+		aokey = !aokey;
+	keyc = keycc;
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -313,7 +345,7 @@ void game_render()
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render(&iter.second, &GameState.renderer, view, position);
+		chunk_render(&iter.second, &GameState.renderer, view, position, aokey);
 	}
 
 	outline_render(&GameState.outline, &GameState.renderer, view);
@@ -321,7 +353,7 @@ void game_render()
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render_transparent(&iter.second, &GameState.renderer, view, position);
+		chunk_render_transparent(&iter.second, &GameState.renderer, view, position, aokey);
 	}
 
 	// Render 2D
@@ -372,6 +404,7 @@ void game_main_loop()
 int main()
 {
 	srand(time(NULL));
+
 	state_global_init();
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
@@ -388,7 +421,6 @@ int main()
 void set_opengl_constants()
 {
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
 glm::dvec2 last_x;
