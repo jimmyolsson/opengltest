@@ -139,6 +139,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -160,6 +162,7 @@
     <ClCompile Include="graphics\renderer.cpp" />
     <ClCompile Include="graphics\texture.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="util\common.cpp" />
     <ClCompile Include="util\memory_arena.cpp" />
     <ClCompile Include="graphics\shader.cpp" />
     <ClCompile Include="sound_manager.cpp" />

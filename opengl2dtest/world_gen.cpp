@@ -1,9 +1,10 @@
 #include "world_gen.h"
 #include "chunk.h"
 #include "util/common.h"
+#include <FastNoise/FastNoise.h>
 
-int world_width = 0;
-int world_height = 0;
+static int world_width = 0;
+static int world_height = 0;
 
 // TODO: move to util func
 static int to_1d_array(short x, short y, short z)
@@ -11,24 +12,30 @@ static int to_1d_array(short x, short y, short z)
 	return (z * world_width * world_height) + (y * world_width) + x;
 }
 
-static FastNoise::SmartNode<> asdnoise = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
-
-void generate_world_cube(block* blocks, const int xoffset, const int zoffset);
-void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, const int zoffset)
+void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
 {
-	if (xoffset == -128 && zoffset == -128)
+	for (int z = 0; z < world_width; z++)
 	{
-		generate_world_cube(blocks, xoffset, zoffset);
-		return;
+		for (int y = 0; y < world_height; y++)
+		{
+			for (int x = 0; x < world_width; x++)
+			{
+				int index = to_1d_array(x, y, z);
+				blocks[index].type = BlockType::DIRT;
+			}
+		}
 	}
+}
+
+static FastNoise::SmartNode<> noise_terrain = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
+
+void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
+{
 	const float frequency = 0.0050f;
 	const float threshold = 0.01f;
 
-	float* noise = (float*)memory_arena_get(pool);
-
-	TIMER_START(WORLD_GEN_GENUNIFORMGRID);
-	auto min_max = asdnoise.get()->GenUniformGrid3D(noise, xoffset, -world_height / 2, zoffset, world_width, world_height, world_width, frequency, 1338);
-	TIMER_END(WORLD_GEN_GENUNIFORMGRID);
+	float* noise = (float*)calloc(world_width * world_width * world_height, sizeof(float));
+	auto min_max = noise_terrain.get()->GenUniformGrid3D(noise, xoffset, -world_height / 2, zoffset, world_width, world_height, world_width, frequency, 1338);
 
 	for (int i = 0; i < world_width * world_height * world_width; i++)
 		noise[i] *= -1;
@@ -40,7 +47,7 @@ void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, 
 		{
 			for (int x = 0; x < world_width; x++)
 			{
-				int index = to_1d_array(x, y, z);
+				const int index = to_1d_array(x, y, z);
 				if (noise[index] > threshold)
 				{
 					if (noise[to_1d_array(x, y + 2, z)] > threshold)
@@ -79,21 +86,7 @@ void generate_world_noise(block* blocks, memory_arena* pool, const int xoffset, 
 			}
 		}
 	}
-}
-
-void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
-{
-	for (int z = 0; z < world_width; z++)
-	{
-		for (int y = 0; y < world_height; y++)
-		{
-			for (int x = 0; x < world_width; x++)
-			{
-				int index = to_1d_array(x, y, z);
-				blocks[index].type = BlockType::DIRT;
-			}
-		}
-	}
+	free(noise);
 }
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
@@ -122,7 +115,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 	}
 }
 
-void world_generate(block* blocks, memory_arena* pool, const int xoffset, const int zoffset, const int width, const int height)
+void world_generate(block* blocks, float* noise, const int xoffset, const int zoffset, const int width, const int height)
 {
 	world_width = width;
 	world_height = height;
@@ -144,19 +137,11 @@ void world_generate(block* blocks, memory_arena* pool, const int xoffset, const 
 
 	//generate_world_cube(blocks, xoffset, zoffset);
 	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	TIMER_START(WORLD_GEN);
-	generate_world_noise(blocks, pool, xoffset, zoffset);
-	TIMER_END(WORLD_GEN)
+	generate_world_noise(blocks, noise, xoffset, zoffset);
 }
 
 // TODO:
 /* ----------Move this generation stuff somewhere else ---------- */
-
-struct structure_node
-{
-	glm::ivec3 pos;
-	BlockType type;
-};
 
 std::vector<structure_node> sphere;
 // Function to put pixels
@@ -204,6 +189,7 @@ void circleBres(int xc, int yc, int r, int world_y, std::vector<structure_node>&
 const int sphere_size = 16;
 int map[sphere_size][sphere_size][sphere_size];
 
+#include <vector>
 std::vector<structure_node> sphere_algo(int x0, int y0, int z0, int r)
 {
 	int col = 1;

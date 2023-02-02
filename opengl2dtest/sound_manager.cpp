@@ -1,11 +1,12 @@
 #include "sound_manager.h"
 #include "blocks/block.h"
+#include "util/common.h"
 
 using namespace irrklang;
 
 void sound_init(sound_manager_s* s)
 {
-	s->sound_engine = irrklang::createIrrKlangDevice();
+	s->sound_engine = irrklang::createIrrKlangDevice(irrklang::ESOD_AUTO_DETECT, irrklang::ESEO_LOAD_PLUGINS);
 	s->sound_engine->setSoundVolume(0.4);
 }
 

@@ -5,7 +5,6 @@ out vec3 FragPos;
 out vec2 TexCoords;
 out float BType;
 out float vert_lighting;
-out float border;
 out vec4 DebugColor;
 
 uniform mat4 model;
@@ -17,22 +16,17 @@ uniform vec4 debug_color;
 
 void main()
 {
-	uint ax = (aInfo & 0xFF000000) >> 24;
-	uint ay = (aInfo & 0x00FF0000) >> 16;
-	uint az = (aInfo & 0x0000FF00) >> 8;
-	uint au = (aInfo & 0x00000080) >> 7;
-	uint av = (aInfo & 0x00000040) >> 6;
-	uint ab = (aInfo & 0x0000003F) >> 2;
-	uint am = (aInfo & 0x00000003);
+		uint ay = (aInfo & 0xFF000000) >> 24;
+		uint ax = (aInfo & 0x00FC0000) >> 18;
+		uint az = (aInfo & 0x0003F000) >> 12;
+		uint au = (aInfo & 0x00000800) >> 11;
+		uint av = (aInfo & 0x00000400) >> 10;
+		uint am = (aInfo & 0x00000300) >> 8;
+		uint ab = (aInfo & 0x000000FF);
 
     vec3 aPos = vec3(ax, ay, az);
     vec2 aTexCoords = vec2(au, av);
     float aBType = ab;
-
-    if(ax >= 30 || ax == 0 || az >= 31 || az == 0)
-		border = 1;
-    else
-        border = 0;
 
     if(enabled == 0)
         am = 0;

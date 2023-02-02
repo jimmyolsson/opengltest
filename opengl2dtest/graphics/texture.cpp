@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "../util/common.h"
 
 Texture texture_create(const char* path)
 {
@@ -75,7 +76,7 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 		unsigned char* pixels = load_png(path, &width, &height, &format);
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, format, GL_UNSIGNED_BYTE, pixels);
 
-		std::cout << path << "\n";
+		g_logger_debug("Loading textures from: %s", path);
 		path = va_arg(valist, const char*);
 	}
 

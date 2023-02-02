@@ -1,5 +1,6 @@
 #include "shader.h"
 #include "glad/glad.h"
+#include "../util/common.h"
 
 #include <string>
 #include <fstream>
@@ -17,7 +18,8 @@ void check_errors(unsigned int shader_handle, bool linking)
 		if (!success)
 		{
 			glGetProgramInfoLog(shader_handle, 1024, NULL, infoLog);
-			std::cout << "ERROR::PROGRAM_LINKING_ERROR\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+			
+			g_logger_error("SHADER::Linking failed: %s", infoLog);
 		}
 	}
 	else
@@ -26,7 +28,7 @@ void check_errors(unsigned int shader_handle, bool linking)
 		if (!success)
 		{
 			glGetShaderInfoLog(shader_handle, 1024, NULL, infoLog);
-			std::cout << "ERROR::SHADER_COMPILATION_ERROR\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+			g_logger_error("SHADER::Compilation failed: %s", infoLog);
 		}
 	}
 }
@@ -48,7 +50,7 @@ void _load_from_file(ShaderProgram* sp, const char* path, unsigned int type)
 	}
 	catch (std::ifstream::failure& e)
 	{
-		std::cout << "SHADER::FILE_NOT_SUCCESSFULLY_READ, " << path << "\n";
+		g_logger_error("SHADER::Failed to read file: %s", path);
 	}
 
 	const char* code = fileContents.c_str();

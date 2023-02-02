@@ -18,7 +18,7 @@ enum BlockType : int {
 	WATER
 };
 
-enum class block_face_direction : int
+enum class BlockFaceDirection : int
 {
 	BACK = 0,
 	FRONT,
@@ -92,7 +92,7 @@ const static block_size_t m_top_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
 	0, 1, 0, 0, 0
 };
 
-int block_get_texture(block_face_direction direction, BlockType type);
+int block_get_texture(BlockFaceDirection direction, BlockType type);
 
 void block_get_sound(BlockType type, bool remove, char* name, int buffer_size);
 

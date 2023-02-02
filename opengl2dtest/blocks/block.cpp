@@ -42,26 +42,26 @@ int random(int min, int max)
 	return (rand() % (max - min + 1)) + min;
 }
 
-int block_get_texture(block_face_direction direction, BlockType type)
+int block_get_texture(BlockFaceDirection direction, BlockType type)
 {
 	switch (direction)
 	{
-	case block_face_direction::BACK:
+	case BlockFaceDirection::BACK:
 		return block_infos[type].texture_index_back;
 		break;
-	case block_face_direction::FRONT:
+	case BlockFaceDirection::FRONT:
 		return block_infos[type].texture_index_front;
 		break;
-	case block_face_direction::RIGHT:
+	case BlockFaceDirection::RIGHT:
 		return block_infos[type].texture_index_right;
 		break;
-	case block_face_direction::LEFT:
+	case BlockFaceDirection::LEFT:
 		return block_infos[type].texture_index_left;
 		break;
-	case block_face_direction::BOTTOM:
+	case BlockFaceDirection::BOTTOM:
 		return block_infos[type].texture_index_bottom;
 		break;
-	case block_face_direction::TOP:
+	case BlockFaceDirection::TOP:
 		return block_infos[type].texture_index_top;
 		break;
 	default:

@@ -8,18 +8,17 @@ void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthograph
 	self->projection_ortho = orthographic;
 }
 
-Renderer renderer_create()
+void _load_shaders(Renderer* self)
 {
+	self->shaders[SHADER_CHUNK] = shader_create("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
+	self->shaders[SHADER_OUTLINE] = shader_create("..\\resources\\shaders\\outline_vert.glsl", "..\\resources\\shaders\\outline_frag.glsl");
+	self->shaders[SHADER_BASIC_TEXTURE] = shader_create("..\\resources\\shaders\\basic_texture_vert.glsl", "..\\resources\\shaders\\basic_texture_frag.glsl");
+	self->shaders[SHADER_BASIC_COLOR] = shader_create("..\\resources\\shaders\\basic_color_vert.glsl", "..\\resources\\shaders\\basic_color_frag.glsl");
+}
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	Renderer renderer;
-
-	renderer.shaders[SHADER_CHUNK] = shader_create("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
-	renderer.shaders[SHADER_OUTLINE] = shader_create("..\\resources\\shaders\\outline_vert.glsl", "..\\resources\\shaders\\outline_frag.glsl");
-	renderer.shaders[SHADER_BASIC_TEXTURE] = shader_create("..\\resources\\shaders\\basic_texture_vert.glsl", "..\\resources\\shaders\\basic_texture_frag.glsl");
-	renderer.shaders[SHADER_BASIC_COLOR] = shader_create("..\\resources\\shaders\\basic_color_vert.glsl", "..\\resources\\shaders\\basic_color_frag.glsl");
-
-	renderer.textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(9,
+void _load_textures(Renderer* self)
+{
+	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(9,
 		"..\\resources\\textures\\block\\stone.png",
 		"..\\resources\\textures\\block\\dirt.png",
 		"..\\resources\\textures\\block\\dirt_grass_side.png",
@@ -31,9 +30,18 @@ Renderer renderer_create()
 		"..\\resources\\textures\\block\\water.png"
 	);
 
-	renderer.textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");
-	renderer.textures[TEXTURE_UI_TOOLBAR] = texture_create("..\\resources\\textures\\gui\\toolbar.png");
-	renderer.textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("..\\resources\\textures\\gui\\toolbar_highlight.png");
+	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");
+	self->textures[TEXTURE_UI_TOOLBAR] = texture_create("..\\resources\\textures\\gui\\toolbar.png");
+	self->textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("..\\resources\\textures\\gui\\toolbar_highlight.png");
+}
+
+Renderer renderer_create()
+{
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	Renderer renderer;
+
+	_load_shaders(&renderer);
+	_load_textures(&renderer);
 
 	return renderer;
 }

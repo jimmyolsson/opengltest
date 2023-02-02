@@ -6,6 +6,7 @@
 
 #include <glm/gtx/hash.hpp>
 #include <chrono>
+#include <vector>
 
 const int ATTRIBUTES_PER_VERTEX = 1;
 
@@ -59,7 +60,7 @@ void chunk_generate_buffers_transparent(Chunk* c)
 
 	glGenBuffers(1, &c->vbo_handle_transparent);
 	glBindBuffer(GL_ARRAY_BUFFER, c->vbo_handle_transparent);
-	glBufferData(GL_ARRAY_BUFFER, BLOCKS_IN_CHUNK * sizeof(block_size_t), c->gpu_data_arr_transparent, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, c->gpu_data_arr_transparent.size() * sizeof(block_size_t), c->gpu_data_arr_transparent.data(), GL_STATIC_DRAW);
 
 	// Position
 	glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)0);
@@ -67,16 +68,15 @@ void chunk_generate_buffers_transparent(Chunk* c)
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+	c->gpu_data_arr_transparent.clear();
 }
-
-static const int gpub = (((sizeof(int) * 6) * 6) * BLOCKS_IN_CHUNK);
 
 void update_buffers(Chunk* chunk)
 {
 	glBindVertexArray(chunk->vao_handle);
 	glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_handle);
 
-	glBufferSubData(GL_ARRAY_BUFFER, 0, gpub, chunk->gpu_data_arr);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, chunk->gpu_data_arr.size() * sizeof(block_size_t), &chunk->gpu_data_arr[0]);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -89,216 +89,116 @@ void chunk_generate_buffers(Chunk* chunk)
 
 	glGenBuffers(1, &chunk->vbo_handle);
 	glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_handle);
-	glBufferData(GL_ARRAY_BUFFER, gpub, chunk->gpu_data_arr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, chunk->gpu_data_arr.size() * sizeof(int), chunk->gpu_data_arr.data(), GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, ATTRIBUTES_PER_VERTEX * BLOCK_SIZE_BYTES, (void*)0);
 	glEnableVertexAttribArray(0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-}
 
-int extend(block_size_t** src, int used, int amount)
-{
-	const int kAlignment = 32;
+	chunk->gpu_data_arr.clear();
 
-	// Allocate memory for the array, or resize it if it already exists.
-	block_size_t* more = (block_size_t*)_aligned_realloc(*src, (used + amount) * BLOCK_SIZE_BYTES, kAlignment);
-	if (more == nullptr)
-	{
-		// Failed to allocate/resize the array. Handle the error here.
-		return -1;
-	}
-
-	// Update the pointer to the array and return the new number of elements.
-	*src = more;
-	return used + amount;
+	chunk_generate_buffers_transparent(chunk);
 }
 
 // The pos argument assumes that you are 'looking' at the back-face
-void find_inc(Chunk* chunk, int i, block_face_direction direction, glm::vec3 block_pos, short* occlusion, glm::vec3 pos)
+bool find_inc(Chunk* chunk, glm::vec3 block_pos, glm::vec3 pos)
 {
 	glm::vec3 a = block_pos + pos;
 	block* b = chunk_get_block(chunk, a);
 	if (b != nullptr)
 		if (!(b->type == BlockType::AIR || b->type == BlockType::WATER))
-			*occlusion += 1;
+			return true;
+	return false;
 }
 
-void calc_ac(Chunk* chunk, int i, block_face_direction direction, glm::vec3 block_pos, short* occlusion)
+void calc_ao(Chunk* chunk, int i, BlockFaceDirection direction, glm::vec3 block_pos, char* occlusion)
 {
-	// Top left
-	if (i == 0)
+	enum TriangleIndicies
 	{
-		if (direction == block_face_direction::BACK)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, -1));
-		}
-		else if (direction == block_face_direction::FRONT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, 1));
-		}
-		else if (direction == block_face_direction::TOP)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 0));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, 1));
-		}
-		else if (direction == block_face_direction::RIGHT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 0));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 1));
-		}
-		else if (direction == block_face_direction::LEFT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 0));
-		}
-		else if (direction == block_face_direction::BOTTOM)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, 1));
-		}
-	}
-	// Top right
-	else if (i == 10 || i == 25)
+		TOP_LEFT = 0,
+		TOP_RIGHT = 10,
+		BOTTOM_LEFT = 15,
+		BOTTOM_RIGHT = 20,
+	};
+	struct AOCoordinates
 	{
-		if (direction == block_face_direction::BACK)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, -1));
-		}
-		else if (direction == block_face_direction::FRONT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 1));
-		}
-		else if (direction == block_face_direction::TOP)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 0));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, -1));
-		}
-		else if (direction == block_face_direction::RIGHT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 0));
-		}
-		else if (direction == block_face_direction::LEFT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 1, 0));
-		}
+		glm::vec3 first;
+		glm::vec3 second;
+		glm::vec3 third;
+	};
 
-	}
-	// Bottom left
-	else if (i == 5 || i == 15)
+	static const robin_hood::unordered_flat_map<glm::ivec2, AOCoordinates> ao_map =
 	{
-		if (direction == block_face_direction::BACK)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, -1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, -1));
-		}
-		else if (direction == block_face_direction::FRONT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, -1, 1));
-		}
-		else if (direction == block_face_direction::TOP)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 0));
-		}
-		else if (direction == block_face_direction::RIGHT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, 0));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, 1));
-		}
-		else if (direction == block_face_direction::LEFT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, 0));
-		}
-	}
-	// Bottom right
-	else if (i == 20)
-	{
-		if (direction == block_face_direction::BACK)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, -1, -1));
-		}
-		else if (direction == block_face_direction::FRONT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, -1, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, 1));
-		}
-		else if (direction == block_face_direction::TOP)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(0, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 1, 0));
-		}
-		else if (direction == block_face_direction::RIGHT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, 0, -1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(1, -1, 0));
-		}
-		else if (direction == block_face_direction::LEFT)
-		{
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, 0));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, 0, 1));
-			find_inc(chunk, i, direction, block_pos, occlusion, glm::vec3(-1, -1, 1));
-		}
-	}
+		{ { TriangleIndicies::TOP_LEFT,     BlockFaceDirection::BACK },		{ {0, 1, -1}, {1, 0, -1}, {1, 1, -1} } },
+		{ { TriangleIndicies::TOP_LEFT,     BlockFaceDirection::FRONT },	{ {-1, 1, 1}, {-1, 0, 1}, {0, 1, 1} } },
+		{ { TriangleIndicies::TOP_LEFT,     BlockFaceDirection::TOP },		{ {-1, 1, 1}, {-1, 1, 0}, {0, 1, 1} } },
+		{ { TriangleIndicies::TOP_LEFT,		BlockFaceDirection::BOTTOM },	{ {0, -1, 1}, {1, -1, 1}, {1, -1, 0} } },
+		{ { TriangleIndicies::TOP_LEFT,     BlockFaceDirection::RIGHT },	{ {1, 1, 0}, {1, 0, 1}, {1, 1, 1} } },
+		{ { TriangleIndicies::TOP_LEFT,     BlockFaceDirection::LEFT },		{ {-1, 1, -1}, {-1, 0, -1 }, { -1, 1, 0} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::BACK },		{ {-1, 1, -1}, {-1, 0, -1}, {0, 1, -1} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::FRONT },	{ {0, 1, 1}, {1, 0, 1}, {1, 1, 1} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::TOP },		{ {-1, 1, 0}, {-1, 1, -1}, {0, 1, -1} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::BOTTOM },	{ {0, -1, -1}, {1, -1, -1}, {1, -1, 0} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::RIGHT },	{ {1, 1, -1}, {1, 0, -1}, {1, 1, 0} } },
+		{ { TriangleIndicies::TOP_RIGHT,    BlockFaceDirection::LEFT },		{ {-1, 1, 1}, {-1, 0, 1 }, { -1, 1, 0} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::BACK },		{ {0, -1, -1}, {1, 0, -1}, {1, -1, -1} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::FRONT },	{ {-1, -1, 1}, {-1, 0, 1}, {0, -1, 1} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::TOP },		{ {0, 1, 1}, {1, 1, 1}, {1, 1, 0} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::BOTTOM },	{ {-1, -1, 1}, {-1, -1, 0}, {0, -1, 1} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::RIGHT },	{ {1, -1, 0}, {1, 0, 1}, {1, -1, 1} } },
+		{ { TriangleIndicies::BOTTOM_LEFT,  BlockFaceDirection::LEFT },		{ {-1, -1, -1}, {-1, 0, -1 }, { -1, -1, 0} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::BACK },		{ {-1, -1, -1}, {-1, 0, -1}, {0, -1, -1} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::FRONT },	{ {0, -1, 1}, {1, 0, 1}, {1, -1, 1} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::TOP },		{ {0, 1, -1}, {1, 1, -1}, {1, 1, 0} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::BOTTOM },	{ {-1, -1, 0}, {-1, -1, -1}, {0, -1, -1} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::RIGHT },	{ {1, -1, -1}, {1, 0, -1}, {1, -1, 0} } },
+		{ { TriangleIndicies::BOTTOM_RIGHT, BlockFaceDirection::LEFT },		{ {-1, -1, 0}, {-1, 0, 1 }, { -1, -1, 1} } }
+	};
+
+	// Duplicate indicies, we dont use indexes
+	if (i == 25)
+		i = 10;
+	else if (i == 5)
+		i = 15;
+
+	const AOCoordinates* coord = &ao_map.at(glm::ivec2(i, direction));
+	*occlusion +=
+		find_inc(chunk, block_pos, coord->first) +
+		find_inc(chunk, block_pos, coord->second) +
+		find_inc(chunk, block_pos, coord->third);
 }
-void add_face_and_texture(Chunk* chunk, const block_size_t* data, block_face_direction direction, int x, int y, int z)
-{
-	glm::vec3 block_pos = glm::vec3(x, y, z);
 
-	const int vert_count = 30;
+void add_face_and_texture(Chunk* chunk, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z)
+{
+	const glm::vec3 block_pos = glm::vec3(x, y, z);
+
+	static const int vert_count = 30;
 	int i = 0;
 	while (i != vert_count)
 	{
-		// xxxxxxxx yyyyyyyy zzzzzzzz uvaaaaaa
-		short occlusion = 0;
-		calc_ac(chunk, i, direction, block_pos, &occlusion);
-		int result = 0;
-		result = (data[i] + x) << 24;								//x
-		result |= (data[i + 1] + y) << 16;							//y
-		result |= (data[i + 2] + z) << 8;							//z
-		result |= (data[i + 3]) << 7;								//u
-		result |= (data[i + 4]) << 6;								//v
-		result |= (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type)) << 2;		//b
-		result |= occlusion;
+		char occlusion = 0;
+		calc_ao(chunk, i, direction, block_pos, &occlusion);
 
-		chunk->gpu_data_arr[chunk->blocks_in_use] = result;
+		unsigned char texture = block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type);
 
-		chunk->blocks_in_use += ATTRIBUTES_PER_VERTEX;
+		// yyyyyyyy zzzzzzxx xxxxuvoo bbbbbbbb
+		unsigned int result = 0;
+		result = (data[i + 1] + y) << 24;
+		result |= (data[i] + x) << 18;
+		result |= (data[i + 2] + z) << 12;
+		result |= (data[i + 3]) << 11;
+		result |= (data[i + 4]) << 10;
+		result |=  occlusion << 8;
+		result |= texture;
+
+		chunk->gpu_data_arr.push_back(result);
 		i += 5;
 	}
 }
 
-void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
+void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
 {
 	if (on_edge)
 	{
@@ -314,6 +214,7 @@ void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size
 		add_face_and_texture(current_chunk, data, direction, x, y, z);
 	}
 }
+
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 {
 	if (c == nullptr)
@@ -332,7 +233,7 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 		c->back_neighbor->dirty = true;
 }
 
-void check_neighbors(Chunk* chunk)
+void check_chunk_neighbors(Chunk* chunk)
 {
 	if (chunk->back_neighbor == nullptr && chunk->chunks->contains(glm::ivec2((int)chunk->world_pos.x, (int)chunk->world_pos.y - CHUNK_SIZE_WIDTH)))
 	{
@@ -352,29 +253,27 @@ void check_neighbors(Chunk* chunk)
 	}
 }
 
-void add_face_and_texture_t(Chunk* chunk, const block_size_t* data, block_face_direction direction, int x, int y, int z)
+void add_face_and_texture_t(Chunk* chunk, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z)
 {
 	const int vert_count = 30;
 	int i = 0;
 	while (i != vert_count)
 	{
-		int result = 0;
-		result = (data[i] + x) << 24;								//x
-		result |= (data[i + 1] + y) << 16;							//y
-		result |= (data[i + 2] + z) << 8;							//z
-		result |= (data[i + 3]) << 7;								//u
-		result |= (data[i + 4]) << 6;								//v
-		result |= (block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type)) << 2;		//b
-		result |= (direction == block_face_direction::RIGHT || direction == block_face_direction::LEFT) ? 2 : 1; // basic lighting
+		unsigned char texture = block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type);
+		unsigned int result = 0;
+		result = (data[i + 1] + y) << 24;
+		result |= (data[i] + x) << 18;
+		result |= (data[i + 2] + z) << 12;
+		result |= (data[i + 3]) << 11;
+		result |= (data[i + 4]) << 10;
+		result |= texture;
 
-		chunk->gpu_data_arr_transparent[chunk->blocks_in_use_transparent] = result;
-
-		chunk->blocks_in_use_transparent += ATTRIBUTES_PER_VERTEX;
+		chunk->gpu_data_arr_transparent.push_back(result);
 		i += 5;
 	}
 }
 
-void generate_face_t(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], block_face_direction direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
+void generate_face_t(Chunk* current_chunk, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge)
 {
 	if (on_edge)
 	{
@@ -391,9 +290,9 @@ void generate_face_t(Chunk* current_chunk, const Chunk* neighbor, const block_si
 	}
 }
 
-void chunk_generate_mesh_transparent(Chunk* chunk)
+void gen_mesh_translucent(Chunk* chunk)
 {
-	check_neighbors(chunk);
+	check_chunk_neighbors(chunk);
 
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
@@ -405,33 +304,32 @@ void chunk_generate_mesh_transparent(Chunk* chunk)
 				if (chunk->blocks[current].type != BlockType::WATER)
 					continue;
 
-				generate_face_t(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
-				generate_face_t(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
+				generate_face_t(chunk, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
+				generate_face_t(chunk, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
 
-				generate_face_t(chunk, chunk->left_neighbor, m_left_verticies, block_face_direction::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
-				generate_face_t(chunk, chunk->right_neighbor, m_right_verticies, block_face_direction::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH));
+				generate_face_t(chunk, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
+				generate_face_t(chunk, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH));
 
 				// no chunk neighbors on the Y-axis
 				if (y != 0 && (y == 0 || chunk->blocks[to_1d_array(x, y - 1, z)].type != BlockType::WATER))
 				{
-					add_face_and_texture_t(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
+					add_face_and_texture_t(chunk, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z);
 				}
 
 				if (y + 1 > CHUNK_SIZE_HEIGHT || chunk->blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
 				{
-					add_face_and_texture_t(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
+					add_face_and_texture_t(chunk, m_top_verticies, BlockFaceDirection::TOP, x, y, z);
 				}
 			}
 		}
 	}
 }
 
-// TODO: Implement "i know that im ur neighbor" - technique
-void chunk_generate_mesh(Chunk* chunk)
+void gen_mesh_opaque(Chunk* chunk)
 {
+	chunk->gpu_data_arr.clear();
 	using namespace std::chrono;
-	check_neighbors(chunk);
-	TIMER_START(ORIGINAL_MESHING);
+	check_chunk_neighbors(chunk);
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
@@ -443,26 +341,33 @@ void chunk_generate_mesh(Chunk* chunk)
 				if (chunk->blocks[current].type == BlockType::AIR || chunk->blocks[current].type == BlockType::WATER)
 					continue;
 
-				generate_face(chunk, chunk->back_neighbor, m_back_verticies, block_face_direction::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
-				generate_face(chunk, chunk->front_neighbor, m_front_verticies, block_face_direction::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH);
+				generate_face(chunk, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0);
+				generate_face(chunk, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH-1);
 
-				generate_face(chunk, chunk->left_neighbor, m_left_verticies, block_face_direction::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
-				generate_face(chunk, chunk->right_neighbor, m_right_verticies, block_face_direction::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH));
+				generate_face(chunk, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0);
+				generate_face(chunk, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH-1));
 
 				// no chunk neighbors on the Y-axis
 				if (y != 0 && (y == 0 || block_is_transparent(chunk->blocks[to_1d_array(x, y - 1, z)].type)))
 				{
-					add_face_and_texture(chunk, m_bottom_verticies, block_face_direction::BOTTOM, x, y, z);
+					add_face_and_texture(chunk, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z);
 				}
 
 				if (y + 1 > CHUNK_SIZE_HEIGHT || block_is_transparent(chunk->blocks[to_1d_array(x, y + 1, z)].type))
 				{
-					add_face_and_texture(chunk, m_top_verticies, block_face_direction::TOP, x, y, z);
+					add_face_and_texture(chunk, m_top_verticies, BlockFaceDirection::TOP, x, y, z);
 				}
 			}
 		}
 	}
-	TIMER_END(ORIGINAL_MESHING);
+}
+
+void chunk_generate_mesh(Chunk* chunk)
+{
+	gen_mesh_opaque(chunk);
+	gen_mesh_translucent(chunk);
+	chunk->verts_in_use = chunk->gpu_data_arr.size();
+	chunk->verts_in_use_transparent = chunk->gpu_data_arr_transparent.size();
 }
 
 void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
@@ -484,7 +389,6 @@ void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
 	}
 }
 
-//TODO: Multithread this
 void chunk_update(chunk_map_t* chunks)
 {
 	for (decltype(auto) it : *chunks)
@@ -492,8 +396,12 @@ void chunk_update(chunk_map_t* chunks)
 		if (it.second.dirty)
 		{
 			chunk_generate_mesh(&it.second);
-			update_buffers(&it.second);
+			//update_buffers(&it.second);
+			glDeleteBuffers(1, &it.second.vbo_handle);
+			glDeleteVertexArrays(1, &it.second.vao_handle);
+			chunk_generate_buffers(&it.second);
 			it.second.dirty = false;
+			it.second.gpu_data_arr.clear();
 		}
 	}
 }
@@ -508,7 +416,7 @@ void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 po
 		TEXTURE_ATLAS_CHUNK,
 		SHADER_CHUNK,
 		chunk->vao_handle,
-		chunk->blocks_in_use,
+		chunk->verts_in_use,
 		position,
 		glm::vec3(1),
 		enabled);
@@ -524,7 +432,7 @@ void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, 
 		TEXTURE_ATLAS_CHUNK,
 		SHADER_CHUNK,
 		chunk->vao_handle_transparent,
-		chunk->blocks_in_use_transparent,
+		chunk->verts_in_use_transparent,
 		position,
 		glm::vec3(1),
 		enabled);

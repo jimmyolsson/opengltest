@@ -70,9 +70,6 @@ struct State
 	sound_manager_s sound_manager;
 
 	memory_arena block_arena;
-	memory_arena chunk_arena;
-	memory_arena chunk_block_neighbor_arena;
-	memory_arena chunk_arena_transparent;
 	memory_arena noise_arena;
 
 	float delta_time = 0.0f;	// time between current frame and last frame
@@ -89,21 +86,13 @@ void state_allocate_memory()
 {
 	const auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 	const auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	const auto size_chunk = ((sizeof(int) * 6) * 6) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
-	const auto size_chunk_neighbor = (sizeof(char) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+
 	const int mb = 1024 * 1024;
-	std::cout << "block: " << block_arena_size / mb << "MB\n";
-	std::cout << "noise: " << noise_arena_size / mb << "MB\n";
-	std::cout << "chunk: " << size_chunk / mb << "MB\n";
-	std::cout << "block_chunk_neighbors: " << size_chunk_neighbor / mb << "MB\n";
+	g_logger_info("Allocated: %dMB", block_arena_size / mb);
+	g_logger_info("Allocated: %dMB", noise_arena_size / mb);
 
 	memory_arena_init(&GameState.block_arena, block_arena_size, sizeof(block) * BLOCKS_IN_CHUNK);
 	memory_arena_init(&GameState.noise_arena, noise_arena_size, sizeof(float) * (CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH));
-	TIMER_START(mem);
-	memory_arena_init(&GameState.chunk_arena, size_chunk, (((sizeof(int) * 6) * 6) * BLOCKS_IN_CHUNK));
-	memory_arena_init(&GameState.chunk_block_neighbor_arena, sizeof(char) * BLOCKS_IN_CHUNK, 32);
-	memory_arena_init(&GameState.chunk_arena_transparent, size_chunk, (sizeof(block_size_t) * BLOCKS_IN_CHUNK));
-	TIMER_END(mem);
 }
 
 void state_global_init()
@@ -131,21 +120,14 @@ void create_and_init_chunk(const int x, const int z)
 	Chunk chunk;
 
 	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
-	chunk.gpu_data_arr = (block_size_t*)memory_arena_get(&GameState.chunk_arena);
-	chunk.block_neighbors = (char*)memory_arena_get(&GameState.chunk_block_neighbor_arena);
-
-	// this is retarded
-	chunk.gpu_data_arr_transparent = (block_size_t*)memory_arena_get(&GameState.chunk_arena_transparent);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
-
-	world_generate(chunk.blocks, &GameState.noise_arena, pos.x, pos.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	GameState.chunks[pos] = chunk;
 }
 
-void init_chunks()
+void init_game_world()
 {
 	using namespace std::chrono;
 
@@ -164,31 +146,40 @@ void init_chunks()
 		}
 	}
 
-	// ----------------- MESH GEN -----------------
-#ifndef _DEBUG
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
 		{
-			chunk_generate_mesh(&iter.second);
-			chunk_generate_mesh_transparent(&iter.second);
-			iter.second.initialized = true;
+			world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 		});
-	for (auto& iter : GameState.chunks)
-	{
-		chunk_generate_buffers(&iter.second);
-		chunk_generate_buffers_transparent(&iter.second);
-	}
-#else
+
+	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+	//	[&](auto& iter)
+	//	{
+	//		TIMER_START(MESHGEN)
+	//		chunk_generate_mesh(&iter.second);
+	//		TIMER_END(MESHGEN)
+	//		//chunk_generate_mesh_transparent(&iter.second);
+	//		iter.second.initialized = true;
+	//	});
+	//for (auto& iter : GameState.chunks)
+	//{
+	//	chunk_generate_buffers(&iter.second);
+	//	//chunk_generate_buffers_transparent(&iter.second);
+	//}
+
 	for (auto& iter : GameState.chunks)
 	{
 		chunk_generate_mesh(&iter.second);
 		chunk_generate_buffers(&iter.second);
-
-		chunk_generate_mesh_transparent(&iter.second);
-		chunk_generate_buffers_transparent(&iter.second);
 		iter.second.initialized = true;
 	}
-#endif
+
+	int total_verts = 0;
+	for (auto& iter : GameState.chunks)
+	{
+		total_verts += iter.second.verts_in_use + iter.second.verts_in_use_transparent;
+	}
+	g_logger_info("Total triangles: %d", total_verts/3);
 }
 
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
@@ -201,10 +192,8 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;
 	glm::ivec3 b_pos = ray_hit.block_pos;
-	std::cout << "BLOCK HIT:\n";
-	std::cout << "x: " << b_pos.x << "\n";
-	std::cout << "y: " << b_pos.y << "\n";
-	std::cout << "z: " << b_pos.z << "\n";
+
+	g_logger_debug("BLOCK HIT: x:%d y:%d z:%d", b_pos.x, b_pos.y, b_pos.z);
 
 	bool another_chunk = false;
 	if (!remove)
@@ -215,12 +204,12 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 			hit_chunk = ray_hit.chunk_hit->right_neighbor;
 			another_chunk = true;
 		}
-		else if ((ray_hit.block_pos + ray_hit.direction).x <= 0)
+		else if ((ray_hit.block_pos + ray_hit.direction).x < 0)
 		{
 			hit_chunk = ray_hit.chunk_hit->left_neighbor;
 			another_chunk = true;
 		}
-		else if ((ray_hit.block_pos + ray_hit.direction).z <= 0)
+		else if ((ray_hit.block_pos + ray_hit.direction).z < 0)
 		{
 			hit_chunk = ray_hit.chunk_hit->back_neighbor;
 			another_chunk = true;
@@ -240,7 +229,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		hit_chunk = ray_hit.chunk_hit;
 	}
 
-	using namespace std::chrono;
 	if (another_chunk)
 	{
 		sound_play_block_sound(&GameState.sound_manager, type, remove);
@@ -251,8 +239,8 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		if (remove)
 		{
-			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
 			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
+			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
 		}
 		else
 		{
@@ -261,7 +249,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 				sound_play_block_sound(&GameState.sound_manager, type, remove);
 		}
 
-		hit_chunk->blocks_in_use = 0;
+		hit_chunk->verts_in_use = 0;
 		hit_chunk->dirty = true;
 	}
 }
@@ -403,13 +391,16 @@ void game_main_loop()
 
 int main()
 {
+	// Global configurations
 	srand(time(NULL));
+	std::ios_base::sync_with_stdio(false);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
+
 
 	state_global_init();
 
-	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << "\n";
 
-	init_chunks();
+	init_game_world();
 	memory_arena_dealloc(&GameState.noise_arena);
 
 	game_main_loop();
@@ -436,8 +427,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 			GameState.menu.item_selected++;
 
 			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
-
-			std::cout << last_x.x - GameState.menu.highlight.position.x << "\n";
 		}
 	}
 	if (yoffset == 1)
@@ -448,12 +437,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 			GameState.menu.item_selected--;
 
 			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
-
-			std::cout << (double)((double)last_x.x - (double)GameState.menu.highlight.position.x) << "\n";
 		}
 	}
-
-	std::cout << GameState.menu.highlight.position.x << "\n";
 }
 
 #include <Windows.h>
@@ -467,7 +452,7 @@ GLFWwindow* init_and_create_window()
 	GLFWwindow* window = glfwCreateWindow(GameState.SCR_WIDTH, GameState.SCR_HEIGHT, "opengltest", NULL, NULL);
 	if (window == NULL)
 	{
-		std::cout << "Failed to create GLFW window" << std::endl;
+		g_logger_error("Failed to create GLFW window");
 		glfwTerminate();
 		return nullptr;
 	}
@@ -482,11 +467,12 @@ GLFWwindow* init_and_create_window()
 #ifndef __EMSCRIPTEN__
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		std::cout << "Failed to initialize GLAD" << std::endl;
+		g_logger_error("Failed to initialize GLAD");
 		return nullptr;
 	}
 #endif
 
+	g_logger_info("OpenGL version: %s", glGetString(GL_VERSION));
 	return window;
 }
 #pragma endregion
