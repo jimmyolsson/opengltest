@@ -8,3 +8,4 @@ struct Texture
 
 Texture texture_create(const char* path);
 Texture texture_atlas_create(int count, const char* paths, ...);
+Texture texture_cubemap_create(const char* path);

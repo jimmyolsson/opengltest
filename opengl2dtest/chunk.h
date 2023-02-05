@@ -12,7 +12,7 @@ enum class BlockFaceDirection;
 
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 3;
+static const int CHUNK_DRAW_DISTANCE = 5;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
@@ -57,5 +57,5 @@ void chunk_generate_mesh(Chunk* chunk);
 void chunk_generate_buffers(Chunk* chunk);
 
 void chunk_update(chunk_map_t* chunks);
-void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled);
-void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled);
+void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);

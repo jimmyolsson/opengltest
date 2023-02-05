@@ -122,6 +122,9 @@
     <ClInclude Include="util\common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="environment\skybox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\shaders\basic_color_frag.glsl">

@@ -171,6 +171,7 @@
   <ItemGroup>
     <ClInclude Include="blocks\blocks.h" />
     <ClInclude Include="blocks\block.h" />
+    <ClInclude Include="environment\skybox.h" />
     <ClInclude Include="graphics\camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="common.h" />

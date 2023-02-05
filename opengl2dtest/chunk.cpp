@@ -183,7 +183,7 @@ void add_face_and_texture(Chunk* chunk, const block_size_t* data, BlockFaceDirec
 
 		unsigned char texture = block_get_texture(direction, chunk->blocks[to_1d_array(x, y, z)].type);
 
-		// yyyyyyyy zzzzzzxx xxxxuvoo bbbbbbbb
+		// yyyyyyyy zzzzzzxx xxxxuvoo bbbbbbbl
 		unsigned int result = 0;
 		result = (data[i + 1] + y) << 24;
 		result |= (data[i] + x) << 18;
@@ -408,7 +408,7 @@ void chunk_update(chunk_map_t* chunks)
 	}
 }
 
-void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled)
+void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
 {
 	if (chunk->dirty)
 		return;
@@ -420,11 +420,10 @@ void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 po
 		chunk->vao_handle,
 		chunk->verts_in_use,
 		position,
-		glm::vec3(1),
-		enabled);
+		glm::vec3(1));
 }
 
-void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position, int enabled)
+void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)
 {
 	if (chunk->dirty)
 		return;
@@ -436,6 +435,5 @@ void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, 
 		chunk->vao_handle_transparent,
 		chunk->verts_in_use_transparent,
 		position,
-		glm::vec3(1),
-		enabled);
+		glm::vec3(1));
 }

@@ -51,6 +51,7 @@
 #include "ray.h"
 #include "ui/item_toolbar.h"
 #include "world_gen.h"
+#include "environment/skybox.h"
 
 const int SHADER_COUNT = 3;
 struct State
@@ -64,6 +65,7 @@ struct State
 	UIToolbar menu;
 	UICrosshair crosshair;
 	OutlineBlock outline;
+	Skybox skybox;
 
 	player_s player;
 	chunk_map_t chunks;
@@ -103,6 +105,7 @@ void state_global_init()
 	GameState.chunks = {};
 
 	GameState.outline = outline_create();
+	GameState.skybox = skybox_create();
 
 	GameState.delta_time = 0;
 	GameState.last_frame = 0;
@@ -175,7 +178,7 @@ void init_game_world()
 	{
 		total_verts += iter.second.verts_in_use + iter.second.verts_in_use_transparent;
 	}
-	g_logger_info("Total triangles: %d", total_verts/3);
+	g_logger_info("Total triangles: %d", total_verts / 3);
 }
 
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
@@ -261,8 +264,6 @@ float lastY = GameState.SCR_HEIGHT / 2.0f;
 
 bool lmouse = false;
 bool rmouse = false;
-static bool keyc = false;
-static int aokey = 0;
 void processInput(GLFWwindow* window, double delta_time)
 {
 	double x, y;
@@ -299,11 +300,6 @@ void processInput(GLFWwindow* window, double delta_time)
 	}
 	rmouse = rcmouse;
 
-
-	bool keycc = glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS;
-	if (!keyc && keycc)
-		aokey = !aokey;
-	keyc = keycc;
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -316,20 +312,14 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
 }
 
-void game_render()
+void render_3d()
 {
-	// Render 3D 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glEnable(GL_DEPTH_TEST);
+	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
 
-	glm::mat4 view = GameState.player.camera.GetViewMatrix();
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render(&iter.second, &GameState.renderer, view, position, aokey);
+		chunk_render(&iter.second, &GameState.renderer, view, position);
 	}
 
 	outline_render(&GameState.outline, &GameState.renderer, view);
@@ -337,16 +327,38 @@ void game_render()
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render_transparent(&iter.second, &GameState.renderer, view, position, aokey);
+		chunk_render_transparent(&iter.second, &GameState.renderer, view, position);
 	}
+}
 
-	// Render 2D
+void render_2d()
+{
+	const glm::mat4 view = glm::mat4(1.0f);
+	menu_render(&GameState.menu, &GameState.renderer, view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	crosshair_render(&GameState.crosshair, &GameState.renderer, view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+}
+
+void game_render()
+{
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	render_3d();
+
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
+	render_2d();
 
-	const glm::mat4 projection_view = glm::mat4(1.0f);
-	menu_render(&GameState.menu, &GameState.renderer, projection_view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
-	crosshair_render(&GameState.crosshair, &GameState.renderer, projection_view, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	// Skybox render
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
 }
 
 void game_update()
@@ -392,9 +404,7 @@ int main()
 	std::ios_base::sync_with_stdio(false);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
 
-
 	state_global_init();
-
 
 	init_game_world();
 	memory_arena_dealloc(&GameState.noise_arena);

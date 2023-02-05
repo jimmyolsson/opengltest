@@ -1,17 +1,41 @@
 #version 430 core
-layout (location = 0) in uint aInfo;
+layout (location = 0) in uint in_info;
 
 out vec3 FragPos;
 out vec2 TexCoords;
-out float BType;
-out float vert_lighting;
+out float Btype;
+out float Lighting;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform int enabled;
 
-uniform vec4 debug_color;
+struct VertexInfo
+{
+    float y;
+    uint x;
+    uint z;
+    uint u;
+    uint v;
+    uint ambient_occlusion;
+    uint block_type;
+    uint lighting_flag;
+};
+
+VertexInfo extract_bitfield(uint vinfo)
+{
+	float ay = (vinfo & 0xFF000000) >> 24;
+	uint ax = (vinfo & 0x00FC0000) >> 18;
+	uint az = (vinfo & 0x0003F000) >> 12;
+	uint au = (vinfo & 0x00000800) >> 11;
+	uint av = (vinfo & 0x00000400) >> 10;
+	uint am = (vinfo & 0x00000300) >> 8;
+	uint ab = (vinfo & 0x000000FE) >> 1;
+	uint al = (vinfo & 0x00000001);
+
+	VertexInfo vertex = VertexInfo(ay, ax, az, au, av, am, ab, al);
+    return vertex;
+}
 
 bool is_translucent(uint blockType)
 {
@@ -22,38 +46,34 @@ bool is_translucent(uint blockType)
 		return false;
 }
 
+float calculate_lighting(uint lighting_flag, uint ambient_occlusion)
+{
+    const float ao_value = 0.15f;
+
+	float ambient_lighting = 0.8f;
+    if(lighting_flag == 1)
+		ambient_lighting = 0.6f;
+
+    return ambient_lighting - (ao_value * ambient_occlusion);
+}
+
 void main()
 {
-	float ay = (aInfo & 0xFF000000) >> 24;
-	uint ax = (aInfo & 0x00FC0000) >> 18;
-	uint az = (aInfo & 0x0003F000) >> 12;
-	uint au = (aInfo & 0x00000800) >> 11;
-	uint av = (aInfo & 0x00000400) >> 10;
-	uint am = (aInfo & 0x00000300) >> 8;
-	uint ab = (aInfo & 0x000000FE) >> 1;
-	uint al = (aInfo & 0x00000001);
+    VertexInfo vertexInfo = extract_bitfield(in_info);
 
-    if(is_translucent(ab))
+    if(is_translucent(vertexInfo.block_type))
     {
-		ay -= 0.1;
+		vertexInfo.y -= 0.1;
     }
 
-    vec3 aPos = vec3(ax, ay, az);
-    vec2 aTexCoords = vec2(au, av);
-    float aBType = ab;
+    vec3 pos = vec3(vertexInfo.x, vertexInfo.y, vertexInfo.z);
+    vec2 texcoords = vec2(vertexInfo.u, vertexInfo.v);
 
+    Lighting = calculate_lighting(vertexInfo.lighting_flag, vertexInfo.ambient_occlusion);
 
-    if(enabled == 0)
-        am = 0;
-
-	float lighting = 0.8f;
-    if(al == 1)
-		lighting = 0.6f;
-
-    vert_lighting = lighting - (0.15f * am);
-
-    FragPos = vec3(model * vec4(aPos, 1.0));
+    FragPos = vec3(model * vec4(pos, 1.0));
     gl_Position = projection * view * vec4(FragPos, 1.0);
-    TexCoords = aTexCoords;
-    BType = aBType;
+
+    TexCoords = texcoords;
+    Btype = vertexInfo.block_type;
 }

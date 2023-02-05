@@ -14,6 +14,7 @@ void _load_shaders(Renderer* self)
 	self->shaders[SHADER_OUTLINE] = shader_create("..\\resources\\shaders\\outline_vert.glsl", "..\\resources\\shaders\\outline_frag.glsl");
 	self->shaders[SHADER_BASIC_TEXTURE] = shader_create("..\\resources\\shaders\\basic_texture_vert.glsl", "..\\resources\\shaders\\basic_texture_frag.glsl");
 	self->shaders[SHADER_BASIC_COLOR] = shader_create("..\\resources\\shaders\\basic_color_vert.glsl", "..\\resources\\shaders\\basic_color_frag.glsl");
+	self->shaders[SHADER_CUBEMAP] = shader_create("..\\resources\\shaders\\cubemap_vert.glsl", "..\\resources\\shaders\\cubemap_frag.glsl");
 }
 
 void _load_textures(Renderer* self)
@@ -33,6 +34,8 @@ void _load_textures(Renderer* self)
 	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");
 	self->textures[TEXTURE_UI_TOOLBAR] = texture_create("..\\resources\\textures\\gui\\toolbar.png");
 	self->textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("..\\resources\\textures\\gui\\toolbar_highlight.png");
+
+	self->textures[TEXTURE_CUBEMAP_SKYBOX] = texture_cubemap_create("");
 }
 
 Renderer renderer_create()
@@ -79,7 +82,7 @@ void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	glBindVertexArray(0);
-	if(texture != nullptr)
+	if (texture != nullptr)
 		glBindTexture(texture->type, 0);
 }
 
@@ -95,11 +98,12 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	glm::mat4 model = glm::mat4(1.0);
 	model = glm::translate(model, cube->position);
 	model = glm::scale(model, cube->scale);
-	shader_set_mat4(shader, "model", model);
+	//shader_set_mat4(shader, "model", model);
 
 	glActiveTexture(GL_TEXTURE0 + texture->handle);
-	glBindTexture(texture->type, texture->handle);	
-	
+	glBindTexture(texture->type, texture->handle);
+	int a = GL_TEXTURE_CUBE_MAP;
+
 	glBindVertexArray(cube->vao);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -107,7 +111,7 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	glBindTexture(texture->type, 0);
 }
 
-void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale, int enabled)
+void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale)
 {
 	ShaderProgram* shader = &self->shaders[shader_type];
 	Texture* texture = &self->textures[texture_type];
@@ -120,11 +124,10 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	model = glm::translate(model, position);
 	model = glm::scale(model, scale);
 	shader_set_mat4(shader, "model", model);
-	shader_set_int(shader, "enabled", enabled);
 
 	glActiveTexture(GL_TEXTURE0 + texture->handle);
-	glBindTexture(texture->type, texture->handle);	
-	
+	glBindTexture(texture->type, texture->handle);
+
 	glBindVertexArray(vao);
 
 	glDrawArrays(GL_TRIANGLES, 0, indicies);

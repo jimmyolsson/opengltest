@@ -1,23 +1,110 @@
 #include "cube.h"
 #include "glad/glad.h"
 
-#include <vector>
+// x y z u v
+const static int cube_verts[] = {
+	1, 1, 0, 1, 0,
+	1, 0, 0, 1, 1,
+	0, 1, 0, 0, 0,
+	1, 0, 0, 1, 1,
+	0, 0, 0, 0, 1,
+	0, 1, 0, 0, 0,
+	0, 1, 1, 1, 0,
+	0, 0, 1, 1, 1,
+	1, 1, 1, 0, 0,
+	0, 0, 1, 1, 1,
+	1, 0, 1, 0, 1,
+	1, 1, 1, 0, 0,
+	0, 1, 0, 1, 0,
+	0, 0, 0, 1, 1,
+	0, 1, 1, 0, 0,
+	0, 0, 0, 1, 1,
+	0, 0, 1, 0, 1,
+	0, 1, 1, 0, 0,
+	1, 1, 1, 1, 0,
+	1, 0, 1, 1, 1,
+	1, 1, 0, 0, 0,
+	1, 0, 1, 1, 1,
+	1, 0, 0, 0, 1,
+	1, 1, 0, 0, 0,
+	1, 0, 1, 1, 0,
+	0, 0, 1, 1, 1,
+	1, 0, 0, 0, 0,
+	0, 0, 1, 1, 1,
+	0, 0, 0, 0, 1,
+	1, 0, 0, 0, 0,
+	0, 1, 1, 1, 0,
+	1, 1, 1, 1, 1,
+	0, 1, 0, 0, 0,
+	1, 1, 1, 1, 1,
+	1, 1, 0, 0, 1,
+	0, 1, 0, 0, 0
+};
+
+const static float cube_vert_nouv[] = {
+	// positions          
+	-1.0f,  1.0f, -1.0f,
+	-1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+
+	-1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+
+	-1.0f, -1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+
+	-1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f, -1.0f,
+
+	-1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f
+};
+
+void _create_buffersuv(unsigned int* vao, unsigned int* vbo)
+{
+    glGenVertexArrays(1, vao);
+    glGenBuffers(1, vbo);
+    glBindVertexArray(*vao);
+    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert_nouv), &cube_vert_nouv, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+}
 
 void _create_buffers(unsigned int* vao, unsigned int* vbo)
 {
-	int index = 0;
-	std::vector<int> gpu_data;
-	for (int i = 0; i < 180-1; i++)
-	{
-		gpu_data.push_back(cube_verts[i]);
-	}
-
 	glGenVertexArrays(1, vao);
 	glBindVertexArray(*vao);
 
 	glGenBuffers(1, vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-	glBufferData(GL_ARRAY_BUFFER, gpu_data.size() * sizeof(int), gpu_data.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_verts), &cube_verts, GL_STATIC_DRAW);
 
 	// Position
 	glVertexAttribPointer(0, 3, GL_UNSIGNED_INT, GL_FALSE, 5 * sizeof(int), (void*)0);
@@ -40,7 +127,11 @@ Cube cube_create(TextureType texture_type, ShaderType shader_type, glm::vec3 pos
 	cube.position = pos;
 	cube.scale = scale;
 
-	_create_buffers(&cube.vao, &cube.vbo);
+	// This is ugly
+	if (texture_type == TextureType::TEXTURE_CUBEMAP_SKYBOX)
+		_create_buffersuv(&cube.vao, &cube.vbo);
+	else
+		_create_buffers(&cube.vao, &cube.vbo);
 
 	return cube;
 }
