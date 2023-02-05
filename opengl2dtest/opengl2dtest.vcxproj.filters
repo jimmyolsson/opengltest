@@ -124,9 +124,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="todo.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..\resources\shaders\basic_color_frag.glsl">
       <Filter>Resource Files</Filter>
     </None>

@@ -35,6 +35,7 @@ const char* get_str(LogSeverity severity)
 		return "ERROR";
 	}
 }
+#pragma warning(disable:4996)
 
 void _g_logger_log(LogSeverity severity, const char* format, ...)
 {

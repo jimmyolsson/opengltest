@@ -190,8 +190,10 @@ void add_face_and_texture(Chunk* chunk, const block_size_t* data, BlockFaceDirec
 		result |= (data[i + 2] + z) << 12;
 		result |= (data[i + 3]) << 11;
 		result |= (data[i + 4]) << 10;
-		result |=  occlusion << 8;
-		result |= texture;
+		result |= occlusion << 8;
+		result |= texture << 1;
+		auto lighting = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
+		result |= lighting;
 
 		chunk->gpu_data_arr.push_back(result);
 		i += 5;
@@ -365,7 +367,7 @@ void gen_mesh_opaque(Chunk* chunk)
 void chunk_generate_mesh(Chunk* chunk)
 {
 	gen_mesh_opaque(chunk);
-	gen_mesh_translucent(chunk);
+	//gen_mesh_translucent(chunk);
 	chunk->verts_in_use = chunk->gpu_data_arr.size();
 	chunk->verts_in_use_transparent = chunk->gpu_data_arr_transparent.size();
 }

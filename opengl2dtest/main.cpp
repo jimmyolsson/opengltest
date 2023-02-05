@@ -152,27 +152,23 @@ void init_game_world()
 			world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 		});
 
-	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-	//	[&](auto& iter)
-	//	{
-	//		TIMER_START(MESHGEN)
-	//		chunk_generate_mesh(&iter.second);
-	//		TIMER_END(MESHGEN)
-	//		//chunk_generate_mesh_transparent(&iter.second);
-	//		iter.second.initialized = true;
-	//	});
-	//for (auto& iter : GameState.chunks)
-	//{
-	//	chunk_generate_buffers(&iter.second);
-	//	//chunk_generate_buffers_transparent(&iter.second);
-	//}
-
+	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+		[&](auto& iter)
+		{
+			chunk_generate_mesh(&iter.second);
+			iter.second.initialized = true;
+		});
 	for (auto& iter : GameState.chunks)
 	{
-		chunk_generate_mesh(&iter.second);
 		chunk_generate_buffers(&iter.second);
-		iter.second.initialized = true;
 	}
+
+	//for (auto& iter : GameState.chunks)
+	//{
+	//	chunk_generate_mesh(&iter.second);
+	//	chunk_generate_buffers(&iter.second);
+	//	iter.second.initialized = true;
+	//}
 
 	int total_verts = 0;
 	for (auto& iter : GameState.chunks)
