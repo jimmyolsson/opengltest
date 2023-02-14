@@ -238,8 +238,8 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		if (remove)
 		{
-			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
+			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
 		else
 		{
