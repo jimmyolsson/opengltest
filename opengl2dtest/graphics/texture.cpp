@@ -50,7 +50,7 @@ unsigned char* load_png(const char* path, int* width, int* height, int* format)
 }
 
 #include <iostream>
-Texture texture_atlas_create(int count, const char* paths, ...)
+Texture texture_atlas_creat(int count, const char* paths, ...)
 {
 	Texture texture;
 	texture.type = GL_TEXTURE_2D_ARRAY;
@@ -64,11 +64,15 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 	GLsizei layerCount = count;
 	GLsizei mipLevelCount = 4;
 
+	auto error6 = glGetError();
 	glGenTextures(1, &texture.handle);
+	auto error5 = glGetError();
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture.handle);
+	auto error1 = glGetError();
 
 	// Allocate the storage.
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
+	auto error = glGetError();
 
 	const char* path = paths;
 	for(int i = 0; i < count; i++)
@@ -99,6 +103,60 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 	va_end(valist);
 
 	return texture;
+}
+Texture texture_atlas_create(int count, const char* paths, ...)
+{
+    Texture texture;
+    texture.type = GL_TEXTURE_2D_ARRAY;
+
+    va_list valist;
+    va_start(valist, paths);
+
+    GLsizei width = 16;
+    GLsizei height = 16;
+
+    GLsizei layerCount = count;
+    GLsizei mipLevelCount = 4;
+
+    auto error6 = glGetError();
+    glGenTextures(1, &texture.handle);
+    auto error5 = glGetError();
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture.handle);
+    auto error1 = glGetError();
+
+    // Allocate the storage.
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, width, height, layerCount, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    auto error = glGetError();
+
+    const char* path = paths;
+    for(int i = 0; i < count; i++)
+    {
+        int width, height, format;
+        unsigned char* pixels = load_png(path, &width, &height, &format);
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+        g_logger_debug("Loading textures from: %s", path);
+        path = va_arg(valist, const char*);
+    }
+
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    //// set texture filtering parameters
+    //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //GLfloat value, max_anisotropy = 8.0f;
+    //glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &value);
+
+    //value = (value > max_anisotropy) ? max_anisotropy : value;
+    //glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY, value);
+
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+
+    va_end(valist);
+
+    return texture;
 }
 
 Texture texture_cubemap_create(const char* path)

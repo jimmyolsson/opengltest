@@ -14,6 +14,7 @@
 #else
 #include "irrKlang.h"
 #include "GLFW/glfw3.h"
+#include <Windows.h>
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -186,7 +187,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	BlockType type = BlockType::STONE;
+	BlockType type = BlockType::DIRT_GRASS;
 
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;
@@ -447,11 +448,10 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	}
 }
 
-#include <Windows.h>
 GLFWwindow* init_and_create_window()
 {
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -462,9 +462,14 @@ GLFWwindow* init_and_create_window()
 		glfwTerminate();
 		return nullptr;
 	}
+
+#ifndef __EMSCRIPTEN__
+	// Center the screen
 	int max_width = GetSystemMetrics(SM_CXSCREEN);
 	int max_hieght = GetSystemMetrics(SM_CYSCREEN);
 	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_hieght / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH, GameState.SCR_HEIGHT, GLFW_DONT_CARE);
+#endif
+
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetScrollCallback(window, scroll_callback);
