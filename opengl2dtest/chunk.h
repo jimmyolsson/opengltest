@@ -16,6 +16,12 @@ static const int CHUNK_DRAW_DISTANCE = 5;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
+struct GPUData
+{
+	float x, y, z;
+	unsigned int info;
+};
+
 struct Chunk
 {
 	char* block_neighbors;
@@ -23,7 +29,7 @@ struct Chunk
 	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
 	glm::ivec2 world_pos;
 
-	std::vector<block_size_t> gpu_data_arr = {};
+	std::vector<GPUData> gpu_data_arr = {};
 	int verts_in_use = 0;
 
 	std::vector<block_size_t> gpu_data_arr_transparent = {};
@@ -55,6 +61,7 @@ block* chunk_get_block(Chunk* c, short x, short y, short z);
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(Chunk* chunk);
 void chunk_generate_buffers(Chunk* chunk);
+void chunk_generate_buffers_new(Chunk* chunk);
 
 void chunk_update(chunk_map_t* chunks);
 void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);

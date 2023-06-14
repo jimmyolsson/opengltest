@@ -30,6 +30,17 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	case BlockType::WATER:
 		strncpy_s(name, buffer_size, "WATER", buff_s);
 		return;
+	case BlockType::GLASS_PANE:
+		strncpy_s(name, buffer_size, "GLASS_PANE", buff_s);
+		return;	
+	case BlockType::BRICKS:
+		strncpy_s(name, buffer_size, "BRICKS", buff_s);
+		return;	
+	case BlockType::CONCRETE_WHITE:
+		strncpy_s(name, buffer_size, "CONCRETE_WHITE", buff_s);
+		return;
+
+
 
 	default:
 		assert(false);

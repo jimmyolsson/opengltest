@@ -136,8 +136,8 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 #endif // DEBUG
 
 	//generate_world_cube(blocks, xoffset, zoffset);
-	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	generate_world_noise(blocks, noise, xoffset, zoffset);
+	generate_world_flatgrass(blocks, xoffset, zoffset);
+	//generate_world_noise(blocks, noise, xoffset, zoffset);
 }
 
 // TODO:

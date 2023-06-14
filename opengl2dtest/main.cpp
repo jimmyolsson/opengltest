@@ -99,7 +99,7 @@ void state_allocate_memory()
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 140.0f, 0.0f));
+	GameState.player.camera = Camera(glm::vec3(0.0f, 50.0f, 0.0f));
 	GameState.window = init_and_create_window();
 	GameState.renderer = renderer_create();
 	GameState.chunks = {};
@@ -155,23 +155,23 @@ void init_game_world()
 			world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 		});
 
-	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-		[&](auto& iter)
-		{
-			chunk_generate_mesh(&iter.second);
-			iter.second.initialized = true;
-		});
-	for (auto& iter : GameState.chunks)
-	{
-		chunk_generate_buffers(&iter.second);
-	}
-
+	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+	//	[&](auto& iter)
+	//	{
+	//		chunk_generate_mesh(&iter.second);
+	//		iter.second.initialized = true;
+	//	});
 	//for (auto& iter : GameState.chunks)
 	//{
-	//	chunk_generate_mesh(&iter.second);
 	//	chunk_generate_buffers(&iter.second);
-	//	iter.second.initialized = true;
 	//}
+
+	for (auto& iter : GameState.chunks)
+	{
+		chunk_generate_mesh(&iter.second);
+		chunk_generate_buffers_new(&iter.second);
+		iter.second.initialized = true;
+	}
 
 	int total_verts = 0;
 	for (auto& iter : GameState.chunks)
@@ -187,6 +187,20 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		return;
 
 	BlockType type = BlockType::STONE;
+	if (GameState.menu.item_selected == 0)
+	{
+		type = BlockType::BRICKS;
+	}
+	else if (GameState.menu.item_selected == 1)
+	{
+		type = BlockType::CONCRETE_WHITE;
+	}
+	else if (GameState.menu.item_selected == 2)
+	{
+		type = BlockType::GLASS_PANE;
+	}
+	if (ray_hit.piss)
+		g_logger_debug("TOP HALF");
 
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;

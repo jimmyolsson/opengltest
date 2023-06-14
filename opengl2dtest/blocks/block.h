@@ -3,10 +3,10 @@
 #include <iostream>
 
 const int TOTAL_ELEMENTS_IN_QUAD = 30;
-typedef int block_size_t;
+typedef float block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 
-#define BLOCK_TYPE_LAST WATER
+#define BLOCK_TYPE_LAST CONCRETE_WHITE
 enum BlockType : int {
 	AIR = 0,
 	STONE,
@@ -15,7 +15,10 @@ enum BlockType : int {
 	SAND,
 	LEAVES,
 	OAK_LOG,
-	WATER
+	WATER,
+	GLASS_PANE,
+	BRICKS,
+	CONCRETE_WHITE
 };
 
 enum class BlockFaceDirection : int
@@ -50,7 +53,6 @@ const static block_size_t m_back_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
 	0, 0, 0, 0, 1,
 	0, 1, 0, 0, 0
 };
-
 const static block_size_t m_front_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
 	0, 1, 1, 1, 0,
 	0, 0, 1, 1, 1,
@@ -114,6 +116,7 @@ static bool block_is_transparent(BlockType type)
 	case BlockType::AIR:
 	case BlockType::LEAVES:
 	case BlockType::WATER:
+	case BlockType::GLASS_PANE:
 		return true;
 		break;
 	default:

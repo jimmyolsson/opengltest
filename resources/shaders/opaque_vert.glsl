@@ -1,5 +1,6 @@
 #version 430 core
-layout (location = 0) in uint in_info;
+layout (location = 0) in vec3 in_pos;
+layout (location = 1) in uint in_info;
 
 out vec3 FragPos;
 out vec2 TexCoords;
@@ -65,8 +66,8 @@ void main()
     {
 		vertexInfo.y -= 0.1;
     }
-
-    vec3 pos = vec3(vertexInfo.x, vertexInfo.y, vertexInfo.z);
+    vec3 pos = in_pos;
+//    vec3 pos = vec3(vertexInfo.x, vertexInfo.y, vertexInfo.z);
     vec2 texcoords = vec2(vertexInfo.u, vertexInfo.v);
 
     Lighting = calculate_lighting(vertexInfo.lighting_flag, vertexInfo.ambient_occlusion);

@@ -26,6 +26,7 @@ struct ray_hit_result
 	glm::ivec3 direction;
 	Chunk* chunk_hit;
 	glm::ivec2 chunk_world_pos;
+	bool piss;
 };
 
 struct Ray
@@ -65,10 +66,28 @@ struct Ray
 					const int y = p.y;
 					const int z = p.z - it.first.y;
 
-					
+
 					const auto a = chunk_get_block(&it.second, x, y, z);
 					if (a->type != BlockType::AIR && a->type != BlockType::WATER)
 					{
+						// Inside the intersect_block method, after finding a hit block:
+						float intersection_time = t_max.x < t_max.y ? (t_max.x < t_max.z ? t_max.x : t_max.z) : (t_max.y < t_max.z ? t_max.y : t_max.z);
+						glm::vec3 intersection_point = this->origin + intersection_time * this->direction;
+						if (d.x == 1)
+						{ // If the hit face is in the positive X direction
+							float local_y = intersection_point.y - glm::floor(intersection_point.y);
+							if (local_y < 0.5f)
+							{
+								// Intersection is in the bottom half of the face
+								result.piss = false;
+							}
+							else
+							{
+								// Intersection is in the top half of the face
+								result.piss = true;
+							}
+						}
+
 						result.block_pos = glm::ivec3(x, y, z);
 						result.chunk_hit = &it.second;
 						result.chunk_world_pos = it.first;

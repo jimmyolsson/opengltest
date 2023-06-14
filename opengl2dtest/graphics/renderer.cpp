@@ -19,7 +19,7 @@ void _load_shaders(Renderer* self)
 
 void _load_textures(Renderer* self)
 {
-	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(9,
+	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(13,
 		"..\\resources\\textures\\block\\stone.png",
 		"..\\resources\\textures\\block\\dirt.png",
 		"..\\resources\\textures\\block\\dirt_grass_side.png",
@@ -28,7 +28,11 @@ void _load_textures(Renderer* self)
 		"..\\resources\\textures\\block\\leaves.png",
 		"..\\resources\\textures\\block\\oak_log.png",
 		"..\\resources\\textures\\block\\oak_log_top.png",
-		"..\\resources\\textures\\block\\water.png"
+		"..\\resources\\textures\\block\\water.png",
+		"..\\resources\\textures\\block\\glass.png",
+		"..\\resources\\textures\\block\\glass_pane_top.png",
+		"..\\resources\\textures\\block\\bricks.png",
+		"..\\resources\\textures\\block\\white_concrete.png"
 	);
 
 	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");
@@ -98,7 +102,7 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	glm::mat4 model = glm::mat4(1.0);
 	model = glm::translate(model, cube->position);
 	model = glm::scale(model, cube->scale);
-	//shader_set_mat4(shader, "model", model);
+	shader_set_mat4(shader, "model", model);
 
 	glActiveTexture(GL_TEXTURE0 + texture->handle);
 	glBindTexture(texture->type, texture->handle);

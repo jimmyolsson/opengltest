@@ -77,7 +77,7 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 		unsigned char* pixels = load_png(path, &width, &height, &format);
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, format, GL_UNSIGNED_BYTE, pixels);
 
-		g_logger_debug("Loading textures from: %s", path);
+		g_logger_debug("Loading textures from: %s - index: %d", path, i);
 		path = va_arg(valist, const char*);
 	}
 
@@ -103,7 +103,7 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 
 Texture texture_cubemap_create(const char* path)
 {
-	std::vector<std::string> faces
+	static const std::vector<std::string> faces
 	{
 		"..\\resources\\textures\\skybox\\right.png",
 		"..\\resources\\textures\\skybox\\left.png",

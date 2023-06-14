@@ -70,15 +70,36 @@ static block_info block_infos[BLOCK_TYPE_LAST+1] =
 	// OAK_LOG
 	{
 		BlockType::OAK_LOG,
-		7, 7, 7, 7, 8, 8,
+		6, 6, 6, 6, 7, 7,
 		BlockType::OAK_LOG,
 		BlockType::OAK_LOG
 	},
 	// WATER
 	{
 		BlockType::WATER,
-		9, 9, 9, 9, 9, 9,
+		8, 8, 8, 8, 8, 8,
 		BlockType::WATER,
 		BlockType::WATER
+	},
+	// GLASS PANE
+	{
+		BlockType::GLASS_PANE,
+		10, 9, 9, 9, 9, 9,
+		BlockType::GLASS_PANE,
+		BlockType::GLASS_PANE
+	},
+	// BRICKS
+	{
+		BlockType::BRICKS,
+		11, 11, 11, 11, 11, 11,
+		BlockType::BRICKS,
+		BlockType::BRICKS
+	},
+	// WHITE CONCRETE
+	{
+		BlockType::CONCRETE_WHITE,
+		12, 12, 12, 12, 12, 12,
+		BlockType::CONCRETE_WHITE,
+		BlockType::CONCRETE_WHITE
 	}
 };
