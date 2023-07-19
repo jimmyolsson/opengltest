@@ -155,51 +155,65 @@ void init_game_world()
 			world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 		});
 
-	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-	//	[&](auto& iter)
-	//	{
-	//		chunk_generate_mesh(&iter.second);
-	//		iter.second.initialized = true;
-	//	});
-	//for (auto& iter : GameState.chunks)
-	//{
-	//	chunk_generate_buffers(&iter.second);
-	//}
-
+	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+		[&](auto& iter)
+		{
+			chunk_generate_mesh(&iter.second);
+			iter.second.initialized = true;
+		});
 	for (auto& iter : GameState.chunks)
 	{
-		chunk_generate_mesh(&iter.second);
-		chunk_generate_buffers_new(&iter.second);
-		iter.second.initialized = true;
+		chunk_generate_buffers(&iter.second);
 	}
 
+	//for (auto& iter : GameState.chunks)
+	//{
+	//	//TIMER_START(GEN_MESH_OPAQUE);
+	//	chunk_generate_mesh(&iter.second);
+	//	//TIMER_END(GEN_MESH_OPAQUE);
+
+	//	chunk_generate_buffers(&iter.second);
+
+	//	iter.second.initialized = true;
+	//}
+
 	int total_verts = 0;
+	int total_blocks = 0;
 	for (auto& iter : GameState.chunks)
 	{
 		total_verts += iter.second.verts_in_use + iter.second.verts_in_use_transparent;
+		for (int i = 0; i < BLOCKS_IN_CHUNK; i++)
+		{
+			if (iter.second.blocks[i].type != BlockType::AIR)
+				total_blocks++;
+		}
 	}
+
+	g_logger_info("Total blocks: %d", total_blocks);
 	g_logger_info("Total triangles: %d", total_verts / 3);
 }
 
+// TODO: Cleanup this disgusting method
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
 {
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	BlockType type = BlockType::STONE;
+	BlockType type = BlockType::GLASS;
 	if (GameState.menu.item_selected == 0)
 	{
-		type = BlockType::BRICKS;
+		type = BlockType::STONE;
 	}
 	else if (GameState.menu.item_selected == 1)
 	{
-		type = BlockType::CONCRETE_WHITE;
+		type = BlockType::WATER;
 	}
 	else if (GameState.menu.item_selected == 2)
 	{
-		type = BlockType::GLASS_PANE;
+		type = BlockType::GLASS;
 	}
-	if (ray_hit.piss)
+
+	if (ray_hit.top_half)
 		g_logger_debug("TOP HALF");
 
 	// what chunk and block to process
@@ -212,24 +226,29 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (!remove)
 	{
 		b_pos += ray_hit.direction;
-		if ((ray_hit.block_pos + ray_hit.direction).x >= CHUNK_SIZE_WIDTH)
+		glm::ivec3 new_pos = ray_hit.block_pos + ray_hit.direction;
+		if (new_pos.x >= CHUNK_SIZE_WIDTH)
 		{
 			hit_chunk = ray_hit.chunk_hit->right_neighbor;
+			b_pos.x -= CHUNK_SIZE_WIDTH;
 			another_chunk = true;
 		}
-		else if ((ray_hit.block_pos + ray_hit.direction).x < 0)
+		else if (new_pos.x < 0)
 		{
 			hit_chunk = ray_hit.chunk_hit->left_neighbor;
+			b_pos.x += CHUNK_SIZE_WIDTH;
 			another_chunk = true;
 		}
-		else if ((ray_hit.block_pos + ray_hit.direction).z < 0)
+		else if (new_pos.z < 0)
 		{
 			hit_chunk = ray_hit.chunk_hit->back_neighbor;
+			b_pos.z += CHUNK_SIZE_WIDTH;
 			another_chunk = true;
 		}
-		else if ((ray_hit.block_pos + ray_hit.direction).z >= CHUNK_SIZE_WIDTH)
+		else if (new_pos.z >= CHUNK_SIZE_WIDTH)
 		{
 			hit_chunk = ray_hit.chunk_hit->front_neighbor;
+			b_pos.z -= CHUNK_SIZE_WIDTH;
 			another_chunk = true;
 		}
 		else
@@ -245,7 +264,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (another_chunk)
 	{
 		sound_play_block_sound(&GameState.sound_manager, type, remove);
-		b_pos = glm::vec3((ray_hit.block_pos.x - (CHUNK_SIZE_WIDTH - 1)), ray_hit.block_pos.y, ray_hit.block_pos.z);
 		chunk_set_block(hit_chunk, b_pos, type);
 	}
 	else
@@ -263,6 +281,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		}
 
 		hit_chunk->verts_in_use = 0;
+		hit_chunk->verts_in_use_transparent = 0;
 		hit_chunk->dirty = true;
 	}
 }
@@ -330,14 +349,17 @@ void render_3d()
 {
 	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
 
+	// Render the opaque objects first
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render(&iter.second, &GameState.renderer, view, position);
+		chunk_render_opaque(&iter.second, &GameState.renderer, view, position);
 	}
 
-	outline_render(&GameState.outline, &GameState.renderer, view);
+	//outline_render(&GameState.outline, &GameState.renderer, view);
 
+	// Render translucent objects
+	// TODO: Sort
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
@@ -354,25 +376,33 @@ void render_2d()
 
 void game_render()
 {
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
-
-	render_3d();
-
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-	render_2d();
-
 	// Skybox render
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
+	}
+
+	// 3D pass
+	{
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
+
+		render_3d();
+	}
+
+	// 2D pass
+	{
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_TEST);
+		render_2d();
+	}
 }
 
 void game_update()
@@ -384,7 +414,7 @@ void game_update()
 	const glm::mat4 orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
 
 	renderer_update(&GameState.renderer, perspective, orthographic);
-	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
+	//outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks);
 }
 

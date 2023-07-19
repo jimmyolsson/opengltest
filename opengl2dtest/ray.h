@@ -26,7 +26,7 @@ struct ray_hit_result
 	glm::ivec3 direction;
 	Chunk* chunk_hit;
 	glm::ivec2 chunk_world_pos;
-	bool piss;
+	bool top_half;
 };
 
 struct Ray
@@ -79,12 +79,12 @@ struct Ray
 							if (local_y < 0.5f)
 							{
 								// Intersection is in the bottom half of the face
-								result.piss = false;
+								result.top_half = false;
 							}
 							else
 							{
 								// Intersection is in the top half of the face
-								result.piss = true;
+								result.top_half = true;
 							}
 						}
 

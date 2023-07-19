@@ -95,6 +95,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 		blocks[index].type = BlockType::DIRT_GRASS;
 		return;
 	}
+// Swap to this eventually, 
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -129,7 +130,6 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 			{
 				int index = to_1d_array(x, y, z);
 				blocks[index].type = BlockType::AIR;
-				blocks[index].sky = false;
 			}
 		}
 	}

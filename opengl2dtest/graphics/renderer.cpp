@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "../blocks/block.h"
 
 void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthographic)
 {
@@ -19,7 +20,8 @@ void _load_shaders(Renderer* self)
 
 void _load_textures(Renderer* self)
 {
-	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(13,
+	// THIS HAS TO BE DEFINED IN THE SAME ORDER AS THE BlockTextureIndex ENUM
+	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(BLOCK_TEXTURE_INDEX_LAST + 1,
 		"..\\resources\\textures\\block\\stone.png",
 		"..\\resources\\textures\\block\\dirt.png",
 		"..\\resources\\textures\\block\\dirt_grass_side.png",

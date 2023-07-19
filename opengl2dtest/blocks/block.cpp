@@ -5,7 +5,6 @@
 
 void block_get_name(BlockType type, char* name, int buffer_size)
 {
-	assert(buffer_size > 20);
 	int buff_s = buffer_size - 1;
 	switch (type)
 	{
@@ -39,8 +38,9 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	case BlockType::CONCRETE_WHITE:
 		strncpy_s(name, buffer_size, "CONCRETE_WHITE", buff_s);
 		return;
-
-
+	case BlockType::GLASS:
+		strncpy_s(name, buffer_size, "BRICKS", buff_s);
+		return;	
 
 	default:
 		assert(false);
@@ -58,22 +58,22 @@ int block_get_texture(BlockFaceDirection direction, BlockType type)
 	switch (direction)
 	{
 	case BlockFaceDirection::BACK:
-		return block_infos[type].texture_index_back;
+		return (int)block_infos[type].texture_index_back;
 		break;
 	case BlockFaceDirection::FRONT:
-		return block_infos[type].texture_index_front;
+		return (int)block_infos[type].texture_index_front;
 		break;
 	case BlockFaceDirection::RIGHT:
-		return block_infos[type].texture_index_right;
+		return (int)block_infos[type].texture_index_right;
 		break;
 	case BlockFaceDirection::LEFT:
-		return block_infos[type].texture_index_left;
+		return (int)block_infos[type].texture_index_left;
 		break;
 	case BlockFaceDirection::BOTTOM:
-		return block_infos[type].texture_index_bottom;
+		return (int)block_infos[type].texture_index_bottom;
 		break;
 	case BlockFaceDirection::TOP:
-		return block_infos[type].texture_index_top;
+		return (int)block_infos[type].texture_index_top;
 		break;
 	default:
 		assert(false);
@@ -86,6 +86,7 @@ void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 	BlockType sound_type = remove ? block_infos[type].sound_remove : block_infos[type].sound_place;
 	block_get_name(sound_type, n, sizeof(n));
 
+	// We have multiple sounds for some blocks
 	int num = random(1, 4);
 
 	snprintf(n, sizeof(n), "%s%d", n, num);
@@ -93,3 +94,9 @@ void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 	name[buffer_size - 1] = '\0';
 	strcpy_s(name, buffer_size, n);
 }
+
+bool block_is_transparent(BlockType type)
+{
+	return block_infos[type].is_transparent && type != BlockType::AIR;
+}
+

@@ -5,101 +5,216 @@ struct block_info
 {
 	BlockType type;
 
-	int texture_index_back;
-	int texture_index_front;
-	int texture_index_left;
-	int texture_index_right;
-	int texture_index_bottom;
-	int texture_index_top;
+	BlockTextureIndex texture_index_back;
+	BlockTextureIndex texture_index_front;
+	BlockTextureIndex texture_index_left;
+	BlockTextureIndex texture_index_right;
+	BlockTextureIndex texture_index_bottom;
+	BlockTextureIndex texture_index_top;
+
+	// NOTE: Air is transparent
+	bool is_transparent;
+	bool is_translucent;
 
 	// so we can share sounds
 	BlockType sound_place;
 	BlockType sound_remove;
-
-	/*
-	* TODO:
-	* Compress to bitmask
-	*/
 };
 
 // DEFINED IN THE ORDER OF THE BlockType ENUM
-static block_info block_infos[BLOCK_TYPE_LAST+1] =
+static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 {
 	// AIR
 	{
 		BlockType::AIR,
-		0, 0, 0, 0, 0, 0,
+		// This isnt rendered so the texture index isnt used
+		BlockTextureIndex::STONE, // BACK
+		BlockTextureIndex::STONE, // FRONT
+		BlockTextureIndex::STONE, // LEFT
+		BlockTextureIndex::STONE, // RIGHT
+		BlockTextureIndex::STONE, // BOTTOM
+		BlockTextureIndex::STONE, // TOP
+
+		true, // TRANSPARENT
+		true, // TRANSLUCENT
+
 		BlockType::AIR,
 		BlockType::AIR
 	},
 	// STONE
 	{
 		BlockType::STONE,
-		0, 0, 0, 0, 0, 0,
+		BlockTextureIndex::STONE, // BACK
+		BlockTextureIndex::STONE, // FRONT
+		BlockTextureIndex::STONE, // LEFT
+		BlockTextureIndex::STONE, // RIGHT
+		BlockTextureIndex::STONE, // BOTTOM
+		BlockTextureIndex::STONE, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::STONE,
 		BlockType::STONE
 	},
 	// DIRT
 	{
 		BlockType::DIRT,
-		1, 1, 1, 1, 1, 1,
+		BlockTextureIndex::DIRT, // BACK
+		BlockTextureIndex::DIRT, // FRONT
+		BlockTextureIndex::DIRT, // LEFT
+		BlockTextureIndex::DIRT, // RIGHT
+		BlockTextureIndex::DIRT, // BOTTOM
+		BlockTextureIndex::DIRT, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::DIRT,
 		BlockType::DIRT
 	},
 	// DIRT_GRASS
 	{
 		BlockType::DIRT_GRASS,
-		2, 2, 2, 2, 1, 3,
+		BlockTextureIndex::DIRT_GRASS_SIDE,	// BACK
+		BlockTextureIndex::DIRT_GRASS_SIDE,	// FRONT
+		BlockTextureIndex::DIRT_GRASS_SIDE,	// LEFT
+		BlockTextureIndex::DIRT_GRASS_SIDE,	// RIGHT
+		BlockTextureIndex::DIRT,			// BOTTOM
+		BlockTextureIndex::DIRT_GRASS_TOP,	// TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
 	},
 	// SAND
 	{
 		BlockType::SAND,
-		4, 4, 4, 4, 4, 4,
+		BlockTextureIndex::SAND, // BACK
+		BlockTextureIndex::SAND, // FRONT
+		BlockTextureIndex::SAND, // LEFT
+		BlockTextureIndex::SAND, // RIGHT
+		BlockTextureIndex::SAND, // BOTTOM
+		BlockTextureIndex::SAND, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::SAND,
 		BlockType::SAND
 	},
 	// LEAVES
 	{
 		BlockType::LEAVES,
-		5, 5, 5, 5, 5, 5,
+		BlockTextureIndex::LEAVES, // BACK
+		BlockTextureIndex::LEAVES, // FRONT
+		BlockTextureIndex::LEAVES, // LEFT
+		BlockTextureIndex::LEAVES, // RIGHT
+		BlockTextureIndex::LEAVES, // BOTTOM
+		BlockTextureIndex::LEAVES, // TOP
+
+		true, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
 	},
 	// OAK_LOG
 	{
 		BlockType::OAK_LOG,
-		6, 6, 6, 6, 7, 7,
+		BlockTextureIndex::OAK_LOG, 	// BACK
+		BlockTextureIndex::OAK_LOG, 	// FRONT
+		BlockTextureIndex::OAK_LOG, 	// LEFT
+		BlockTextureIndex::OAK_LOG, 	// RIGHT
+		BlockTextureIndex::OAK_LOG_TOP, // BOTTOM
+		BlockTextureIndex::OAK_LOG_TOP, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::OAK_LOG,
 		BlockType::OAK_LOG
 	},
 	// WATER
 	{
 		BlockType::WATER,
-		8, 8, 8, 8, 8, 8,
+		BlockTextureIndex::WATER, // BACK
+		BlockTextureIndex::WATER, // FRONT
+		BlockTextureIndex::WATER, // LEFT
+		BlockTextureIndex::WATER, // RIGHT
+		BlockTextureIndex::WATER, // BOTTOM
+		BlockTextureIndex::WATER, // TOP
+
+		true, // TRANSPARENT
+		true, // TRANSLUCENT
+
 		BlockType::WATER,
 		BlockType::WATER
 	},
 	// GLASS PANE
 	{
 		BlockType::GLASS_PANE,
-		10, 9, 9, 9, 9, 9,
+		BlockTextureIndex::GLASS_PANE_TOP,	// BACK
+		BlockTextureIndex::GLASS, 			// FRONT
+		BlockTextureIndex::GLASS, 			// LEFT
+		BlockTextureIndex::GLASS, 			// RIGHT
+		BlockTextureIndex::GLASS, 			// BOTTOM
+		BlockTextureIndex::GLASS, 			// TOP
+
+		true, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::GLASS_PANE,
 		BlockType::GLASS_PANE
 	},
 	// BRICKS
 	{
 		BlockType::BRICKS,
-		11, 11, 11, 11, 11, 11,
+		BlockTextureIndex::BRICKS, // BACK
+		BlockTextureIndex::BRICKS, // FRONT
+		BlockTextureIndex::BRICKS, // LEFT
+		BlockTextureIndex::BRICKS, // RIGHT
+		BlockTextureIndex::BRICKS, // BOTTOM
+		BlockTextureIndex::BRICKS, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::BRICKS,
 		BlockType::BRICKS
 	},
 	// WHITE CONCRETE
 	{
 		BlockType::CONCRETE_WHITE,
-		12, 12, 12, 12, 12, 12,
+		BlockTextureIndex::WHITE_CONCRETE, // BACK
+		BlockTextureIndex::WHITE_CONCRETE, // FRONT
+		BlockTextureIndex::WHITE_CONCRETE, // LEFT
+		BlockTextureIndex::WHITE_CONCRETE, // RIGHT
+		BlockTextureIndex::WHITE_CONCRETE, // BOTTOM
+		BlockTextureIndex::WHITE_CONCRETE, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
 		BlockType::CONCRETE_WHITE,
 		BlockType::CONCRETE_WHITE
+	},
+	// GLASS
+	{
+		BlockType::GLASS,
+		BlockTextureIndex::GLASS, // BACK
+		BlockTextureIndex::GLASS, // FRONT
+		BlockTextureIndex::GLASS, // LEFT
+		BlockTextureIndex::GLASS, // RIGHT
+		BlockTextureIndex::GLASS, // BOTTOM
+		BlockTextureIndex::GLASS, // TOP
+
+		true, // TRANSPARENT
+		false, // TRANSLUCENT
+
+		BlockType::GLASS,
+		BlockType::GLASS
 	}
 };

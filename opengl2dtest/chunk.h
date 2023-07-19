@@ -24,15 +24,14 @@ struct GPUData
 
 struct Chunk
 {
-	char* block_neighbors;
-	block* blocks;
 	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
 	glm::ivec2 world_pos;
+	block* blocks;
 
 	std::vector<GPUData> gpu_data_arr = {};
 	int verts_in_use = 0;
 
-	std::vector<block_size_t> gpu_data_arr_transparent = {};
+	std::vector<GPUData> gpu_data_arr_transparent = {};
 	int verts_in_use_transparent = 0;
 
 	Chunk* front_neighbor = nullptr;
@@ -60,9 +59,8 @@ block* chunk_get_block(Chunk* c, short x, short y, short z);
 
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(Chunk* chunk);
-void chunk_generate_buffers(Chunk* chunk);
-void chunk_generate_buffers_new(Chunk* chunk);
+void chunk_generate_buffers(Chunk* self);
 
 void chunk_update(chunk_map_t* chunks);
-void chunk_render(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+void chunk_render_opaque(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
