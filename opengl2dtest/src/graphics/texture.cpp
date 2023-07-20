@@ -95,17 +95,19 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 	return texture;
 }
 
-Texture texture_cubemap_create(const char* path)
+// Takes 6 paths
+Texture texture_cubemap_create(const char* paths, ...)
 {
-	static const std::vector<std::string> faces
+	std::vector<std::string> faces;
+
+	va_list valist;
+	va_start(valist, paths);
+	const char* path = paths;
+	for (int i = 0; i < 6; i++)
 	{
-		"resources\\textures\\skybox\\right.png",
-		"resources\\textures\\skybox\\left.png",
-		"resources\\textures\\skybox\\top.png",
-		"resources\\textures\\skybox\\bottom.png",
-		"resources\\textures\\skybox\\front.png",
-		"resources\\textures\\skybox\\back.png",
-	};
+		faces.push_back(path);
+		path = va_arg(valist, const char*);
+	}
 
 	Texture texture;
 	texture.type = GL_TEXTURE_CUBE_MAP;
@@ -135,5 +137,6 @@ Texture texture_cubemap_create(const char* path)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+	va_end(valist);
 	return texture;
 }

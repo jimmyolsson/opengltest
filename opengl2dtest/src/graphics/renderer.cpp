@@ -41,7 +41,13 @@ void _load_textures(Renderer* self)
 	self->textures[TEXTURE_UI_TOOLBAR] = texture_create("resources\\textures\\gui\\toolbar.png");
 	self->textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("resources\\textures\\gui\\toolbar_highlight.png");
 
-	self->textures[TEXTURE_CUBEMAP_SKYBOX] = texture_cubemap_create("");
+	self->textures[TEXTURE_CUBEMAP_SKYBOX] = texture_cubemap_create(
+		"resources\\textures\\skybox\\right.png",
+		"resources\\textures\\skybox\\left.png",
+		"resources\\textures\\skybox\\top.png",
+		"resources\\textures\\skybox\\bottom.png",
+		"resources\\textures\\skybox\\front.png",
+		"resources\\textures\\skybox\\back.png");
 }
 
 Renderer renderer_create()
