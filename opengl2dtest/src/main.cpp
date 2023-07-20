@@ -356,7 +356,7 @@ void render_3d()
 		chunk_render_opaque(&iter.second, &GameState.renderer, view, position);
 	}
 
-	//outline_render(&GameState.outline, &GameState.renderer, view);
+	outline_render(&GameState.outline, &GameState.renderer, view);
 
 	// Render translucent objects
 	// TODO: Sort
@@ -414,7 +414,7 @@ void game_update()
 	const glm::mat4 orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
 
 	renderer_update(&GameState.renderer, perspective, orthographic);
-	//outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
+	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks);
 }
 

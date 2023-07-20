@@ -11,35 +11,35 @@ void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthograph
 
 void _load_shaders(Renderer* self)
 {
-	self->shaders[SHADER_CHUNK] = shader_create("..\\resources\\shaders\\opaque_vert.glsl", "..\\resources\\shaders\\opaque_frag.glsl");
-	self->shaders[SHADER_OUTLINE] = shader_create("..\\resources\\shaders\\outline_vert.glsl", "..\\resources\\shaders\\outline_frag.glsl");
-	self->shaders[SHADER_BASIC_TEXTURE] = shader_create("..\\resources\\shaders\\basic_texture_vert.glsl", "..\\resources\\shaders\\basic_texture_frag.glsl");
-	self->shaders[SHADER_BASIC_COLOR] = shader_create("..\\resources\\shaders\\basic_color_vert.glsl", "..\\resources\\shaders\\basic_color_frag.glsl");
-	self->shaders[SHADER_CUBEMAP] = shader_create("..\\resources\\shaders\\cubemap_vert.glsl", "..\\resources\\shaders\\cubemap_frag.glsl");
+	self->shaders[SHADER_CHUNK] = shader_create("resources\\shaders\\opaque_vert.glsl", "resources\\shaders\\opaque_frag.glsl");
+	self->shaders[SHADER_OUTLINE] = shader_create("resources\\shaders\\outline_vert.glsl", "resources\\shaders\\outline_frag.glsl");
+	self->shaders[SHADER_BASIC_TEXTURE] = shader_create("resources\\shaders\\basic_texture_vert.glsl", "resources\\shaders\\basic_texture_frag.glsl");
+	self->shaders[SHADER_BASIC_COLOR] = shader_create("resources\\shaders\\basic_color_vert.glsl", "resources\\shaders\\basic_color_frag.glsl");
+	self->shaders[SHADER_CUBEMAP] = shader_create("resources\\shaders\\cubemap_vert.glsl", "resources\\shaders\\cubemap_frag.glsl");
 }
 
 void _load_textures(Renderer* self)
 {
 	// THIS HAS TO BE DEFINED IN THE SAME ORDER AS THE BlockTextureIndex ENUM
 	self->textures[TEXTURE_ATLAS_CHUNK] = texture_atlas_create(BLOCK_TEXTURE_INDEX_LAST + 1,
-		"..\\resources\\textures\\block\\stone.png",
-		"..\\resources\\textures\\block\\dirt.png",
-		"..\\resources\\textures\\block\\dirt_grass_side.png",
-		"..\\resources\\textures\\block\\dirt_grass_top.png",
-		"..\\resources\\textures\\block\\sand.png",
-		"..\\resources\\textures\\block\\leaves.png",
-		"..\\resources\\textures\\block\\oak_log.png",
-		"..\\resources\\textures\\block\\oak_log_top.png",
-		"..\\resources\\textures\\block\\water.png",
-		"..\\resources\\textures\\block\\glass.png",
-		"..\\resources\\textures\\block\\glass_pane_top.png",
-		"..\\resources\\textures\\block\\bricks.png",
-		"..\\resources\\textures\\block\\white_concrete.png"
+		"resources\\textures\\block\\stone.png",
+		"resources\\textures\\block\\dirt.png",
+		"resources\\textures\\block\\dirt_grass_side.png",
+		"resources\\textures\\block\\dirt_grass_top.png",
+		"resources\\textures\\block\\sand.png",
+		"resources\\textures\\block\\leaves.png",
+		"resources\\textures\\block\\oak_log.png",
+		"resources\\textures\\block\\oak_log_top.png",
+		"resources\\textures\\block\\water.png",
+		"resources\\textures\\block\\glass.png",
+		"resources\\textures\\block\\glass_pane_top.png",
+		"resources\\textures\\block\\bricks.png",
+		"resources\\textures\\block\\white_concrete.png"
 	);
 
-	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("..\\resources\\textures\\gui\\crosshair.png");
-	self->textures[TEXTURE_UI_TOOLBAR] = texture_create("..\\resources\\textures\\gui\\toolbar.png");
-	self->textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("..\\resources\\textures\\gui\\toolbar_highlight.png");
+	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("resources\\textures\\gui\\crosshair.png");
+	self->textures[TEXTURE_UI_TOOLBAR] = texture_create("resources\\textures\\gui\\toolbar.png");
+	self->textures[TEXTURE_UI_TOOLBAR_HIGHLIGHT] = texture_create("resources\\textures\\gui\\toolbar_highlight.png");
 
 	self->textures[TEXTURE_CUBEMAP_SKYBOX] = texture_cubemap_create("");
 }

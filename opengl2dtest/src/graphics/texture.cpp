@@ -85,14 +85,8 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	//// set texture filtering parameters
-	//glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//GLfloat value, max_anisotropy = 8.0f;
-	//glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &value);
-
-	//value = (value > max_anisotropy) ? max_anisotropy : value;
-	//glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY, value);
 
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
@@ -105,12 +99,12 @@ Texture texture_cubemap_create(const char* path)
 {
 	static const std::vector<std::string> faces
 	{
-		"..\\resources\\textures\\skybox\\right.png",
-		"..\\resources\\textures\\skybox\\left.png",
-		"..\\resources\\textures\\skybox\\top.png",
-		"..\\resources\\textures\\skybox\\bottom.png",
-		"..\\resources\\textures\\skybox\\front.png",
-		"..\\resources\\textures\\skybox\\back.png",
+		"resources\\textures\\skybox\\right.png",
+		"resources\\textures\\skybox\\left.png",
+		"resources\\textures\\skybox\\top.png",
+		"resources\\textures\\skybox\\bottom.png",
+		"resources\\textures\\skybox\\front.png",
+		"resources\\textures\\skybox\\back.png",
 	};
 
 	Texture texture;

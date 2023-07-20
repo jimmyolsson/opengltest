@@ -78,13 +78,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\stb_image;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\lib;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)lib\GLFW\lib-vc2022;$(ProjectDir)lib\FastNoise2\lib;$(ProjectDir)lib\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\stb_image;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLAD;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\include;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Jimmy\source\repos\opengl2dtest\vendor\GLFW\lib-vc2022;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\FastNoise2\lib;C:\Users\Jimmy\source\repos\opengl2dtest\vendor\irrklang\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)lib\GLFW\lib-vc2022;$(ProjectDir)lib\FastNoise2\lib;$(ProjectDir)lib\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -129,6 +129,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;FastNoise.lib;irrKlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy "$(ProjectDir)lib\FastNoise2\lib\FastNoise.dll" "$(OutDir)"
+copy "$(ProjectDir)lib\irrklang\lib\irrKlang.dll" "$(OutDir)"
+copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -149,59 +155,65 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;FastNoise.lib;irrKlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy "$(ProjectDir)lib\FastNoise2\lib\FastNoise.dll" "$(OutDir)"
+copy "$(ProjectDir)lib\irrklang\lib\irrKlang.dll" "$(OutDir)"
+copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="blocks\block.cpp" />
-    <ClCompile Include="chunk.cpp">
+    <ClCompile Include="src\blocks\block.cpp" />
+    <ClCompile Include="src\chunk.cpp">
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
-    <ClCompile Include="glad.c" />
-    <ClCompile Include="graphics\cube.cpp" />
-    <ClCompile Include="graphics\quad.cpp" />
-    <ClCompile Include="graphics\renderer.cpp" />
-    <ClCompile Include="graphics\texture.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="util\common.cpp" />
-    <ClCompile Include="util\memory_arena.cpp" />
-    <ClCompile Include="graphics\shader.cpp" />
-    <ClCompile Include="sound_manager.cpp" />
-    <ClCompile Include="world_gen.cpp" />
+    <ClCompile Include="src\glad.c" />
+    <ClCompile Include="src\graphics\cube.cpp" />
+    <ClCompile Include="src\graphics\quad.cpp" />
+    <ClCompile Include="src\graphics\renderer.cpp" />
+    <ClCompile Include="src\graphics\texture.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\util\common.cpp" />
+    <ClCompile Include="src\util\memory_arena.cpp" />
+    <ClCompile Include="src\graphics\shader.cpp" />
+    <ClCompile Include="src\sound_manager.cpp" />
+    <ClCompile Include="src\world_gen.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="blocks\blocks.h" />
-    <ClInclude Include="blocks\block.h" />
-    <ClInclude Include="environment\skybox.h" />
-    <ClInclude Include="graphics\camera.h" />
-    <ClInclude Include="chunk.h" />
-    <ClInclude Include="common.h" />
-    <ClInclude Include="graphics\cube.h" />
-    <ClInclude Include="graphics\quad.h" />
-    <ClInclude Include="graphics\renderer.h" />
-    <ClInclude Include="graphics\renderer_resources.h" />
-    <ClInclude Include="graphics\texture.h" />
-    <ClInclude Include="ui\crosshair.h" />
-    <ClInclude Include="ui\item_toolbar.h" />
-    <ClInclude Include="util\common.h" />
-    <ClInclude Include="util\memory_arena.h" />
-    <ClInclude Include="outline.h" />
-    <ClInclude Include="player.h" />
-    <ClInclude Include="ray.h" />
-    <ClInclude Include="robin_hood.h" />
-    <ClInclude Include="graphics\shader.h" />
-    <ClInclude Include="sound_manager.h" />
-    <ClInclude Include="state.h" />
-    <ClInclude Include="world_gen.h" />
+    <ClInclude Include="src\blocks\blocks.h" />
+    <ClInclude Include="src\blocks\block.h" />
+    <ClInclude Include="src\environment\skybox.h" />
+    <ClInclude Include="src\graphics\camera.h" />
+    <ClInclude Include="src\chunk.h" />
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\graphics\cube.h" />
+    <ClInclude Include="src\graphics\quad.h" />
+    <ClInclude Include="src\graphics\renderer.h" />
+    <ClInclude Include="src\graphics\renderer_resources.h" />
+    <ClInclude Include="src\graphics\texture.h" />
+    <ClInclude Include="src\ui\crosshair.h" />
+    <ClInclude Include="src\ui\item_toolbar.h" />
+    <ClInclude Include="src\util\common.h" />
+    <ClInclude Include="src\util\memory_arena.h" />
+    <ClInclude Include="src\outline.h" />
+    <ClInclude Include="src\player.h" />
+    <ClInclude Include="src\ray.h" />
+    <ClInclude Include="src\robin_hood.h" />
+    <ClInclude Include="src\graphics\shader.h" />
+    <ClInclude Include="src\sound_manager.h" />
+    <ClInclude Include="src\state.h" />
+    <ClInclude Include="src\world_gen.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\shaders\basic_texture_frag.glsl" />
-    <None Include="..\resources\shaders\basic_texture_vert.glsl" />
-    <None Include="..\resources\shaders\basic_color_frag.glsl" />
-    <None Include="..\resources\shaders\basic_color_vert.glsl" />
-    <None Include="..\resources\shaders\opaque_frag.glsl" />
-    <None Include="..\resources\shaders\opaque_vert.glsl" />
-    <None Include="..\resources\shaders\outline_frag.glsl" />
-    <None Include="..\resources\shaders\outline_vert.glsl" />
+    <None Include="resources\shaders\basic_texture_frag.glsl" />
+    <None Include="resources\shaders\basic_texture_vert.glsl" />
+    <None Include="resources\shaders\basic_color_frag.glsl" />
+    <None Include="resources\shaders\basic_color_vert.glsl" />
+    <None Include="resources\shaders\opaque_frag.glsl" />
+    <None Include="resources\shaders\opaque_vert.glsl" />
+    <None Include="resources\shaders\outline_frag.glsl" />
+    <None Include="resources\shaders\outline_vert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
