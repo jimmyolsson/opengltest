@@ -1,35 +1,19 @@
-#ifdef __EMSCRIPTEN__
-#include <GL/gl.h>
-#include <emscripten/emscripten.h>
-#include <emscripten/html5.h>
-#include <GLES2/gl2.h>
-#else
-#include "glad/glad.h"
-#endif
-#include <Windows.h>
-
-#ifdef __EMSCRIPTEN__
-//#include <GL/glfw.h>
-#include <GLFW/glfw3.h>
-#else
+#ifndef __EMSCRIPTEN__
 #include "irrKlang.h"
-#include "GLFW/glfw3.h"
+#include <Windows.h>
+#include "sound_manager.h"
 #endif
 
-#ifdef __EMSCRIPTEN__
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#else
+#include "util/common_graphics.h"
+#include <GLFW/glfw3.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/hash.hpp>
 #include <glm/gtx/norm.hpp>
-#endif
 
 #include <iostream>
 #include <tuple>
-#include <algorithm>
 #include <execution>
 #include <cmath>
 #include <array>
@@ -47,7 +31,6 @@
 #include "util/memory_arena.h"
 #include "ui/crosshair.h"
 #include "outline.h"
-#include "sound_manager.h"
 #include "ray.h"
 #include "ui/item_toolbar.h"
 #include "world_gen.h"
@@ -69,7 +52,7 @@ struct State
 
 	player_s player;
 	chunk_map_t chunks;
-	sound_manager_s sound_manager;
+	//sound_manager_s sound_manager;
 
 	memory_arena block_arena;
 	memory_arena noise_arena;
@@ -90,8 +73,8 @@ void state_allocate_memory()
 	const auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 
 	const int mb = 1024 * 1024;
-	g_logger_info("Allocated: %dMB", block_arena_size / mb);
-	g_logger_info("Allocated: %dMB", noise_arena_size / mb);
+	g_logger_info("Allocating: %dMB", block_arena_size / mb);
+	g_logger_info("Allocating: %dMB", noise_arena_size / mb);
 
 	memory_arena_init(&GameState.block_arena, block_arena_size, sizeof(block) * BLOCKS_IN_CHUNK);
 	memory_arena_init(&GameState.noise_arena, noise_arena_size, sizeof(float) * (CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH));
@@ -99,21 +82,36 @@ void state_allocate_memory()
 
 void state_global_init()
 {
-	GameState.player.camera = Camera(glm::vec3(0.0f, 50.0f, 0.0f));
+	// Start 5 blocks over the ground
+	glm::ivec3 camera_pos = glm::vec3(0.0f, CHUNK_SIZE_HEIGHT / 6 + 5, 0.0f);
+	GameState.player.camera = Camera(camera_pos);
+	g_logger_debug("Camera created at (%d, %d, %d)", camera_pos.x, camera_pos.y, camera_pos.z);
+
 	GameState.window = init_and_create_window();
+	g_logger_debug("Window created");
+
 	GameState.renderer = renderer_create();
+	g_logger_debug("Renderer created");
+
 	GameState.chunks = {};
 
 	GameState.outline = outline_create();
+	g_logger_debug("Outline created");
+
 	GameState.skybox = skybox_create();
+	g_logger_debug("Skybox created");
 
 	GameState.delta_time = 0;
 	GameState.last_frame = 0;
 
-	sound_init(&GameState.sound_manager);
+#ifndef __EMSCRIPTEN__
+	//sound_init(&GameState.sound_manager);
+#endif
 
 	GameState.menu = menu_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	g_logger_debug("Menu created");
 	GameState.crosshair = crosshair_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
+	g_logger_debug("Crosshair created");
 
 	state_allocate_memory();
 }
@@ -132,6 +130,7 @@ void create_and_init_chunk(const int x, const int z)
 
 void init_game_world()
 {
+	g_logger_debug("Initializing game world");
 	using namespace std::chrono;
 
 	if (CHUNK_DRAW_DISTANCE == 1)
@@ -141,6 +140,7 @@ void init_game_world()
 	else
 	{
 		for (int x = (CHUNK_DRAW_DISTANCE / 2) * -1; x < CHUNK_DRAW_DISTANCE / 2; x++)
+
 		{
 			for (int z = (CHUNK_DRAW_DISTANCE / 2) * -1; z < CHUNK_DRAW_DISTANCE / 2; z++)
 			{
@@ -149,6 +149,7 @@ void init_game_world()
 		}
 	}
 
+#ifndef __EMSCRIPTEN__
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
 		{
@@ -165,18 +166,23 @@ void init_game_world()
 	{
 		chunk_generate_buffers(&iter.second);
 	}
+#else
+	g_logger_debug("Chunk size width: %d - height: %d", CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
+	for (auto& iter : GameState.chunks)
+	{
+		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
+	}
 
-	//for (auto& iter : GameState.chunks)
-	//{
-	//	//TIMER_START(GEN_MESH_OPAQUE);
-	//	chunk_generate_mesh(&iter.second);
-	//	//TIMER_END(GEN_MESH_OPAQUE);
+	for (auto& iter : GameState.chunks)
+	{
+		chunk_generate_mesh(&iter.second);
+		chunk_generate_buffers(&iter.second);
 
-	//	chunk_generate_buffers(&iter.second);
+		iter.second.initialized = true;
+	}
 
-	//	iter.second.initialized = true;
-	//}
-
+#endif // !__EMSCRIPTEN__
+	g_logger_debug("Chunks initialized!");
 	int total_verts = 0;
 	int total_blocks = 0;
 	for (auto& iter : GameState.chunks)
@@ -189,6 +195,7 @@ void init_game_world()
 		}
 	}
 
+	g_logger_info("Done initializing game world!");
 	g_logger_info("Total blocks: %d", total_blocks);
 	g_logger_info("Total triangles: %d", total_verts / 3);
 }
@@ -214,7 +221,9 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	}
 
 	if (ray_hit.top_half)
+	{
 		g_logger_debug("TOP HALF");
+	}
 
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;
@@ -263,21 +272,21 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 	if (another_chunk)
 	{
-		sound_play_block_sound(&GameState.sound_manager, type, remove);
+		//sound_play_block_sound(&GameState.sound_manager, type, remove);
 		chunk_set_block(hit_chunk, b_pos, type);
 	}
 	else
 	{
 		if (remove)
 		{
-			sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
+			//sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
 			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
 		else
 		{
 			chunk_set_block(hit_chunk, b_pos, type);
-			if (type != BlockType::AIR)
-				sound_play_block_sound(&GameState.sound_manager, type, remove);
+			//if (type != BlockType::AIR)
+				//sound_play_block_sound(&GameState.sound_manager, type, remove);
 		}
 
 		hit_chunk->verts_in_use = 0;
@@ -288,8 +297,8 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 void opengl_clear_screen()
 {
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	GL_CALL(glClearColor(0.2f, 0.3f, 0.3f, 1.0f));
+	GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 }
 
 float lastX = GameState.SCR_WIDTH / 2.0f;
@@ -297,6 +306,7 @@ float lastY = GameState.SCR_HEIGHT / 2.0f;
 
 bool lmouse = false;
 bool rmouse = false;
+
 void processInput(GLFWwindow* window, double delta_time)
 {
 	double x, y;
@@ -345,10 +355,10 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
 }
 
+
 void render_3d()
 {
-	const glm::mat4 view = GameState.player.camera.GetViewMatrix();
-
+	glm::mat4 view = GameState.player.camera.GetViewMatrix();
 	// Render the opaque objects first
 	for (auto& iter : GameState.chunks)
 	{
@@ -378,29 +388,29 @@ void game_render()
 {
 	// Skybox render
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
+		GL_CALL(glEnable(GL_DEPTH_TEST));
+		GL_CALL(glDepthFunc(GL_LEQUAL));
 		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
 	}
 
 	// 3D pass
 	{
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		GL_CALL(glEnable(GL_BLEND));
+		GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
+		GL_CALL(glEnable(GL_CULL_FACE));
+		GL_CALL(glCullFace(GL_BACK));
 
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
+		GL_CALL(glEnable(GL_DEPTH_TEST));
+		GL_CALL(glDepthFunc(GL_LESS));
 
 		render_3d();
 	}
 
 	// 2D pass
 	{
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_DEPTH_TEST);
+		GL_CALL(glDisable(GL_CULL_FACE));
+		GL_CALL(glDisable(GL_DEPTH_TEST));
 		render_2d();
 	}
 }
@@ -416,6 +426,29 @@ void game_update()
 	renderer_update(&GameState.renderer, perspective, orthographic);
 	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks);
+}
+
+void em_loop()
+{
+#ifdef __EMSCRIPTEN__
+	static float last_frame = 0;
+
+	// calculate delta time
+	float current_frame = emscripten_get_now() / 1000.0;
+	float delta_time = current_frame - last_frame;
+	last_frame = current_frame;
+
+	glfwPollEvents();
+
+	processInput(GameState.window, delta_time);
+
+	game_update();
+
+	opengl_clear_screen();
+	game_render();
+
+	glfwSwapBuffers(GameState.window);
+#endif
 }
 
 void game_main_loop()
@@ -446,24 +479,26 @@ int main()
 	// Global configurations
 	srand(time(NULL));
 	std::ios_base::sync_with_stdio(false);
+
+#ifndef __EMSCRIPTEN__
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
+#endif
 
 	state_global_init();
 
 	init_game_world();
 	memory_arena_dealloc(&GameState.noise_arena);
 
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop(em_loop, 0, 1);
+#else
 	game_main_loop();
+#endif
 
 	return 0;
 }
 
 #pragma region INIT_OPENGL
-void set_opengl_constants()
-{
-
-}
-
 glm::dvec2 last_x;
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
@@ -491,7 +526,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	}
 }
 
-#include <Windows.h>
 GLFWwindow* init_and_create_window()
 {
 	glfwInit();
@@ -506,9 +540,12 @@ GLFWwindow* init_and_create_window()
 		glfwTerminate();
 		return nullptr;
 	}
+#ifndef __EMSCRIPTEN__
 	int max_width = GetSystemMetrics(SM_CXSCREEN);
-	int max_hieght = GetSystemMetrics(SM_CYSCREEN);
-	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_hieght / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH, GameState.SCR_HEIGHT, GLFW_DONT_CARE);
+	int max_height = GetSystemMetrics(SM_CYSCREEN);
+	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_height / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH, GameState.SCR_HEIGHT, GLFW_DONT_CARE);
+#endif
+
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetScrollCallback(window, scroll_callback);
@@ -531,5 +568,5 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	GameState.SCR_WIDTH = width;
 	GameState.SCR_HEIGHT = height;
-	glViewport(0, 0, width, height);
+	GL_CALL(glViewport(0, 0, width, height));
 }

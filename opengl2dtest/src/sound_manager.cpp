@@ -1,3 +1,4 @@
+#ifndef __EMSCRIPTEN__
 #include "sound_manager.h"
 #include "blocks/block.h"
 #include "util/common.h"
@@ -23,3 +24,4 @@ void sound_play_block_sound(sound_manager_s* s, BlockType type, bool remove)
 	s->sound_engine->play2D(file_name, false);
 #endif
 }
+#endif

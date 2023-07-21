@@ -1,51 +1,53 @@
 #include "block.h"
 
 #include <assert.h>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
 #include "blocks.h"
 
 void block_get_name(BlockType type, char* name, int buffer_size)
 {
-	int buff_s = buffer_size - 1;
 	switch (type)
 	{
 	case BlockType::STONE:
-		strncpy_s(name, buffer_size, "STONE", buff_s);
+		strncpy(name, "STONE", buffer_size);
 		return;
 	case BlockType::DIRT:
-		strncpy_s(name, buffer_size, "DIRT", buff_s);
+		strncpy(name, "DIRT", buffer_size);
 		return;
 	case BlockType::DIRT_GRASS:
-		strncpy_s(name, buffer_size, "DIRT_GRASS", buff_s);
+		strncpy(name, "DIRT_GRASS", buffer_size);
 		return;
 	case BlockType::SAND:
-		strncpy_s(name, buffer_size, "SAND", buff_s);
+		strncpy(name, "SAND", buffer_size);
 		return;
 	case BlockType::LEAVES:
-		strncpy_s(name, buffer_size, "LEAVES", buff_s);
+		strncpy(name, "LEAVES", buffer_size);
 		return;
 	case BlockType::OAK_LOG:
-		strncpy_s(name, buffer_size, "OAK_LOG", buff_s);
+		strncpy(name, "OAK_LOG", buffer_size);
 		return;
 	case BlockType::WATER:
-		strncpy_s(name, buffer_size, "WATER", buff_s);
+		strncpy(name, "WATER", buffer_size);
 		return;
 	case BlockType::GLASS_PANE:
-		strncpy_s(name, buffer_size, "GLASS_PANE", buff_s);
+		strncpy(name, "GLASS_PANE", buffer_size);
 		return;	
 	case BlockType::BRICKS:
-		strncpy_s(name, buffer_size, "BRICKS", buff_s);
+		strncpy(name, "BRICKS", buffer_size);
 		return;	
 	case BlockType::CONCRETE_WHITE:
-		strncpy_s(name, buffer_size, "CONCRETE_WHITE", buff_s);
+		strncpy(name, "CONCRETE_WHITE", buffer_size);
 		return;
 	case BlockType::GLASS:
-		strncpy_s(name, buffer_size, "BRICKS", buff_s);
+		strncpy(name, "BRICKS", buffer_size);
 		return;	
 
 	default:
 		assert(false);
 	}
-	name[buff_s] = '\0';
+	name[buffer_size - 1] = '\0';
 }
 
 int random(int min, int max)
@@ -92,7 +94,7 @@ void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 	snprintf(n, sizeof(n), "%s%d", n, num);
 
 	name[buffer_size - 1] = '\0';
-	strcpy_s(name, buffer_size, n);
+	strcpy(name, n);
 }
 
 bool block_is_transparent(BlockType type)

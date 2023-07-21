@@ -7,7 +7,7 @@
 #include "graphics/renderer.h"
 #include "common.h"
 
-enum BlockType;
+enum BlockType : int;
 enum class BlockFaceDirection;
 
 static const int CHUNK_SIZE_WIDTH = 32;

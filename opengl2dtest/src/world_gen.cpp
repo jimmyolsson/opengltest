@@ -1,7 +1,10 @@
 #include "world_gen.h"
 #include "chunk.h"
 #include "util/common.h"
+
+#ifndef __EMSCRIPTEN__
 #include <FastNoise/FastNoise.h>
+#endif
 
 static int world_width = 0;
 static int world_height = 0;
@@ -27,10 +30,13 @@ void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
 	}
 }
 
-static FastNoise::SmartNode<> noise_terrain = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
 
 void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
 {
+#ifdef __EMSCRIPTEN__
+	return;
+#else
+	static FastNoise::SmartNode<> noise_terrain = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
 	const float frequency = 0.0050f;
 	const float threshold = 0.01f;
 
@@ -87,15 +93,10 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 		}
 	}
 	free(noise);
+#endif // __EMSCRIPTEN__
 }
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
-	if (world_height == 1) {
-		int index = to_1d_array(0, 0, 0);
-		blocks[index].type = BlockType::DIRT_GRASS;
-		return;
-	}
-// Swap to this eventually, 
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -109,7 +110,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 				}
 				if (y < (world_height / 6) - 1)
 				{
-					blocks[index].type = BlockType::DIRT_GRASS;
+					blocks[index].type = BlockType::DIRT;
 				}
 			}
 		}
@@ -120,8 +121,7 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 {
 	world_width = width;
 	world_height = height;
-#if _DEBUG
-	// dosent work in debug otherwise..
+
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -133,7 +133,6 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 			}
 		}
 	}
-#endif // DEBUG
 
 	//generate_world_cube(blocks, xoffset, zoffset);
 	generate_world_flatgrass(blocks, xoffset, zoffset);

@@ -1,6 +1,6 @@
 #include "chunk.h"
 
-#include "glad/glad.h"
+//#include "util/common_graphics.h"
 
 #include "util/common.h"
 
@@ -56,33 +56,33 @@ block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 
 void update_buffers(Chunk* chunk)
 {
-	glBindVertexArray(chunk->vao_handle);
-	glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_handle);
+	GL_CALL(glBindVertexArray(chunk->vao_handle));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_handle));
 
-	glBufferSubData(GL_ARRAY_BUFFER, 0, chunk->gpu_data_arr.size() * sizeof(block_size_t), &chunk->gpu_data_arr[0]);
+	GL_CALL(glBufferSubData(GL_ARRAY_BUFFER, 0, chunk->gpu_data_arr.size() * sizeof(block_size_t), &chunk->gpu_data_arr[0]));
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
+	GL_CALL(glBindVertexArray(0));
 }
 
 void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::vector<GPUData>* gpu_data)
 {
-	glGenVertexArrays(1, &*vao_handle);
-	glBindVertexArray(*vao_handle);
+	GL_CALL(glGenVertexArrays(1, &*vao_handle));
+	GL_CALL(glBindVertexArray(*vao_handle));
 
-	glGenBuffers(1, &*vbo_handle);
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_handle);
+	GL_CALL(glGenBuffers(1, &*vbo_handle));
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, *vbo_handle));
 
-	glBufferData(GL_ARRAY_BUFFER, gpu_data->size() * sizeof(GPUData), gpu_data->data(), GL_STATIC_DRAW);
+	GL_CALL(glBufferData(GL_ARRAY_BUFFER, gpu_data->size() * sizeof(GPUData), gpu_data->data(), GL_STATIC_DRAW));
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUData), (void*)0);
-	glEnableVertexAttribArray(0);
+	GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUData), (void*)0));
+	GL_CALL(glEnableVertexAttribArray(0));
 
-	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3));
-	glEnableVertexAttribArray(1);
+	GL_CALL(glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3)));
+	GL_CALL(glEnableVertexAttribArray(1));
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
+	GL_CALL(glBindVertexArray(0));
 
 	gpu_data->clear();
 }
@@ -238,6 +238,7 @@ void generate_face(Chunk* current_chunk, const Chunk* neighbor, const block_size
 		{
 			add_face_and_texture_new(current_chunk, data, direction, x, y, z, type);
 		}
+
 	}
 	// Is the block next to me occupied?
 	else if (block_infos[current_chunk->blocks[current_chunk_index].type].is_transparent)
@@ -278,6 +279,7 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 	else if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
 		c->front_neighbor->dirty = true;
 	else if (block_pos.z == 0 && c->back_neighbor != nullptr)
+
 		c->back_neighbor->dirty = true;
 }
 
@@ -416,8 +418,8 @@ void chunk_update(chunk_map_t* chunks)
 		{
 			chunk_generate_mesh(&it.second);
 			//update_buffers(&it.second);
-			glDeleteBuffers(1, &it.second.vbo_handle);
-			glDeleteVertexArrays(1, &it.second.vao_handle);
+			GL_CALL(glDeleteBuffers(1, &it.second.vbo_handle));
+			GL_CALL(glDeleteVertexArrays(1, &it.second.vao_handle));
 			chunk_generate_buffers(&it.second);
 
 			it.second.dirty = false;

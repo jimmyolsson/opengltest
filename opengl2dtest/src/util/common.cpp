@@ -1,9 +1,15 @@
 #include "common.h"
 #include <mutex>
+
+#ifdef __EMSCRIPTEN__
+#include <stdarg.h>
+#else
 #include <Windows.h>
+#endif
 
 void set_console_color(LogSeverity severity)
 {
+#ifndef __EMSCRIPTEN__
 	switch (severity)
 	{
 	case LogSeverity::Debug:
@@ -19,6 +25,7 @@ void set_console_color(LogSeverity severity)
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED);
 		break;
 	}
+#endif
 }
 
 const char* get_str(LogSeverity severity)
@@ -48,9 +55,14 @@ void _g_logger_log(LogSeverity severity, const char* format, ...)
 
 	printf("[");
 
+#ifndef __EMSCRIPTEN__
 	set_console_color(severity);
+#endif
 	printf(get_str(severity));
+
+#ifndef __EMSCRIPTEN__
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
+#endif
 
 	printf("]: ");
 
@@ -60,5 +72,4 @@ void _g_logger_log(LogSeverity severity, const char* format, ...)
 	va_end(args);
 
 	printf("\n");
-
 }

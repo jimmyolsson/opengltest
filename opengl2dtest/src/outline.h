@@ -1,14 +1,15 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <vector>
-
-#include <glad/glad.h>
+#include "util/common_graphics.h"
 
 #include "graphics/renderer.h"
 #include "chunk.h"
 
 #include "ray.h"
+
+
+#include <glm/glm.hpp>
+#include <vector>
 
 struct OutlineBlock
 {

@@ -1,31 +1,31 @@
 #include "texture.h"
 
-#include "glad/glad.h"
-
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#include <Windows.h>
+#include <stb_image.h>
+
+//#include <Windows.h>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include "../util/common.h"
+#include "../util/common_graphics.h"
 
 Texture texture_create(const char* path)
 {
 	Texture t;
 	t.type = GL_TEXTURE_2D;
 
-	glGenTextures(1, &t.handle);
-	glBindTexture(GL_TEXTURE_2D, t.handle);
+	GL_CALL(glGenTextures(1, &t.handle));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D, t.handle));
 
 	int width, height, nrChannels;
 	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data));
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	// set texture wrapping to GL_REPEAT (default wrapping method)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));	// set texture wrapping to GL_REPEAT (default wrapping method))
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
 	stbi_image_free(data);
 
@@ -37,6 +37,12 @@ unsigned char* load_png(const char* path, int* width, int* height, int* format)
 	int channels;
 	unsigned char* pixels;
 	pixels = stbi_load(path, width, height, &channels, 0);
+	if (pixels == NULL)
+	{
+		g_logger_debug("stbi_load: could not find file, %s", path);
+		assert(false);
+	}
+
 	if (channels == 3)
 	{
 		*format = GL_RGB;
@@ -64,31 +70,32 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 	GLsizei layerCount = count;
 	GLsizei mipLevelCount = 4;
 
-	glGenTextures(1, &texture.handle);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, texture.handle);
+	GL_CALL(glGenTextures(1, &texture.handle));
+	GL_CALL(glBindTexture(GL_TEXTURE_2D_ARRAY, texture.handle));
 
 	// Allocate the storage.
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
+	GL_CALL(glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount));
 
 	const char* path = paths;
 	for(int i = 0; i < count; i++)
 	{
 		int width, height, format;
 		unsigned char* pixels = load_png(path, &width, &height, &format);
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, format, GL_UNSIGNED_BYTE, pixels);
 
-		g_logger_debug("Loading textures from: %s - index: %d", path, i);
+		GL_CALL(glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
+
+		g_logger_debug("Loaded texture from: %s - index: %d - format: %d", path, i, format);
 		path = va_arg(valist, const char*);
 	}
 
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
-	//// set texture filtering parameters
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	// set texture filtering parameters
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
-	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+	GL_CALL(glGenerateMipmap(GL_TEXTURE_2D_ARRAY));
 
 	va_end(valist);
 

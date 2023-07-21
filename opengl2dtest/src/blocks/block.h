@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-
 const int TOTAL_ELEMENTS_IN_QUAD = 30;
 typedef float block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);

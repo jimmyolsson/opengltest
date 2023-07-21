@@ -1,5 +1,7 @@
+#ifndef __EMSCRIPTEN__
 #pragma once
 #include "irrKlang.h"
+
 #include "blocks/block.h"
 
 struct sound_manager_s
@@ -9,3 +11,4 @@ struct sound_manager_s
 
 void sound_init(sound_manager_s* s);
 void sound_play_block_sound(sound_manager_s* s, BlockType type, bool remove);
+#endif

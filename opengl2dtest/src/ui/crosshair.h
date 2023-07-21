@@ -1,5 +1,5 @@
 #pragma once
-#include "glad/glad.h"
+#include "../util/common_graphics.h"
 #include "../graphics/renderer.h"
 
 #include <glm/glm.hpp>

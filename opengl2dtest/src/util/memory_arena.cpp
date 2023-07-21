@@ -12,7 +12,11 @@ void memory_arena_init(memory_arena* self, unsigned long long total_size, unsign
 
 void memory_arena_init(memory_arena* self, unsigned long long total_size, unsigned long long piece_size, short alignment)
 {
+#ifdef __EMSCRIPTEN__
+	self->base = (char*)aligned_alloc(total_size, alignment);
+#else
 	self->base = (char*)_aligned_malloc(total_size, alignment);
+#endif
 	self->total_size = total_size;
 	self->piece_size = piece_size;
 	self->alignment = alignment;
