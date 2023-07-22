@@ -168,6 +168,7 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
+    <ClCompile Include="src\emscripten_platform.cpp" />
     <ClCompile Include="src\glad.c" />
     <ClCompile Include="src\graphics\cube.cpp" />
     <ClCompile Include="src\graphics\quad.cpp" />
@@ -178,11 +179,13 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClCompile Include="src\util\memory_arena.cpp" />
     <ClCompile Include="src\graphics\shader.cpp" />
     <ClCompile Include="src\sound_manager.cpp" />
+    <ClCompile Include="src\win32_platform.cpp" />
     <ClCompile Include="src\world_gen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\blocks\blocks.h" />
     <ClInclude Include="src\blocks\block.h" />
+    <ClInclude Include="src\emscripten_platform.h" />
     <ClInclude Include="src\environment\skybox.h" />
     <ClInclude Include="src\graphics\camera.h" />
     <ClInclude Include="src\chunk.h" />
@@ -192,6 +195,7 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClInclude Include="src\graphics\renderer.h" />
     <ClInclude Include="src\graphics\renderer_resources.h" />
     <ClInclude Include="src\graphics\texture.h" />
+    <ClInclude Include="src\platform.h" />
     <ClInclude Include="src\ui\crosshair.h" />
     <ClInclude Include="src\ui\item_toolbar.h" />
     <ClInclude Include="src\util\common.h" />
@@ -204,6 +208,7 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClInclude Include="src\graphics\shader.h" />
     <ClInclude Include="src\sound_manager.h" />
     <ClInclude Include="src\state.h" />
+    <ClInclude Include="src\win32_platform.h" />
     <ClInclude Include="src\world_gen.h" />
   </ItemGroup>
   <ItemGroup>

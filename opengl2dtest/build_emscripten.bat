@@ -16,6 +16,8 @@ emcc ^
 -Ilib\GLFW\include ^
 -Ilib\stb_image ^
 -I..\..\emsdk\upstream\emscripten\cache\sysroot\include ^
+-std=c++1z ^
+-O3 ^
 -o docs\index.html ^
 --shell-file docs\shell.html ^
 !OUTPUT_FILES! ^

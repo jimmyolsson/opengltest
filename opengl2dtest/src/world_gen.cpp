@@ -30,7 +30,6 @@ void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
 	}
 }
 
-
 void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
 {
 #ifdef __EMSCRIPTEN__

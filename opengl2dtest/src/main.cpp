@@ -1,10 +1,21 @@
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#else
 #include "irrKlang.h"
 #include <Windows.h>
 #include "sound_manager.h"
 #endif
 
 #include "util/common_graphics.h"
+
+#include "platform.h"
+#ifdef __EMSCRIPTEN__
+#include "emscripten_platform.h"
+#else
+#include "win32_platform.h"
+#endif
+
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -63,7 +74,6 @@ struct State
 	int texture_slot_counter = 0;
 } GameState;
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 GLFWwindow* init_and_create_window();
 void set_opengl_constants();
 
@@ -104,6 +114,7 @@ void state_global_init()
 	GameState.delta_time = 0;
 	GameState.last_frame = 0;
 
+	// TODO: Fix cross platform sound
 #ifndef __EMSCRIPTEN__
 	//sound_init(&GameState.sound_manager);
 #endif
@@ -149,6 +160,7 @@ void init_game_world()
 		}
 	}
 
+	// Emscripten dosent like this and i cba doing it another way
 #ifndef __EMSCRIPTEN__
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
@@ -182,6 +194,7 @@ void init_game_world()
 	}
 
 #endif // !__EMSCRIPTEN__
+
 	g_logger_debug("Chunks initialized!");
 	int total_verts = 0;
 	int total_blocks = 0;
@@ -306,7 +319,6 @@ float lastY = GameState.SCR_HEIGHT / 2.0f;
 
 bool lmouse = false;
 bool rmouse = false;
-
 void processInput(GLFWwindow* window, double delta_time)
 {
 	double x, y;
@@ -428,16 +440,14 @@ void game_update()
 	chunk_update(&GameState.chunks);
 }
 
-void em_loop()
+float delta_time = 0;
+float last_frame = 0;
+void game_main_loop()
 {
-#ifdef __EMSCRIPTEN__
-	static float last_frame = 0;
-
 	// calculate delta time
-	float current_frame = emscripten_get_now() / 1000.0;
-	float delta_time = current_frame - last_frame;
+	float current_frame = glfwGetTime();
+	delta_time = current_frame - last_frame;
 	last_frame = current_frame;
-
 	glfwPollEvents();
 
 	processInput(GameState.window, delta_time);
@@ -448,30 +458,7 @@ void em_loop()
 	game_render();
 
 	glfwSwapBuffers(GameState.window);
-#endif
-}
 
-void game_main_loop()
-{
-	float delta_time = 0;
-	float last_frame = 0;
-	while (!glfwWindowShouldClose(GameState.window))
-	{
-		// calculate delta time
-		float current_frame = glfwGetTime();
-		delta_time = current_frame - last_frame;
-		last_frame = current_frame;
-		glfwPollEvents();
-
-		processInput(GameState.window, delta_time);
-
-		game_update();
-
-		opengl_clear_screen();
-		game_render();
-
-		glfwSwapBuffers(GameState.window);
-	}
 }
 
 int main()
@@ -480,31 +467,22 @@ int main()
 	srand(time(NULL));
 	std::ios_base::sync_with_stdio(false);
 
-#ifndef __EMSCRIPTEN__
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
-#endif
-
 	state_global_init();
 
 	init_game_world();
 	memory_arena_dealloc(&GameState.noise_arena);
 
-#ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop(em_loop, 0, 1);
-#else
-	game_main_loop();
-#endif
+	platform_set_main_loop(GameState.window, game_main_loop);
 
 	return 0;
 }
 
-#pragma region INIT_OPENGL
 glm::dvec2 last_x;
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+void on_scroll(PlatformScrollDirection direction)
 {
 	double step = 80;
 	(GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected;
-	if (yoffset == -1)
+	if (direction == PlatformScrollDirection::SCROLL_UP)
 	{
 		if (GameState.menu.item_selected != 8)
 		{
@@ -514,7 +492,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
 		}
 	}
-	if (yoffset == 1)
+	else if (direction == PlatformScrollDirection::SCROLL_DOWN)
 	{
 		if (GameState.menu.item_selected != 0)
 		{
@@ -540,33 +518,13 @@ GLFWwindow* init_and_create_window()
 		glfwTerminate();
 		return nullptr;
 	}
-#ifndef __EMSCRIPTEN__
-	int max_width = GetSystemMetrics(SM_CXSCREEN);
-	int max_height = GetSystemMetrics(SM_CYSCREEN);
-	glfwSetWindowMonitor(window, NULL, (max_width / 2) - (GameState.SCR_WIDTH / 2), (max_height / 2) - (GameState.SCR_HEIGHT / 2), GameState.SCR_WIDTH, GameState.SCR_HEIGHT, GLFW_DONT_CARE);
-#endif
 
 	glfwMakeContextCurrent(window);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-#ifndef __EMSCRIPTEN__
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		g_logger_error("Failed to initialize GLAD");
-		return nullptr;
-	}
-#endif
+	platform_post_setup(window);
+	platform_set_scroll_callback((void*)window, on_scroll);
 
 	g_logger_info("OpenGL version: %s", glGetString(GL_VERSION));
 	return window;
-}
-#pragma endregion
-
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-	GameState.SCR_WIDTH = width;
-	GameState.SCR_HEIGHT = height;
-	GL_CALL(glViewport(0, 0, width, height));
 }
