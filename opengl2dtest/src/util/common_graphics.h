@@ -8,6 +8,7 @@
 #include <glad/glad.h>
 #endif
 
+// NOTE: This is incredibly slow, use with caution
 #define GL_CALL( x ) \
     { \
         x; \

@@ -106,12 +106,6 @@ Renderer renderer_create()
 	return renderer;
 }
 
-// NOTE: Apparently doing things like this is incredibly slow in GLES, got 10fps removing those..
-/*
-		GL_CALL(glBindVertexArray(0));
-		if (texture != nullptr)
-			GL_CALL(glBindTexture(texture->type, 0));
-*/
 void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 {
 	ShaderProgram* shader = nullptr;
@@ -125,8 +119,8 @@ void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 		shader = &self->shaders[SHADER_BASIC_TEXTURE];
 		texture = &self->textures[quad->texture_type];
 
-		GL_CALL(glActiveTexture(GL_TEXTURE0 + texture->handle));
-		GL_CALL(glBindTexture(texture->type, texture->handle));
+		glActiveTexture(GL_TEXTURE0 + texture->handle);
+		glBindTexture(texture->type, texture->handle);
 	}
 
 	shader_use(shader);
@@ -141,8 +135,8 @@ void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 	if (texture != nullptr)
 		shader_set_int(shader, 3, texture->handle);
 
-	GL_CALL(glBindVertexArray(quad->vao));
-	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
+	glBindVertexArray(quad->vao);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 // TODO: renderer_render_cube_texture
@@ -161,8 +155,8 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 
 	int a = GL_TEXTURE_CUBE_MAP;
 
-	GL_CALL(glBindVertexArray(cube->vao));
-	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
+	glBindVertexArray(cube->vao);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale)
@@ -179,10 +173,10 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	model = glm::scale(model, scale);
 	shader_set_mat4(shader, ShaderUniform::MODEL, model);
 
-	GL_CALL(glActiveTexture(GL_TEXTURE0 + texture->handle));
-	GL_CALL(glBindTexture(texture->type, texture->handle));
+	glActiveTexture(GL_TEXTURE0 + texture->handle);
+	glBindTexture(texture->type, texture->handle);
 
-	GL_CALL(glBindVertexArray(vao));
+	glBindVertexArray(vao);
 
-	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, indicies));
+	glDrawArrays(GL_TRIANGLES, 0, indicies);
 }

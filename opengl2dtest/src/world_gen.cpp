@@ -1,10 +1,8 @@
 #include "world_gen.h"
 #include "chunk.h"
 #include "util/common.h"
-
-#ifndef __EMSCRIPTEN__
-#include <FastNoise/FastNoise.h>
-#endif
+#include <PerlinNoise/PerlinNoise.hpp>
+#include "spline.h"
 
 static int world_width = 0;
 static int world_height = 0;
@@ -30,48 +28,56 @@ void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
 	}
 }
 
+double linear_map(double x, double x1, double y1, double x2, double y2)
+{
+	double m = (y2 - y1) / (x2 - x1);
+	double b = y1 - m * x1;
+	return m * x + b;
+}
+
+static siv::PerlinNoise::seed_type seed = 123457u;
+static siv::PerlinNoise perlin{ seed };
+
+static std::vector<double> X = { -1.0, -0.5, 0,   0.5, 1 };
+static std::vector<double> Y = { 50.0, 50.0, 100, 150, 255 };
+static tk::spline s(X,Y);
+
+void add_spline_point(double x, double y)
+{
+	X.push_back(x);
+	Y.push_back(y);
+}
+
+BlockType get_block_type(int x, int y, int z)
+{
+	int terrain_height = 0;
+	double xx = x * 0.01f;
+	double zz = z * 0.01f;
+
+	s.make_monotonic();
+	double noise = perlin.octave2D_11(xx, zz, 4);
+
+	double noise_splined = s(noise);
+
+	int surfaceY = noise_splined;
+	return y < surfaceY ? BlockType::STONE : BlockType::AIR;
+}
+
 void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
 {
-#ifdef __EMSCRIPTEN__
-	return;
-#else
-	static FastNoise::SmartNode<> noise_terrain = FastNoise::NewFromEncodedNodeTree("EQACAAAAAAAgQBAAAAAAQBkAEwDD9Sg/DQAEAAAAAAAgQAkAAGZmJj8AAAAAPwEEAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM3MTD4AMzMzPwAAAAA/");
-	const float frequency = 0.0050f;
-	const float threshold = 0.01f;
-
-	float* noise = (float*)calloc(world_width * world_width * world_height, sizeof(float));
-	auto min_max = noise_terrain.get()->GenUniformGrid3D(noise, xoffset, -world_height / 2, zoffset, world_width, world_height, world_width, frequency, 1338);
-
-	for (int i = 0; i < world_width * world_height * world_width; i++)
-		noise[i] *= -1;
-
-	const static int sea_level = 130;
 	for (int z = 0; z < world_width; z++)
 	{
-		for (int y = 0; y < world_height; y++)
+		for (int x = 0; x < world_width; x++)
 		{
-			for (int x = 0; x < world_width; x++)
+			for (int y = 0; y < world_height; y++)
 			{
-				const int index = to_1d_array(x, y, z);
-				if (noise[index] > threshold)
-				{
-					if (noise[to_1d_array(x, y + 2, z)] > threshold)
-					{
-						blocks[index].type = BlockType::STONE;
-					}
-					else if (noise[to_1d_array(x, y + 1, z)] > threshold)
-					{
-						blocks[index].type = BlockType::DIRT;
-					}
-					else
-					{
-						blocks[index].type = BlockType::DIRT_GRASS;
-					}
-				}
+				int index = to_1d_array(x, y, z);
+				blocks[index].type = get_block_type(x + xoffset, y, z + zoffset);
 			}
 		}
 	}
 
+	static const int sea_level = 70;
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -85,14 +91,27 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 					{
 						blocks[index].type = BlockType::WATER;
 					}
-					else if (blocks[index].type == BlockType::DIRT_GRASS || blocks[index].type == BlockType::DIRT)
+					else
 						blocks[index].type = BlockType::SAND;
+				}
+				else
+				{
+					if (blocks[to_1d_array(x, y, z)].type == BlockType::STONE)
+					{
+						if (blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
+						{
+							blocks[to_1d_array(x, y, z)].type = BlockType::DIRT_GRASS;
+						}
+						for (int i = 0; i < 10; i++)
+						{
+							if(!(i + y > world_height) && blocks[to_1d_array(x, y+i, z)].type != BlockType::AIR && blocks[to_1d_array(x, y+i, z)].type != BlockType::DIRT_GRASS)
+								blocks[to_1d_array(x, y, z)].type = BlockType::DIRT;
+						}
+					}
 				}
 			}
 		}
 	}
-	free(noise);
-#endif // __EMSCRIPTEN__
 }
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
@@ -134,8 +153,8 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 	}
 
 	//generate_world_cube(blocks, xoffset, zoffset);
-	generate_world_flatgrass(blocks, xoffset, zoffset);
-	//generate_world_noise(blocks, noise, xoffset, zoffset);
+	//generate_world_flatgrass(blocks, xoffset, zoffset);
+	generate_world_noise(blocks, noise, xoffset, zoffset);
 }
 
 // TODO:

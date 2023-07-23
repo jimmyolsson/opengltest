@@ -92,7 +92,7 @@ void state_allocate_memory()
 void state_global_init()
 {
 	// Start 5 blocks over the ground
-	glm::ivec3 camera_pos = glm::vec3(0.0f, CHUNK_SIZE_HEIGHT / 6 + 5, 0.0f);
+	glm::ivec3 camera_pos = glm::vec3(0.0f, 127, 0.0f);
 	GameState.player.camera = Camera(camera_pos);
 	g_logger_debug("Camera created at (%d, %d, %d)", camera_pos.x, camera_pos.y, camera_pos.z);
 
@@ -159,25 +159,25 @@ void init_game_world()
 		}
 	}
 
-	// Emscripten dosent like this and i cba doing it another way
-#ifndef __EMSCRIPTEN__
-	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-		[&](auto& iter)
-		{
-			world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
-		});
+//	// Emscripten dosent like this and i cba doing it another way
+//#ifndef __EMSCRIPTEN__
+	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+	//	[&](auto& iter)
+	//	{
+	//		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
+	//	});
 
-	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-		[&](auto& iter)
-		{
-			chunk_generate_mesh(&iter.second);
-			iter.second.initialized = true;
-		});
-	for (auto& iter : GameState.chunks)
-	{
-		chunk_generate_buffers(&iter.second);
-	}
-#else
+	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+	//	[&](auto& iter)
+	//	{
+	//		chunk_generate_mesh(&iter.second);
+	//		iter.second.initialized = true;
+	//	});
+	//for (auto& iter : GameState.chunks)
+	//{
+	//	chunk_generate_buffers(&iter.second);
+	//}
+//#else
 	g_logger_debug("Chunk size width: %d - height: %d", CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	for (auto& iter : GameState.chunks)
 	{
@@ -192,7 +192,7 @@ void init_game_world()
 		iter.second.initialized = true;
 	}
 
-#endif // !__EMSCRIPTEN__
+//#endif // !__EMSCRIPTEN__
 
 	g_logger_debug("Chunks initialized!");
 	int total_verts = 0;
@@ -307,10 +307,11 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	}
 }
 
+// TODO: Move to renderer
 void opengl_clear_screen()
 {
-	GL_CALL(glClearColor(0.2f, 0.3f, 0.3f, 1.0f));
-	GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 float lastX = GameState.SCR_WIDTH / 2.0f;
@@ -398,26 +399,26 @@ void game_render()
 {
 	// Skybox render
 	{
-		GL_CALL(glEnable(GL_DEPTH_TEST));
-		GL_CALL(glDepthFunc(GL_LEQUAL));
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
 		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
 	}
 
 	// 3D pass
 	{
-		GL_CALL(glEnable(GL_CULL_FACE));
-		GL_CALL(glCullFace(GL_BACK));
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
 
-		GL_CALL(glEnable(GL_DEPTH_TEST));
-		GL_CALL(glDepthFunc(GL_LESS));
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
 
 		render_3d();
 	}
 
 	// 2D pass
 	{
-		GL_CALL(glDisable(GL_CULL_FACE));
-		GL_CALL(glDisable(GL_DEPTH_TEST));
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_TEST);
 		render_2d();
 	}
 }
@@ -475,6 +476,9 @@ int main()
 	state_global_init();
 
 	init_game_world();
+
+	//GameState.chunks.at(glm::vec3(0, 0, 0)).blocks[1];
+
 	memory_arena_dealloc(&GameState.noise_arena);
 
 	GL_CALL(glEnable(GL_BLEND));

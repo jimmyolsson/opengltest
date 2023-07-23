@@ -15,6 +15,8 @@ emcc ^
 -Ilib\glm\include ^
 -Ilib\GLFW\include ^
 -Ilib\stb_image ^
+-Ilib\stb_image ^
+-Ilib\PerlinNoise\include ^
 -I..\..\emsdk\upstream\emscripten\cache\sysroot\include ^
 -std=c++1z ^
 -O3 ^

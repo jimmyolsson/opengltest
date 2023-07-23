@@ -90,16 +90,16 @@ ShaderProgram shader_create(const char* vs_path, const char* fs_path)
 
 void shader_use(ShaderProgram* sp)
 {
-	GL_CALL(glUseProgram(sp->handle));
+	glUseProgram(sp->handle);
 }
 
 // TODO: log properly, uniform shit fails silently
 void shader_set_mat4(ShaderProgram* sp, unsigned int location, glm::mat4 value)
 {
-	GL_CALL(glUniformMatrix4fv(sp->uniform_locations[location], 1, GL_FALSE, &value[0][0]));
+	glUniformMatrix4fv(sp->uniform_locations[location], 1, GL_FALSE, &value[0][0]);
 }
 
 void shader_set_int(ShaderProgram* sp, unsigned int location, int value)
 {
-	GL_CALL(glUniform1i(sp->uniform_locations[location], value));
+	glUniform1i(sp->uniform_locations[location], value);
 }
