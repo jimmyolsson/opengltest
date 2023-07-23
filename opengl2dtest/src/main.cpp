@@ -75,7 +75,6 @@ struct State
 } GameState;
 
 GLFWwindow* init_and_create_window();
-void set_opengl_constants();
 
 void state_allocate_memory()
 {
@@ -367,7 +366,6 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
 }
 
-
 void render_3d()
 {
 	glm::mat4 view = GameState.player.camera.GetViewMatrix();
@@ -407,9 +405,6 @@ void game_render()
 
 	// 3D pass
 	{
-		GL_CALL(glEnable(GL_BLEND));
-		GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-
 		GL_CALL(glEnable(GL_CULL_FACE));
 		GL_CALL(glCullFace(GL_BACK));
 
@@ -481,6 +476,9 @@ int main()
 
 	init_game_world();
 	memory_arena_dealloc(&GameState.noise_arena);
+
+	GL_CALL(glEnable(GL_BLEND));
+	GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
 	platform_set_main_loop(GameState.window, game_main_loop);
 
