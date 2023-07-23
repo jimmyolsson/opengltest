@@ -5,10 +5,21 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthographic)
+enum ShaderUniform
 {
-	self->projection_perspective = perspective;
-	self->projection_ortho = orthographic;
+	VIEW = 0,
+	MODEL,
+	PROJECTION
+};
+
+void _shader_uniform_mvp_cache(ShaderProgram* shader)
+{
+	shader->uniform_count = 3;
+	shader->uniform_locations = (unsigned int*)malloc(shader->uniform_count * sizeof(unsigned int));
+
+	shader->uniform_locations[ShaderUniform::VIEW] = glGetUniformLocation(shader->handle, "view");
+	shader->uniform_locations[ShaderUniform::MODEL] = glGetUniformLocation(shader->handle, "model");
+	shader->uniform_locations[ShaderUniform::PROJECTION] = glGetUniformLocation(shader->handle, "projection");
 }
 
 void _load_shaders(Renderer* self)
@@ -27,6 +38,23 @@ void _load_shaders(Renderer* self)
 	self->shaders[SHADER_BASIC_COLOR] = shader_create("resources/shaders/basic_color_vert.glsl", "resources/shaders/basic_color_frag.glsl");
 	self->shaders[SHADER_CUBEMAP] = shader_create("resources/shaders/cubemap_vert.glsl", "resources/shaders/cubemap_frag.glsl");
 #endif
+
+	// Do it like this for now. Maybe a better pattern will emerge later on?
+	_shader_uniform_mvp_cache(&self->shaders[SHADER_CHUNK]);
+	_shader_uniform_mvp_cache(&self->shaders[SHADER_OUTLINE]);
+	_shader_uniform_mvp_cache(&self->shaders[SHADER_BASIC_COLOR]);
+	_shader_uniform_mvp_cache(&self->shaders[SHADER_CUBEMAP]);
+
+	{
+		ShaderProgram* shader = &self->shaders[SHADER_BASIC_TEXTURE];
+
+		shader->uniform_count = 4;
+		shader->uniform_locations = (unsigned int*)malloc(shader->uniform_count * sizeof(unsigned int));
+		shader->uniform_locations[ShaderUniform::VIEW] = glGetUniformLocation(shader->handle, "view");
+		shader->uniform_locations[ShaderUniform::MODEL] = glGetUniformLocation(shader->handle, "model");
+		shader->uniform_locations[ShaderUniform::PROJECTION] = glGetUniformLocation(shader->handle, "projection");
+		shader->uniform_locations[3] = glGetUniformLocation(shader->handle, "texture1");
+	}
 }
 
 void _load_textures(Renderer* self)
@@ -61,6 +89,12 @@ void _load_textures(Renderer* self)
 		"resources/textures/skybox/back.png");
 }
 
+void renderer_update(Renderer* self, glm::mat4 perspective, glm::mat4 orthographic)
+{
+	self->projection_perspective = perspective;
+	self->projection_ortho = orthographic;
+}
+
 Renderer renderer_create()
 {
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -72,6 +106,12 @@ Renderer renderer_create()
 	return renderer;
 }
 
+// NOTE: Apparently doing things like this is incredibly slow in GLES, got 10fps removing those..
+/*
+		GL_CALL(glBindVertexArray(0));
+		if (texture != nullptr)
+			GL_CALL(glBindTexture(texture->type, 0));
+*/
 void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 {
 	ShaderProgram* shader = nullptr;
@@ -90,23 +130,19 @@ void renderer_render_quad(Renderer* self, glm::mat4 view, Quad* quad)
 	}
 
 	shader_use(shader);
-	shader_set_mat4(shader, "projection", self->projection_ortho);
-	shader_set_mat4(shader, "view", view);
+	shader_set_mat4(shader, ShaderUniform::PROJECTION, self->projection_ortho);
+	shader_set_mat4(shader, ShaderUniform::VIEW, view);
 
 	glm::mat4 model = glm::mat4(1.0);
 	model = glm::translate(model, glm::vec3(quad->position, 1));
 	model = glm::scale(model, glm::vec3(quad->scale, 0));
-	shader_set_mat4(shader, "model", model);
+	shader_set_mat4(shader, ShaderUniform::MODEL, model);
 
 	if (texture != nullptr)
-		shader_set_int(shader, "texture1", texture->handle);
+		shader_set_int(shader, 3, texture->handle);
 
 	GL_CALL(glBindVertexArray(quad->vao));
 	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 6));
-
-	GL_CALL(glBindVertexArray(0));
-	if (texture != nullptr)
-		GL_CALL(glBindTexture(texture->type, 0));
 }
 
 // TODO: renderer_render_cube_texture
@@ -115,20 +151,18 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	ShaderProgram* shader = &self->shaders[cube->shader_type];
 
 	shader_use(shader);
-	shader_set_mat4(shader, "projection", self->projection_perspective);
-	shader_set_mat4(shader, "view", view);
+	shader_set_mat4(shader, ShaderUniform::PROJECTION, self->projection_perspective);
+	shader_set_mat4(shader, ShaderUniform::VIEW, view);
 
 	glm::mat4 model = glm::mat4(1.0);
 	model = glm::translate(model, cube->position);
 	model = glm::scale(model, cube->scale);
-	shader_set_mat4(shader, "model", model);
+	shader_set_mat4(shader, ShaderUniform::MODEL, model);
 
 	int a = GL_TEXTURE_CUBE_MAP;
 
 	GL_CALL(glBindVertexArray(cube->vao));
 	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
-
-	GL_CALL(glBindVertexArray(0));
 }
 
 void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_type, ShaderType shader_type, int vao, int indicies, glm::vec3 position, glm::vec3 scale)
@@ -137,13 +171,13 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	Texture* texture = &self->textures[texture_type];
 
 	shader_use(shader);
-	shader_set_mat4(shader, "projection", self->projection_perspective);
-	shader_set_mat4(shader, "view", view);
+	shader_set_mat4(shader, ShaderUniform::PROJECTION, self->projection_perspective);
+	shader_set_mat4(shader, ShaderUniform::VIEW, view);
 
 	glm::mat4 model = glm::mat4(1.0);
 	model = glm::translate(model, position);
 	model = glm::scale(model, scale);
-	shader_set_mat4(shader, "model", model);
+	shader_set_mat4(shader, ShaderUniform::MODEL, model);
 
 	GL_CALL(glActiveTexture(GL_TEXTURE0 + texture->handle));
 	GL_CALL(glBindTexture(texture->type, texture->handle));
@@ -151,7 +185,4 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	GL_CALL(glBindVertexArray(vao));
 
 	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, indicies));
-
-	GL_CALL(glBindVertexArray(0));
-	GL_CALL(glBindTexture(texture->type, 0));
 }

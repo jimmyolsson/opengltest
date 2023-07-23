@@ -94,13 +94,12 @@ void shader_use(ShaderProgram* sp)
 }
 
 // TODO: log properly, uniform shit fails silently
-void shader_set_mat4(ShaderProgram* sp, const char* name, glm::mat4 value)
+void shader_set_mat4(ShaderProgram* sp, unsigned int location, glm::mat4 value)
 {
-	GLint l = glGetUniformLocation(sp->handle, name);
-	GL_CALL(glUniformMatrix4fv(l, 1, GL_FALSE, &value[0][0]));
+	GL_CALL(glUniformMatrix4fv(sp->uniform_locations[location], 1, GL_FALSE, &value[0][0]));
 }
 
-void shader_set_int(ShaderProgram* sp, const char* name, int value)
+void shader_set_int(ShaderProgram* sp, unsigned int location, int value)
 {
-	GL_CALL(glUniform1i(glGetUniformLocation(sp->handle, name), value));
+	GL_CALL(glUniform1i(sp->uniform_locations[location], value));
 }

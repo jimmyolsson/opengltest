@@ -442,8 +442,19 @@ void game_update()
 
 float delta_time = 0;
 float last_frame = 0;
+double lastTime = glfwGetTime();
+int numberOfFrames = 0;
 void game_main_loop()
 {
+    // Measure speed
+    double currentTime = glfwGetTime();
+    numberOfFrames++;
+    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+        // printf and reset timer
+        std::cout << 1000.0/double(numberOfFrames) << " ms/frame (" << double(numberOfFrames) << " fps)" << std::endl;
+        numberOfFrames = 0;
+        lastTime += 1.0;
+    }
 	// calculate delta time
 	float current_frame = glfwGetTime();
 	delta_time = current_frame - last_frame;
@@ -458,7 +469,6 @@ void game_main_loop()
 	game_render();
 
 	glfwSwapBuffers(GameState.window);
-
 }
 
 int main()
