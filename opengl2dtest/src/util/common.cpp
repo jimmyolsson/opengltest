@@ -73,3 +73,9 @@ void _g_logger_log(LogSeverity severity, const char* format, ...)
 
 	printf("\n");
 }
+
+int random(int min, int max)
+{
+	return (rand() % (max - min + 1)) + min;
+}
+

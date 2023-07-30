@@ -49,3 +49,5 @@ enum class LogSeverity
 };
 
 void _g_logger_log(LogSeverity severity, const char* format, ...);
+
+int random(int min, int max);

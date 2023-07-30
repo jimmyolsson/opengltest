@@ -40,11 +40,20 @@ void _load_shaders(Renderer* self)
 #endif
 
 	// Do it like this for now. Maybe a better pattern will emerge later on?
-	_shader_uniform_mvp_cache(&self->shaders[SHADER_CHUNK]);
 	_shader_uniform_mvp_cache(&self->shaders[SHADER_OUTLINE]);
 	_shader_uniform_mvp_cache(&self->shaders[SHADER_BASIC_COLOR]);
 	_shader_uniform_mvp_cache(&self->shaders[SHADER_CUBEMAP]);
 
+	{
+		ShaderProgram* shader = &self->shaders[SHADER_CHUNK];
+
+		shader->uniform_count = 4;
+		shader->uniform_locations = (unsigned int*)malloc(shader->uniform_count * sizeof(unsigned int));
+		shader->uniform_locations[ShaderUniform::VIEW] = glGetUniformLocation(shader->handle, "view");
+		shader->uniform_locations[ShaderUniform::MODEL] = glGetUniformLocation(shader->handle, "model");
+		shader->uniform_locations[ShaderUniform::PROJECTION] = glGetUniformLocation(shader->handle, "projection");
+		shader->uniform_locations[3] = glGetUniformLocation(shader->handle, "cameraPosition");
+	}
 	{
 		ShaderProgram* shader = &self->shaders[SHADER_BASIC_TEXTURE];
 
@@ -73,7 +82,8 @@ void _load_textures(Renderer* self)
 		"resources/textures/block/glass.png",
 		"resources/textures/block/glass_pane_top.png",
 		"resources/textures/block/bricks.png",
-		"resources/textures/block/white_concrete.png"
+		"resources/textures/block/white_concrete.png",
+		"resources/textures/block/grass.png"
 	);
 
 	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("resources/textures/gui/crosshair.png");
@@ -168,7 +178,7 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 	shader_set_mat4(shader, ShaderUniform::PROJECTION, self->projection_perspective);
 	shader_set_mat4(shader, ShaderUniform::VIEW, view);
 
-	glm::mat4 model = glm::mat4(1.0);
+	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);
 	model = glm::scale(model, scale);
 	shader_set_mat4(shader, ShaderUniform::MODEL, model);

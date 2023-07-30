@@ -68,7 +68,6 @@ void main()
     }
 
     vec3 pos = in_pos;
-    //vec3 pos = vec3(float(vertexInfo.x), vertexInfo.y, float(vertexInfo.z));
     vec2 texcoords = vec2(float(vertexInfo.u), float(vertexInfo.v));
 
     Lighting = calculate_lighting(vertexInfo.lighting_flag, vertexInfo.ambient_occlusion);

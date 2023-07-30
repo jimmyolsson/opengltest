@@ -113,7 +113,7 @@ void state_global_init()
 	GameState.delta_time = 0;
 	GameState.last_frame = 0;
 
-	// TODO: Fix cross platform sound
+	// TODO: Fix cross-platform sound
 #ifndef __EMSCRIPTEN__
 	//sound_init(&GameState.sound_manager);
 #endif
@@ -133,6 +133,7 @@ void create_and_init_chunk(const int x, const int z)
 	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
+	chunk.dirty = true;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
 	GameState.chunks[pos] = chunk;
@@ -184,14 +185,6 @@ void init_game_world()
 		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	}
 
-	for (auto& iter : GameState.chunks)
-	{
-		chunk_generate_mesh(&iter.second);
-		chunk_generate_buffers(&iter.second);
-
-		iter.second.initialized = true;
-	}
-
 //#endif // !__EMSCRIPTEN__
 
 	g_logger_debug("Chunks initialized!");
@@ -218,7 +211,13 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	BlockType type = BlockType::GLASS;
+	g_logger_debug("RAY HIT: Local(%d,%d,%d) World(%d,%d,%d)",
+		ray_hit.block_pos.x, ray_hit.block_pos.y, ray_hit.block_pos.z,
+		ray_hit.chunk_world_pos.x + ray_hit.block_pos.x,
+		ray_hit.block_pos.y,
+		ray_hit.chunk_world_pos.y + ray_hit.block_pos.z);
+
+	BlockType type = BlockType::GRASS;
 	if (GameState.menu.item_selected == 0)
 	{
 		type = BlockType::STONE;
@@ -231,6 +230,18 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		type = BlockType::GLASS;
 	}
+	else if (GameState.menu.item_selected == 3)
+	{
+		type = BlockType::GRASS;
+	}
+	else if (GameState.menu.item_selected == 4)
+	{
+		type = BlockType::SAND;
+	}
+	else if (GameState.menu.item_selected == 5)
+	{
+		type = BlockType::LEAVES;
+	}
 
 	if (ray_hit.top_half)
 	{
@@ -240,8 +251,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	// what chunk and block to process
 	Chunk* hit_chunk = nullptr;
 	glm::ivec3 b_pos = ray_hit.block_pos;
-
-	g_logger_debug("BLOCK HIT: x:%d y:%d z:%d", b_pos.x, b_pos.y, b_pos.z);
 
 	bool another_chunk = false;
 	if (!remove)
@@ -281,6 +290,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		hit_chunk = ray_hit.chunk_hit;
 	}
+
 
 	if (another_chunk)
 	{
@@ -370,22 +380,28 @@ void processInput(GLFWwindow* window, double delta_time)
 void render_3d()
 {
 	glm::mat4 view = GameState.player.camera.GetViewMatrix();
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 	// Render the opaque objects first
 	for (auto& iter : GameState.chunks)
 	{
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
 		chunk_render_opaque(&iter.second, &GameState.renderer, view, position);
 	}
-
 	outline_render(&GameState.outline, &GameState.renderer, view);
 
 	// Render translucent objects
-	// TODO: Sort
+	// TODO: Render leaves better
+	//glDisable(GL_CULL_FACE);
 	for (auto& iter : GameState.chunks)
 	{
+		glUniform3f(GameState.renderer.shaders[ShaderType::SHADER_CHUNK].uniform_locations[3], GameState.player.camera.Position.x, GameState.player.camera.Position.y, GameState.player.camera.Position.z);
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
 		chunk_render_transparent(&iter.second, &GameState.renderer, view, position);
 	}
+
+	outline_render(&GameState.outline, &GameState.renderer, view);
 }
 
 void render_2d()
@@ -406,12 +422,8 @@ void game_render()
 
 	// 3D pass
 	{
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
-
 		render_3d();
 	}
 
@@ -433,7 +445,7 @@ void game_update()
 
 	renderer_update(&GameState.renderer, perspective, orthographic);
 	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
-	chunk_update(&GameState.chunks);
+	chunk_update(&GameState.chunks, GameState.player.camera.Position);
 }
 
 float delta_time = 0;

@@ -216,5 +216,21 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		BlockType::GLASS,
 		BlockType::GLASS
+	},
+	// GRASS
+	{
+		BlockType::GRASS,
+		BlockTextureIndex::GRASS, // BACK
+		BlockTextureIndex::GRASS, // FRONT
+		BlockTextureIndex::GRASS, // LEFT
+		BlockTextureIndex::GRASS, // RIGHT
+		BlockTextureIndex::GRASS, // BOTTOM
+		BlockTextureIndex::GRASS, // TOP
+
+		true, // TRANSPARENT
+		false, // TRANSLUCENT
+
+		BlockType::GRASS,
+		BlockType::GRASS
 	}
 };

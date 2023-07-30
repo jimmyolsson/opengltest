@@ -82,17 +82,16 @@ Texture texture_atlas_create(int count, const char* paths, ...)
 		int width, height, format;
 		unsigned char* pixels = load_png(path, &width, &height, &format);
 
+		g_logger_debug("Trying to load texture: %s - index: %d - format: %d", path, i, format);
 		GL_CALL(glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixels));
 
-		g_logger_debug("Loaded texture from: %s - index: %d - format: %d", path, i, format);
 		path = va_arg(valist, const char*);
 	}
 
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
-	// set texture filtering parameters
-	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR));
 	GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
 	GL_CALL(glGenerateMipmap(GL_TEXTURE_2D_ARRAY));

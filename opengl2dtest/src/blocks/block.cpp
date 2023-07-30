@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include "blocks.h"
+#include "../util/common.h"
 
 void block_get_name(BlockType type, char* name, int buffer_size)
 {
@@ -43,16 +44,14 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	case BlockType::GLASS:
 		strncpy(name, "BRICKS", buffer_size);
 		return;	
+	case BlockType::GRASS:
+		strncpy(name, "GRASS", buffer_size);
+		return;	
 
 	default:
 		assert(false);
 	}
 	name[buffer_size - 1] = '\0';
-}
-
-int random(int min, int max)
-{
-	return (rand() % (max - min + 1)) + min;
 }
 
 int block_get_texture(BlockFaceDirection direction, BlockType type)

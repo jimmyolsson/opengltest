@@ -8,9 +8,13 @@ static int world_width = 0;
 static int world_height = 0;
 
 // TODO: move to util func
-static int to_1d_array(short x, short y, short z)
+inline static int to_1d_array(const glm::ivec3& pos)
 {
-	return (z * world_width * world_height) + (y * world_width) + x;
+	return (pos.z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (pos.y * CHUNK_SIZE_WIDTH) + pos.x;
+}
+inline static int to_1d_array(const short x, const short y, const short z)
+{
+	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
 void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
@@ -27,7 +31,172 @@ void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
 		}
 	}
 }
+static std::vector<structure_node> tree_structure = {
+	{{0, 0, 0}, BlockType::OAK_LOG},
+	{{0, 1, 0}, BlockType::OAK_LOG},
+	{{0, 2, 0}, BlockType::OAK_LOG},
+	{{0, 3, 0}, BlockType::OAK_LOG},
+	{{0, 4, 0}, BlockType::OAK_LOG},
+	{{0, 5, 0}, BlockType::OAK_LOG},
 
+	{{-2, 3, 1}, BlockType::LEAVES},
+	{{-1, 3, 1}, BlockType::LEAVES},
+	{{1, 3, 1}, BlockType::LEAVES},
+	{{2, 3, 1}, BlockType::LEAVES},
+
+	{{-2, 3, 0}, BlockType::LEAVES},
+	{{-1, 3, 0}, BlockType::LEAVES},
+	{{1, 3, 0}, BlockType::LEAVES},
+	{{2, 3, 0}, BlockType::LEAVES},
+
+	{{-2, 3, -1}, BlockType::LEAVES},
+	{{-1, 3, -1}, BlockType::LEAVES},
+	{{1, 3, -1}, BlockType::LEAVES},
+	{{2, 3, -1}, BlockType::LEAVES},
+
+	{{1, 3, -2}, BlockType::LEAVES},
+	{{1, 3, -1}, BlockType::LEAVES},
+	{{1, 3, 1}, BlockType::LEAVES},
+	{{1, 3, 2}, BlockType::LEAVES},
+
+	{{0, 3, -2}, BlockType::LEAVES},
+	{{0, 3, -1}, BlockType::LEAVES},
+	{{0, 3, 1}, BlockType::LEAVES},
+	{{0, 3, 2}, BlockType::LEAVES},
+
+	{{-1, 3, -2}, BlockType::LEAVES},
+	{{-1, 3, -1}, BlockType::LEAVES},
+	{{-1, 3, 1}, BlockType::LEAVES},
+	{{-1, 3, 2}, BlockType::LEAVES},
+
+	{{-2, 4, 1}, BlockType::LEAVES},
+	{{-1, 4, 1}, BlockType::LEAVES},
+	{{1, 4, 1}, BlockType::LEAVES},
+	{{2, 4, 1}, BlockType::LEAVES},
+
+	{{-2, 4, 0}, BlockType::LEAVES},
+	{{-1, 4, 0}, BlockType::LEAVES},
+	{{1, 4, 0}, BlockType::LEAVES},
+	{{2, 4, 0}, BlockType::LEAVES},
+
+	{{-2, 4, -1}, BlockType::LEAVES},
+	{{-1, 4, -1}, BlockType::LEAVES},
+	{{1, 4, -1}, BlockType::LEAVES},
+	{{2, 4, -1}, BlockType::LEAVES},
+
+	{{1, 4, -2}, BlockType::LEAVES},
+	{{1, 4, -1}, BlockType::LEAVES},
+	{{1, 4, 1}, BlockType::LEAVES},
+	{{1, 4, 2}, BlockType::LEAVES},
+
+	{{0, 4, -2}, BlockType::LEAVES},
+	{{0, 4, -1}, BlockType::LEAVES},
+	{{0, 4, 1}, BlockType::LEAVES},
+	{{0, 4, 2}, BlockType::LEAVES},
+
+	{{-1, 4, -2}, BlockType::LEAVES},
+	{{-1, 4, -1}, BlockType::LEAVES},
+	{{-1, 4, 1}, BlockType::LEAVES},
+	{{-1, 4, 2}, BlockType::LEAVES},
+
+	{{-1, 5, 1}, BlockType::LEAVES},
+	{{1, 5, 1}, BlockType::LEAVES},
+
+	{{-1, 5, 0}, BlockType::LEAVES},
+	{{1, 5, 0}, BlockType::LEAVES},
+
+	{{-1, 5, -1}, BlockType::LEAVES},
+
+	{{1, 5, -1}, BlockType::LEAVES},
+
+	{{1, 5, -1}, BlockType::LEAVES},
+	{{1, 5, 1}, BlockType::LEAVES},
+
+	{{0, 5, -1}, BlockType::LEAVES},
+	{{0, 5, 1}, BlockType::LEAVES},
+
+	{{-1, 5, -1}, BlockType::LEAVES},
+	{{-1, 5, 1}, BlockType::LEAVES},
+
+	{{0, 6, 0}, BlockType::LEAVES},
+	{{-1, 6, 0}, BlockType::LEAVES},
+	{{1, 6, 0}, BlockType::LEAVES},
+	{{0, 6, -1}, BlockType::LEAVES},
+	{{0, 6, 1}, BlockType::LEAVES},
+};
+
+
+void add_trees(block* blocks)
+{
+	for (int z = 0; z < world_width; z++)
+	{
+		for (int x = 0; x < world_width; x++)
+		{
+			for (int y = 0; y < world_height; y++)
+			{
+				if (y + 1 > world_height-1)
+					continue;
+				if (y - 1 < 0)
+					continue;
+
+				if (x + -2 < 0)
+					continue;
+				if (x + 2 > world_width-1)
+					continue;
+
+				if (z + -2 < 0)
+					continue;
+				if (z + 2 > world_width-1)
+					continue;
+
+				int index_above_me = to_1d_array(x, y + 1, z);
+				int index_under_me = to_1d_array(x, y - 1, z);
+				int index = to_1d_array(x, y, z);
+
+				if (blocks[index_under_me].type == BlockType::DIRT_GRASS && blocks[index_above_me].type == BlockType::AIR && blocks[index].type == BlockType::AIR
+					&& rand() % 70 == 0)
+				{
+					for (auto& a : tree_structure)
+					{
+						int cx = a.pos.x + x;
+						int cy = a.pos.y + y;
+						int cz = a.pos.z + z;
+
+						blocks[to_1d_array(cx, cy, cz)].type = a.type;
+					}
+				}
+			}
+		}
+	}
+}
+
+// Spawns GRASS blocks on DIRT_GRASS blocks with a 1/10 chance
+void add_foliage(block* blocks)
+{
+	for (int z = 0; z < world_width; z++)
+	{
+		for (int x = 0; x < world_width; x++)
+		{
+			for (int y = 0; y < world_height; y++)
+			{
+				if (y + 7 > world_height)
+					continue;
+				if (y - 7 < 0)
+					continue;
+
+				int index_above_me = to_1d_array(x, y + 1, z);
+				int index_under_me = to_1d_array(x, y - 1, z);
+				int index = to_1d_array(x, y, z);
+
+				if (blocks[index_under_me].type == BlockType::DIRT_GRASS && blocks[index_above_me].type == BlockType::AIR && blocks[index].type == BlockType::AIR
+					&& rand() % 10 == 0)
+				{
+					blocks[index].type = BlockType::GRASS;
+				}
+			}
+		}
+	}
+}
 double linear_map(double x, double x1, double y1, double x2, double y2)
 {
 	double m = (y2 - y1) / (x2 - x1);
@@ -38,15 +207,9 @@ double linear_map(double x, double x1, double y1, double x2, double y2)
 static siv::PerlinNoise::seed_type seed = 123457u;
 static siv::PerlinNoise perlin{ seed };
 
-static std::vector<double> X = { -1.0, -0.5, 0,   0.5, 1 };
-static std::vector<double> Y = { 50.0, 50.0, 100, 150, 255 };
-static tk::spline s(X,Y);
-
-void add_spline_point(double x, double y)
-{
-	X.push_back(x);
-	Y.push_back(y);
-}
+static std::vector<double> X = { -1.0, -0.6, 0, 0.6, 1.0 };
+static std::vector<double> Y = { 0, 50, 100, 150, 255 }; // Adjust the Y values to control the terrain's height
+static tk::spline s(X, Y);
 
 BlockType get_block_type(int x, int y, int z)
 {
@@ -55,13 +218,15 @@ BlockType get_block_type(int x, int y, int z)
 	double zz = z * 0.01f;
 
 	s.make_monotonic();
-	double noise = perlin.octave2D_11(xx, zz, 4);
+	double noise = perlin.octave2D(xx / 1.0, zz / 1.0, 1); // Decrease the frequency of the noise to smooth the terrain
+	double scale_and_offset_noise = (noise + 1.0) * 0.5; // Map the noise from [-1, 1] to [0, 1]
+	double noise_splined = s(scale_and_offset_noise * 2.0 - 1.0); // Map the noise from [0, 1] to [-1, 1]
 
-	double noise_splined = s(noise);
+	int surfaceY = std::min((int)noise_splined, 255); // Clamp the maximum height to 255
 
-	int surfaceY = noise_splined;
 	return y < surfaceY ? BlockType::STONE : BlockType::AIR;
 }
+
 
 void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
 {
@@ -77,7 +242,7 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 		}
 	}
 
-	static const int sea_level = 70;
+	static const int sea_level = 100;
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -104,7 +269,7 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 						}
 						for (int i = 0; i < 10; i++)
 						{
-							if(!(i + y > world_height) && blocks[to_1d_array(x, y+i, z)].type != BlockType::AIR && blocks[to_1d_array(x, y+i, z)].type != BlockType::DIRT_GRASS)
+							if (!(i + y > world_height) && blocks[to_1d_array(x, y + i, z)].type != BlockType::AIR && blocks[to_1d_array(x, y + i, z)].type != BlockType::DIRT_GRASS)
 								blocks[to_1d_array(x, y, z)].type = BlockType::DIRT;
 						}
 					}
@@ -112,6 +277,9 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 			}
 		}
 	}
+
+	add_trees(blocks);
+	add_foliage(blocks);
 }
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
@@ -140,6 +308,9 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 	world_width = width;
 	world_height = height;
 
+
+	s.make_monotonic();
+
 	for (int z = 0; z < world_width; z++)
 	{
 		for (int y = 0; y < world_height; y++)
@@ -154,7 +325,9 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 
 	//generate_world_cube(blocks, xoffset, zoffset);
 	//generate_world_flatgrass(blocks, xoffset, zoffset);
+	TIMER_START(T);
 	generate_world_noise(blocks, noise, xoffset, zoffset);
+	TIMER_END(T);
 }
 
 // TODO:
@@ -258,98 +431,4 @@ std::vector<structure_node> sphere_algo(int x0, int y0, int z0, int r)
 			}
 	return a;
 }
-
-std::vector<structure_node> tree_structure = {
-	{{0, 1, 0}, BlockType::OAK_LOG},
-	{{0, 2, 0}, BlockType::OAK_LOG},
-	{{0, 3, 0}, BlockType::OAK_LOG},
-	{{0, 4, 0}, BlockType::OAK_LOG},
-	{{0, 5, 0}, BlockType::OAK_LOG},
-	{{0, 6, 0}, BlockType::OAK_LOG},
-
-	{{-2, 4, 1}, BlockType::LEAVES},
-	{{-1, 4, 1}, BlockType::LEAVES},
-	{{1, 4, 1}, BlockType::LEAVES},
-	{{2, 4, 1}, BlockType::LEAVES},
-
-	{{-2, 4, 0}, BlockType::LEAVES},
-	{{-1, 4, 0}, BlockType::LEAVES},
-	{{1, 4, 0}, BlockType::LEAVES},
-	{{2, 4, 0}, BlockType::LEAVES},
-
-	{{-2, 4, -1}, BlockType::LEAVES},
-	{{-1, 4, -1}, BlockType::LEAVES},
-	{{1, 4, -1}, BlockType::LEAVES},
-	{{2, 4, -1}, BlockType::LEAVES},
-
-	{{1, 4, -2}, BlockType::LEAVES},
-	{{1, 4, -1}, BlockType::LEAVES},
-	{{1, 4, 1}, BlockType::LEAVES},
-	{{1, 4, 2}, BlockType::LEAVES},
-
-	{{0, 4, -2}, BlockType::LEAVES},
-	{{0, 4, -1}, BlockType::LEAVES},
-	{{0, 4, 1}, BlockType::LEAVES},
-	{{0, 4, 2}, BlockType::LEAVES},
-
-	{{-1, 4, -2}, BlockType::LEAVES},
-	{{-1, 4, -1}, BlockType::LEAVES},
-	{{-1, 4, 1}, BlockType::LEAVES},
-	{{-1, 4, 2}, BlockType::LEAVES},
-
-	{{-2, 5, 1}, BlockType::LEAVES},
-	{{-1, 5, 1}, BlockType::LEAVES},
-	{{1, 5, 1}, BlockType::LEAVES},
-	{{2, 5, 1}, BlockType::LEAVES},
-
-	{{-2, 5, 0}, BlockType::LEAVES},
-	{{-1, 5, 0}, BlockType::LEAVES},
-	{{1, 5, 0}, BlockType::LEAVES},
-	{{2, 5, 0}, BlockType::LEAVES},
-
-	{{-2, 5, -1}, BlockType::LEAVES},
-	{{-1, 5, -1}, BlockType::LEAVES},
-	{{1, 5, -1}, BlockType::LEAVES},
-	{{2, 5, -1}, BlockType::LEAVES},
-
-	{{1, 5, -2}, BlockType::LEAVES},
-	{{1, 5, -1}, BlockType::LEAVES},
-	{{1, 5, 1}, BlockType::LEAVES},
-	{{1, 5, 2}, BlockType::LEAVES},
-
-	{{0, 5, -2}, BlockType::LEAVES},
-	{{0, 5, -1}, BlockType::LEAVES},
-	{{0, 5, 1}, BlockType::LEAVES},
-	{{0, 5, 2}, BlockType::LEAVES},
-
-	{{-1, 5, -2}, BlockType::LEAVES},
-	{{-1, 5, -1}, BlockType::LEAVES},
-	{{-1, 5, 1}, BlockType::LEAVES},
-	{{-1, 5, 2}, BlockType::LEAVES},
-
-	{{-1, 6, 1}, BlockType::LEAVES},
-	{{1, 6, 1}, BlockType::LEAVES},
-
-	{{-1, 6, 0}, BlockType::LEAVES},
-	{{1, 6, 0}, BlockType::LEAVES},
-
-	{{-1, 6, -1}, BlockType::LEAVES},
-
-	{{1, 6, -1}, BlockType::LEAVES},
-
-	{{1, 6, -1}, BlockType::LEAVES},
-	{{1, 6, 1}, BlockType::LEAVES},
-
-	{{0, 6, -1}, BlockType::LEAVES},
-	{{0, 6, 1}, BlockType::LEAVES},
-
-	{{-1, 6, -1}, BlockType::LEAVES},
-	{{-1, 6, 1}, BlockType::LEAVES},
-
-	{{0, 7, 0}, BlockType::LEAVES},
-	{{-1, 7, 0}, BlockType::LEAVES},
-	{{1, 7, 0}, BlockType::LEAVES},
-	{{0, 7, -1}, BlockType::LEAVES},
-	{{0, 7, 1}, BlockType::LEAVES},
-};
 

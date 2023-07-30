@@ -4,7 +4,7 @@ const int TOTAL_ELEMENTS_IN_QUAD = 30;
 typedef float block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 
-#define BLOCK_TYPE_LAST BlockType::GLASS
+#define BLOCK_TYPE_LAST BlockType::GRASS
 enum BlockType : int
 {
 	AIR = 0,
@@ -18,10 +18,11 @@ enum BlockType : int
 	GLASS_PANE,
 	BRICKS,
 	CONCRETE_WHITE,
-	GLASS
+	GLASS,
+	GRASS,
 };
 
-#define BLOCK_TEXTURE_INDEX_LAST (int)BlockTextureIndex::WHITE_CONCRETE
+#define BLOCK_TEXTURE_INDEX_LAST (int)BlockTextureIndex::GRASS
 enum class BlockTextureIndex : int
 {
 	STONE = 0,
@@ -37,6 +38,7 @@ enum class BlockTextureIndex : int
 	GLASS_PANE_TOP,
 	BRICKS,
 	WHITE_CONCRETE,
+	GRASS,
 };
 
 enum class BlockFaceDirection : int
@@ -54,6 +56,24 @@ struct block
 	BlockType type = BlockType::AIR;
 };
 bool block_is_transparent(BlockType type);
+
+const static block_size_t grass_1[TOTAL_ELEMENTS_IN_QUAD] = {
+	1, 1, 0, 1, 0,
+	1, 0, 0, 1, 1,
+	0, 1, 1, 0, 0,
+	1, 0, 0, 1, 1,
+	0, 0, 1, 0, 1,
+	0, 1, 1, 0, 0
+};
+
+const static block_size_t grass_2[TOTAL_ELEMENTS_IN_QUAD] = {
+	1, 1, 1, 1, 0,
+	1, 0, 1, 1, 1,
+	0, 1, 0, 0, 0,
+	1, 0, 1, 1, 1,
+	0, 0, 0, 0, 1,
+	0, 1, 0, 0, 0
+};
 
 // x y z u v
 const static block_size_t m_back_verticies[TOTAL_ELEMENTS_IN_QUAD] = {

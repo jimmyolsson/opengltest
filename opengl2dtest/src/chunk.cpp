@@ -7,11 +7,12 @@
 #include <glm/gtx/hash.hpp>
 #include <chrono>
 #include <vector>
+#include <numeric>
 #include "blocks/blocks.h"
 
 const int ATTRIBUTES_PER_VERTEX = 1;
 
-inline static int to_1d_array(const glm::ivec3 pos)
+inline static int to_1d_array(const glm::ivec3& pos)
 {
 	return (pos.z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (pos.y * CHUNK_SIZE_WIDTH) + pos.x;
 }
@@ -54,37 +55,24 @@ block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 	return &c->blocks[to_1d_array(x, y, z)];
 }
 
-void update_buffers(Chunk* chunk)
-{
-	GL_CALL(glBindVertexArray(chunk->vao_handle));
-	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, chunk->vbo_handle));
-
-	GL_CALL(glBufferSubData(GL_ARRAY_BUFFER, 0, chunk->gpu_data_arr.size() * sizeof(block_size_t), &chunk->gpu_data_arr[0]));
-
-	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
-	GL_CALL(glBindVertexArray(0));
-}
-
 void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::vector<GPUData>* gpu_data)
 {
-	GL_CALL(glGenVertexArrays(1, &*vao_handle));
-	GL_CALL(glBindVertexArray(*vao_handle));
+	glGenVertexArrays(1, &*vao_handle);
+	glBindVertexArray(*vao_handle);
 
-	GL_CALL(glGenBuffers(1, &*vbo_handle));
-	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, *vbo_handle));
+	glGenBuffers(1, &*vbo_handle);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_handle);
 
-	GL_CALL(glBufferData(GL_ARRAY_BUFFER, gpu_data->size() * sizeof(GPUData), gpu_data->data(), GL_STATIC_DRAW));
+	glBufferData(GL_ARRAY_BUFFER, gpu_data->size() * sizeof(GPUData), gpu_data->data(), GL_STATIC_DRAW);
 
-	GL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUData), (void*)0));
-	GL_CALL(glEnableVertexAttribArray(0));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUData), (void*)0);
+	glEnableVertexAttribArray(0);
 
-	GL_CALL(glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3)));
-	GL_CALL(glEnableVertexAttribArray(1));
+	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3));
+	glEnableVertexAttribArray(1);
 
-	GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, 0));
-	GL_CALL(glBindVertexArray(0));
-
-	gpu_data->clear();
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void chunk_generate_buffers(Chunk* self)
@@ -196,6 +184,39 @@ void add_face_and_texture_new(Chunk* chunk, const block_size_t* data, BlockFaceD
 	}
 }
 
+void add_face_and_texture_f(Chunk* chunk, const block_size_t* data, int x, int y, int z, BlockType type)
+{
+	const glm::vec3 block_pos = glm::vec3(x, y, z);
+
+	static const int vert_count = 30;
+	int i = 0;
+	while (i != vert_count)
+	{
+		char occlusion = 0;
+
+		unsigned char texture = (char)BlockTextureIndex::GRASS;
+
+		GPUData result;
+		result.x = data[i] + x;
+		result.y = data[i + 1] + y;
+		result.z = data[i + 2] + z;
+
+		unsigned int u = (int)data[i + 3];
+		unsigned int v = (int)data[i + 4];
+
+		result.info = 0;
+		result.info |= u << 11;
+		result.info |= v << 10;
+		result.info |= occlusion << 8;
+		result.info |= texture << 1;
+		auto lighting = 0;// direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
+		result.info |= lighting;
+
+		chunk->gpu_data_arr_transparent.push_back(result);
+		i += 5;
+	}
+}
+
 void add_face_and_texture_t(Chunk* chunk, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z, BlockType type)
 {
 	const glm::vec3 block_pos = glm::vec3(x, y, z);
@@ -252,13 +273,13 @@ void generate_face_t(Chunk* current_chunk, const Chunk* neighbor, const block_si
 	if (on_edge)
 	{
 		//If i have a neighbor that is transparent
-		if (neighbor != nullptr && !block_is_transparent(neighbor->blocks[other_chunk_index].type))
+		if (neighbor != nullptr && neighbor->blocks[other_chunk_index].type == BlockType::AIR)
 		{
 			add_face_and_texture_t(current_chunk, data, direction, x, y, z, type);
 		}
 	}
 	// Is the block next to me occupied?
-	else if (!block_is_transparent(current_chunk->blocks[current_chunk_index].type))
+	else if (current_chunk->blocks[current_chunk_index].type == BlockType::AIR)
 	{
 		add_face_and_texture_t(current_chunk, data, direction, x, y, z, type);
 	}
@@ -314,24 +335,49 @@ void gen_mesh_transparent(Chunk* chunk)
 			{
 				int current = to_1d_array(x, y, z);
 				BlockType type = chunk->blocks[current].type;
-				if (!block_infos[type].is_transparent || type == BlockType::AIR)
-					continue;
 
-				generate_face_t(chunk, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
-				generate_face_t(chunk, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH, type);
-
-				generate_face_t(chunk, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
-				generate_face_t(chunk, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH), type);
-
-				// no chunk neighbors on the Y-axis
-				if (y != 0 && (y == 0 || chunk->blocks[to_1d_array(x, y - 1, z)].type != BlockType::WATER))
+				switch (type)
 				{
-					add_face_and_texture_t(chunk, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
-				}
+					case BlockType::LEAVES:
+					{
+						// This creates flickering because we have duplicate triangles
+						add_face_and_texture_t(chunk, m_back_verticies, BlockFaceDirection::BACK, x, y, z, type);
+						add_face_and_texture_t(chunk, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, type);
+						add_face_and_texture_t(chunk, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, type);
+						add_face_and_texture_t(chunk, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, type);
+						add_face_and_texture_t(chunk, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+						add_face_and_texture_t(chunk, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+						break;
+					}
+					case BlockType::GRASS:
+					{
+						add_face_and_texture_f(chunk, grass_1, x, y, z, type);
+						add_face_and_texture_f(chunk, grass_2, x, y, z, type);
+						break;
+					}
+					// Default behaviour
+					case BlockType::WATER:
+					case BlockType::GLASS:
+					case BlockType::GLASS_PANE:
+					{
+						generate_face_t(chunk, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
+						generate_face_t(chunk, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH, type);
 
-				if (y + 1 > CHUNK_SIZE_HEIGHT || chunk->blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
-				{
-					add_face_and_texture_t(chunk, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+						generate_face_t(chunk, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
+						generate_face_t(chunk, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH), type);
+
+						// no chunk neighbors on the Y-axis
+						if (y != 0 && (y == 0 || chunk->blocks[to_1d_array(x, y - 1, z)].type == BlockType::AIR))
+						{
+							add_face_and_texture_t(chunk, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+						}
+
+						if (y + 1 > CHUNK_SIZE_HEIGHT || chunk->blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
+						{
+							add_face_and_texture_t(chunk, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+						}
+						break;
+					}
 				}
 			}
 		}
@@ -356,11 +402,6 @@ void gen_mesh_opaque(Chunk* chunk)
 				if (block_infos[type].is_transparent)
 					continue;
 
-				if (x == 2 && y == 43 && z == 30)
-				{
-					int a = 2;
-				}
-
 				generate_face(chunk, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
 				generate_face(chunk, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, type);
 
@@ -384,6 +425,9 @@ void gen_mesh_opaque(Chunk* chunk)
 
 void chunk_generate_mesh(Chunk* chunk)
 {
+	chunk->gpu_data_arr.clear();
+	chunk->gpu_data_arr_transparent.clear();
+
 	// TODO: These should be the same method
 	gen_mesh_opaque(chunk);
 	gen_mesh_transparent(chunk);
@@ -410,21 +454,75 @@ void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
 	}
 }
 
-void chunk_update(chunk_map_t* chunks)
+void update_buffers(GLuint vao_handle, const std::vector<GPUData>& gpu_data_arr)
 {
-	for (decltype(auto) it : *chunks)
-	{
-		if (it.second.dirty)
-		{
-			chunk_generate_mesh(&it.second);
-			//update_buffers(&it.second);
-			GL_CALL(glDeleteBuffers(1, &it.second.vbo_handle));
-			GL_CALL(glDeleteVertexArrays(1, &it.second.vao_handle));
-			chunk_generate_buffers(&it.second);
+    glBindBuffer(GL_ARRAY_BUFFER, vao_handle);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GPUData) * gpu_data_arr.size(), gpu_data_arr.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
-			it.second.dirty = false;
-			it.second.gpu_data_arr.clear();
-			it.second.gpu_data_arr_transparent.clear();
+void _sort_transparent_triangles(std::vector<GPUData>* gpu_data, glm::vec3 camera_pos)
+{
+	std::vector<float> distances(gpu_data->size() / 3);
+	for (int i = 0; i < gpu_data->size(); i += 3)
+	{
+		glm::vec3 p1((*gpu_data)[i].x, (*gpu_data)[i].y, (*gpu_data)[i].z);
+		glm::vec3 p2((*gpu_data)[i + 1].x, (*gpu_data)[i + 1].y, (*gpu_data)[i + 1].z);
+		glm::vec3 p3((*gpu_data)[i + 2].x, (*gpu_data)[i + 2].y, (*gpu_data)[i + 2].z);
+
+		glm::vec3 center = (p1 + p2 + p3) / 3.0f;
+		distances[i / 3] = glm::distance(camera_pos, center);
+	}
+
+	std::vector<int> indices(distances.size());
+	std::iota(indices.begin(), indices.end(), 0);
+	std::sort(indices.begin(), indices.end(), [&](int a, int b)
+	{
+		return distances[a] > distances[b];
+	});
+
+	std::vector<GPUData> sorted_gpu_data_arr_transparent(gpu_data->size());
+	for (int i = 0; i < indices.size(); i++)
+	{
+		sorted_gpu_data_arr_transparent[i * 3] = (*gpu_data)[indices[i] * 3];
+		sorted_gpu_data_arr_transparent[i * 3 + 1] = (*gpu_data)[indices[i] * 3 + 1];
+		sorted_gpu_data_arr_transparent[i * 3 + 2] = (*gpu_data)[indices[i] * 3 + 2];
+	}
+
+	*gpu_data = std::move(sorted_gpu_data_arr_transparent);
+}
+
+void _clear_chunk_gpu_buffers(Chunk* self)
+{
+	glDeleteBuffers(1, &self->vbo_handle);
+	glDeleteVertexArrays(1, &self->vao_handle);
+
+	glDeleteBuffers(1, &self->vbo_handle_transparent);
+	glDeleteVertexArrays(1, &self->vao_handle_transparent);
+}
+
+void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos)
+{
+	for (auto& pair : *chunks)
+	{
+		Chunk& chunk = pair.second;
+		if (chunk.dirty)
+		{
+			_clear_chunk_gpu_buffers(&chunk);
+			chunk_generate_mesh(&chunk);
+			_sort_transparent_triangles(&chunk.gpu_data_arr_transparent, camera_pos);
+			chunk_generate_buffers(&pair.second);
+			chunk.dirty = false;
+		}
+		else
+		{
+			glm::vec2 wpos = chunk.world_pos;
+			glm::vec2 cpos = glm::vec2((int)camera_pos.x, (int)camera_pos.z);
+			if (glm::distance(wpos, cpos) < 100)
+			{
+				_sort_transparent_triangles(&chunk.gpu_data_arr_transparent, camera_pos);
+                update_buffers(chunk.vao_handle_transparent, chunk.gpu_data_arr_transparent);
+			}
 		}
 	}
 }
