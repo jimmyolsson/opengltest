@@ -21,15 +21,17 @@ inline static int to_1d_array(const short x, const short y, const short z)
 	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
+inline
 block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
 {
 	return chunk_get_block(c, block_pos.x, block_pos.y, block_pos.z);
 }
 
+inline
 block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 {
 	Chunk* c = chunk;
-	if (x == 32)
+	if (x == CHUNK_SIZE_WIDTH)
 	{
 		c = chunk->right_neighbor;
 		x = 0;
@@ -37,14 +39,14 @@ block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 	if (x == -1)
 	{
 		c = chunk->left_neighbor;
-		x = 31;
+		x = CHUNK_SIZE_WIDTH-1;
 	}
 	if (z == -1)
 	{
 		c = chunk->back_neighbor;
-		z = 31;
+		z = CHUNK_SIZE_WIDTH-1;
 	}
-	if (z == 32)
+	if (z == CHUNK_SIZE_WIDTH)
 	{
 		c = chunk->front_neighbor;
 		z = 0;
@@ -85,6 +87,7 @@ void chunk_generate_buffers(Chunk* self)
 bool find_inc(Chunk* chunk, glm::vec3 block_pos, glm::vec3 pos)
 {
 	glm::vec3 a = block_pos + pos;
+
 	block* b = chunk_get_block(chunk, a);
 	if (b != nullptr)
 		if (!block_infos[b->type].is_transparent)
@@ -456,9 +459,9 @@ void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
 
 void update_buffers(GLuint vao_handle, const std::vector<GPUData>& gpu_data_arr)
 {
-    glBindBuffer(GL_ARRAY_BUFFER, vao_handle);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GPUData) * gpu_data_arr.size(), gpu_data_arr.data());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, vao_handle);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(GPUData) * gpu_data_arr.size(), gpu_data_arr.data());
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void _sort_transparent_triangles(std::vector<GPUData>* gpu_data, glm::vec3 camera_pos)
@@ -521,7 +524,7 @@ void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos)
 			if (glm::distance(wpos, cpos) < 100)
 			{
 				_sort_transparent_triangles(&chunk.gpu_data_arr_transparent, camera_pos);
-                update_buffers(chunk.vao_handle_transparent, chunk.gpu_data_arr_transparent);
+				update_buffers(chunk.vao_handle_transparent, chunk.gpu_data_arr_transparent);
 			}
 		}
 	}

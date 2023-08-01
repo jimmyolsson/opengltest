@@ -134,19 +134,19 @@ void add_trees(block* blocks)
 		{
 			for (int y = 0; y < world_height; y++)
 			{
-				if (y + 1 > world_height-1)
+				if (y + 1 > world_height - 1)
 					continue;
 				if (y - 1 < 0)
 					continue;
 
 				if (x + -2 < 0)
 					continue;
-				if (x + 2 > world_width-1)
+				if (x + 2 > world_width - 1)
 					continue;
 
 				if (z + -2 < 0)
 					continue;
-				if (z + 2 > world_width-1)
+				if (z + 2 > world_width - 1)
 					continue;
 
 				int index_above_me = to_1d_array(x, y + 1, z);
@@ -281,6 +281,7 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 	add_trees(blocks);
 	add_foliage(blocks);
 }
+static int c = 0;
 void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
 {
 	for (int z = 0; z < world_width; z++)
@@ -290,14 +291,23 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 			for (int x = 0; x < world_width; x++)
 			{
 				int index = to_1d_array(x, y, z);
-				if (y < world_height / 6)
-				{
-					blocks[index].type = BlockType::DIRT_GRASS;
-				}
-				if (y < (world_height / 6) - 1)
-				{
-					blocks[index].type = BlockType::DIRT;
-				}
+
+				if(x == 2 && y == 128 && z == 2)
+				//	blocks[index].type = BlockType::LEAVES;
+				//else
+				//	blocks[index].type = BlockType::AIR;
+					blocks[index].type = BlockType::LEAVES;
+				else
+					blocks[index].type = BlockType::AIR;
+
+				//if (y < world_height / 6)
+				//{
+					//blocks[index].type = BlockType::DIRT_GRASS;
+				//}
+				//if (y < (world_height / 6) - 1)
+				//{
+				//	blocks[index].type = BlockType::DIRT;
+				//}
 			}
 		}
 	}
@@ -323,11 +333,11 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 		}
 	}
 
+	TIMER_START(WORLD_GEN);
 	//generate_world_cube(blocks, xoffset, zoffset);
 	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	TIMER_START(T);
 	generate_world_noise(blocks, noise, xoffset, zoffset);
-	TIMER_END(T);
+	TIMER_END(WORLD_GEN);
 }
 
 // TODO:

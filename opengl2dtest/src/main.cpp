@@ -383,6 +383,7 @@ void render_3d()
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+
 	// Render the opaque objects first
 	for (auto& iter : GameState.chunks)
 	{
@@ -392,13 +393,26 @@ void render_3d()
 	outline_render(&GameState.outline, &GameState.renderer, view);
 
 	// Render translucent objects
-	// TODO: Render leaves better
 	//glDisable(GL_CULL_FACE);
-	for (auto& iter : GameState.chunks)
+	std::vector<std::pair<glm::ivec2, Chunk*>> chunks_vector;
+	for (auto& pair : GameState.chunks)
+	{
+		chunks_vector.push_back({ pair.first, &pair.second });
+	}
+
+	std::sort(chunks_vector.begin(), chunks_vector.end(),
+		[](const std::pair<glm::ivec2, Chunk*>& a, const std::pair<glm::ivec2, Chunk*>& b) -> bool
+	{
+		glm::vec3 pos_a(a.second->world_pos.x, 0, a.second->world_pos.y);
+		glm::vec3 pos_b(b.second->world_pos.x, 0, b.second->world_pos.y);
+		return glm::distance(pos_a, GameState.player.camera.Position) > glm::distance(pos_b, GameState.player.camera.Position);
+	});
+
+	for (auto& iter : chunks_vector)
 	{
 		glUniform3f(GameState.renderer.shaders[ShaderType::SHADER_CHUNK].uniform_locations[3], GameState.player.camera.Position.x, GameState.player.camera.Position.y, GameState.player.camera.Position.z);
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render_transparent(&iter.second, &GameState.renderer, view, position);
+		chunk_render_transparent(iter.second, &GameState.renderer, view, position);
 	}
 
 	outline_render(&GameState.outline, &GameState.renderer, view);
