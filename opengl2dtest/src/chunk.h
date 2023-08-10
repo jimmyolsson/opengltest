@@ -12,7 +12,7 @@ enum class BlockFaceDirection;
 
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 2;
+static const int CHUNK_DRAW_DISTANCE = 10;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 

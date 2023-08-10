@@ -211,18 +211,17 @@ static std::vector<double> X = { -1.0, -0.6, 0, 0.6, 1.0 };
 static std::vector<double> Y = { 0, 50, 100, 150, 255 }; // Adjust the Y values to control the terrain's height
 static tk::spline s(X, Y);
 
-BlockType get_block_type(int x, int y, int z)
+BlockType get_block_type(const int x, const int y, const int z)
 {
-	int terrain_height = 0;
-	double xx = x * 0.01f;
-	double zz = z * 0.01f;
+	const double xx = x * 0.01f;
+	const double zz = z * 0.01f;
 
 	s.make_monotonic();
-	double noise = perlin.octave2D(xx / 1.0, zz / 1.0, 1); // Decrease the frequency of the noise to smooth the terrain
-	double scale_and_offset_noise = (noise + 1.0) * 0.5; // Map the noise from [-1, 1] to [0, 1]
-	double noise_splined = s(scale_and_offset_noise * 2.0 - 1.0); // Map the noise from [0, 1] to [-1, 1]
+	const double noise = perlin.octave2D(xx / 1.0, zz / 1.0, 1); // Decrease the frequency of the noise to smooth the terrain
+	const double scale_and_offset_noise = (noise + 1.0) * 0.5; // Map the noise from [-1, 1] to [0, 1]
+	const double noise_splined = s(scale_and_offset_noise * 2.0 - 1.0); // Map the noise from [0, 1] to [-1, 1]
 
-	int surfaceY = std::min((int)noise_splined, 255); // Clamp the maximum height to 255
+	const int surfaceY = std::min((int)noise_splined, 255); // Clamp the maximum height to 255
 
 	return y < surfaceY ? BlockType::STONE : BlockType::AIR;
 }
@@ -291,23 +290,14 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 			for (int x = 0; x < world_width; x++)
 			{
 				int index = to_1d_array(x, y, z);
-
-				if(x == 2 && y == 128 && z == 2)
-				//	blocks[index].type = BlockType::LEAVES;
-				//else
-				//	blocks[index].type = BlockType::AIR;
-					blocks[index].type = BlockType::LEAVES;
-				else
-					blocks[index].type = BlockType::AIR;
-
-				//if (y < world_height / 6)
-				//{
-					//blocks[index].type = BlockType::DIRT_GRASS;
-				//}
-				//if (y < (world_height / 6) - 1)
-				//{
-				//	blocks[index].type = BlockType::DIRT;
-				//}
+				if (y < world_height / 6)
+				{
+					blocks[index].type = BlockType::DIRT_GRASS;
+				}
+				if (y < (world_height / 6) - 1)
+				{
+					blocks[index].type = BlockType::DIRT;
+				}
 			}
 		}
 	}
@@ -335,8 +325,8 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 
 	TIMER_START(WORLD_GEN);
 	//generate_world_cube(blocks, xoffset, zoffset);
-	//generate_world_flatgrass(blocks, xoffset, zoffset);
-	generate_world_noise(blocks, noise, xoffset, zoffset);
+	generate_world_flatgrass(blocks, xoffset, zoffset);
+	//generate_world_noise(blocks, noise, xoffset, zoffset);
 	TIMER_END(WORLD_GEN);
 }
 

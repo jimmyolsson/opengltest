@@ -16,7 +16,9 @@ enum Camera_Movement
 	FORWARD,
 	BACKWARD,
 	LEFT,
-	RIGHT
+	RIGHT,
+	UP,
+	DOWN
 };
 
 // Default camera values
@@ -24,13 +26,13 @@ const float YAW = -90.0f;
 //const float YAW = 115.0f;
 const float PITCH = 0.0f;
 //const float PITCH = -32.0f;
-const float SPEED = 50.5f;
+const float SPEED = 400.5f;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 60.0f;
 
 class Camera
 {
-public:
+	public:
 	glm::vec3 Position;
 	glm::vec3 Front;
 	glm::vec3 Up;
@@ -60,18 +62,39 @@ public:
 	{
 		return glm::lookAt(Position, Position + Front, Up);
 	}
+	glm::vec3 TargetVelocity = glm::vec3(0.0f);
+	glm::vec3 Velocity = glm::vec3(0.0f);
+	float DampingFactor = 0.9f; // A value between 0 and 1 to control the damping
 
 	void ProcessKeyboard(Camera_Movement direction, float deltaTime)
 	{
-		float velocity = MovementSpeed * deltaTime;
-		if (direction == FORWARD)
-			Position += Front * velocity;
-		if (direction == BACKWARD)
-			Position -= Front * velocity;
-		if (direction == LEFT)
-			Position -= Right * velocity;
-		if (direction == RIGHT)
-			Position += Right * velocity;
+		float velocityValue = MovementSpeed * deltaTime;
+		glm::vec3 movementDirection = glm::vec3(0.0f);
+
+		if (direction == FORWARD) movementDirection += Front;
+		if (direction == BACKWARD) movementDirection -= Front;
+		if (direction == LEFT) movementDirection -= Right;
+		if (direction == RIGHT) movementDirection += Right;
+		if (direction == UP) movementDirection.y += 0.6;
+		if (direction == DOWN) movementDirection.y -= 0.6f;
+
+		if(direction != UP && direction != DOWN)
+			movementDirection.y = 0;
+		Velocity += movementDirection * velocityValue;
+	}
+
+	void Update(float deltaTime)
+	{
+		Velocity *= DampingFactor;
+
+		float epsilon = 0.001f;
+
+		if (glm::length(Velocity) < epsilon)
+		{
+			Velocity = glm::vec3(0.0f); // Fully stop if the velocity is very low
+		}
+
+		Position += Velocity * deltaTime;
 	}
 
 	void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
@@ -103,7 +126,7 @@ public:
 			Zoom = ZOOM;
 	}
 
-private:
+	private:
 	void updateCameraVectors()
 	{
 		glm::vec3 front;

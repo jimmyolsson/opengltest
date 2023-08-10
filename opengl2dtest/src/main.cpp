@@ -72,6 +72,9 @@ struct State
 	float last_frame = 0.0f;
 
 	int texture_slot_counter = 0;
+
+	glm::mat4 perspective;
+	glm::mat4 orthographic;
 } GameState;
 
 GLFWwindow* init_and_create_window();
@@ -92,7 +95,8 @@ void state_allocate_memory()
 void state_global_init()
 {
 	// Start 5 blocks over the ground
-	glm::ivec3 camera_pos = glm::vec3(0.0f, 127, 0.0f);
+	glm::ivec3 camera_pos = glm::vec3(0.0f, 50, 0.0f);
+	//glm::ivec3 camera_pos = glm::vec3(0.0f, 127.0f, 0.0f);
 	GameState.player.camera = Camera(camera_pos);
 	g_logger_debug("Camera created at (%d, %d, %d)", camera_pos.x, camera_pos.y, camera_pos.z);
 
@@ -124,6 +128,20 @@ void state_global_init()
 	g_logger_debug("Crosshair created");
 
 	state_allocate_memory();
+}
+
+void create_and_init_chunk_e(const int x, const int z)
+{
+	Chunk chunk;
+
+	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
+	chunk.chunks = &GameState.chunks;
+	chunk.initialized = false;
+	chunk.dirty = true;
+	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
+	chunk.world_pos = pos;
+	GameState.chunks[pos] = chunk;
+	world_generate(GameState.chunks[pos].blocks, nullptr, pos.x, pos.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 }
 
 void create_and_init_chunk(const int x, const int z)
@@ -160,32 +178,22 @@ void init_game_world()
 		}
 	}
 
-//	// Emscripten dosent like this and i cba doing it another way
-//#ifndef __EMSCRIPTEN__
-	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-	//	[&](auto& iter)
-	//	{
-	//		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
-	//	});
-
-	//std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
-	//	[&](auto& iter)
-	//	{
-	//		chunk_generate_mesh(&iter.second);
-	//		iter.second.initialized = true;
-	//	});
-	//for (auto& iter : GameState.chunks)
-	//{
-	//	chunk_generate_buffers(&iter.second);
-	//}
-//#else
 	g_logger_debug("Chunk size width: %d - height: %d", CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
+
+	// Emscripten dosent like this and i cba doing it another way
+#ifndef __EMSCRIPTEN__
+	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
+		[&](auto& iter)
+	{
+		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
+	});
+#else
 	for (auto& iter : GameState.chunks)
 	{
 		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	}
 
-//#endif // !__EMSCRIPTEN__
+#endif // !__EMSCRIPTEN__
 
 	g_logger_debug("Chunks initialized!");
 	int total_verts = 0;
@@ -205,6 +213,18 @@ void init_game_world()
 	g_logger_info("Total triangles: %d", total_verts / 3);
 }
 
+BlockType inventory[9] =
+{
+	BlockType::STONE,
+	BlockType::DIRT,
+	BlockType::DIRT_GRASS,
+	BlockType::SAND,
+	BlockType::BRICKS,
+	BlockType::GLASS,
+	BlockType::LEAVES,
+	BlockType::GRASS,
+	BlockType::WATER,
+};
 // TODO: Cleanup this disgusting method
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
 {
@@ -217,31 +237,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 		ray_hit.block_pos.y,
 		ray_hit.chunk_world_pos.y + ray_hit.block_pos.z);
 
-	BlockType type = BlockType::GRASS;
-	if (GameState.menu.item_selected == 0)
-	{
-		type = BlockType::STONE;
-	}
-	else if (GameState.menu.item_selected == 1)
-	{
-		type = BlockType::WATER;
-	}
-	else if (GameState.menu.item_selected == 2)
-	{
-		type = BlockType::GLASS;
-	}
-	else if (GameState.menu.item_selected == 3)
-	{
-		type = BlockType::GRASS;
-	}
-	else if (GameState.menu.item_selected == 4)
-	{
-		type = BlockType::SAND;
-	}
-	else if (GameState.menu.item_selected == 5)
-	{
-		type = BlockType::LEAVES;
-	}
+	BlockType type = inventory[GameState.menu.item_selected];
 
 	if (ray_hit.top_half)
 	{
@@ -375,6 +371,28 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.ProcessKeyboard(LEFT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(DOWN, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		GameState.player.camera.ProcessKeyboard(UP, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 0);
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 1);
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 2);
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 3);
+	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 4);
+	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 5);
+	if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 6);
+	if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 7);
+	if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+		menu_select_item(&GameState.menu, 8);
 }
 
 void render_3d()
@@ -427,18 +445,18 @@ void render_2d()
 
 void game_render()
 {
-	// Skybox render
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
-	}
-
 	// 3D pass
 	{
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
 		render_3d();
+	}
+
+	// Skybox render
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
 	}
 
 	// 2D pass
@@ -449,49 +467,88 @@ void game_render()
 	}
 }
 
-void game_update()
+void game_update(float deltaTime)
 {
-	const float projection_fov = glm::radians(GameState.player.camera.Zoom);// * (GameState.SCR_WIDTH / GameState.SCR_HEIGHT);
+	const float projection_fov = glm::radians(GameState.player.camera.Zoom);
 	const float projection_aspect = GameState.SCR_WIDTH / GameState.SCR_HEIGHT;
 
-	const glm::mat4 perspective = glm::perspective(projection_fov, projection_aspect, 0.1f, 2000.0f);
-	const glm::mat4 orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
+	GameState.perspective = glm::perspective(projection_fov, projection_aspect, 0.1f, 2000.0f);
+	GameState.orthographic = glm::ortho(0.0f, GameState.SCR_WIDTH, 0.0f, GameState.SCR_HEIGHT, -100.0f, 100.0f);
 
-	renderer_update(&GameState.renderer, perspective, orthographic);
+	GameState.player.camera.Update(deltaTime);
+
+	renderer_update(&GameState.renderer, GameState.perspective, GameState.orthographic);
 	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks, GameState.player.camera.Position);
 }
 
-float delta_time = 0;
-float last_frame = 0;
-double lastTime = glfwGetTime();
-int numberOfFrames = 0;
 void game_main_loop()
 {
-    // Measure speed
+    static double lastFrameTime = glfwGetTime();
+    static double lastFPSTime = glfwGetTime();
+    static int numberOfFrames = 0;
+
+    // Calculate delta time
     double currentTime = glfwGetTime();
+    float delta_time = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
+
+    // Increment frame counter
     numberOfFrames++;
-    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
-        // printf and reset timer
-        std::cout << 1000.0/double(numberOfFrames) << " ms/frame (" << double(numberOfFrames) << " fps)" << std::endl;
+
+    // Check if a second has passed; if so, print FPS
+    if (currentTime - lastFPSTime >= 1.0)
+    {
+        std::cout << 1000.0 / double(numberOfFrames) << " ms/frame (" << double(numberOfFrames) << " fps)" << std::endl;
         numberOfFrames = 0;
-        lastTime += 1.0;
-    }
-	// calculate delta time
-	float current_frame = glfwGetTime();
-	delta_time = current_frame - last_frame;
-	last_frame = current_frame;
+        lastFPSTime += 1.0;
+    }	
 	glfwPollEvents();
 
 	processInput(GameState.window, delta_time);
 
-	game_update();
+	game_update(delta_time);
 
 	opengl_clear_screen();
 	game_render();
 
 	glfwSwapBuffers(GameState.window);
 }
+
+// Steps should ideally be calculated like this:
+// std::max(1.0, std::min(std::floor(width / 320.0), std::floor(height / 240.0)));
+// but who in their right mind uses >1920
+static glm::ivec2 scale_res[] = 
+{
+	glm::vec2(640, 480),
+	glm::vec2(960, 720),
+	glm::vec2(1280, 960),
+};
+
+void update_viewport()
+{
+	int width = GameState.SCR_WIDTH;
+	int height = GameState.SCR_HEIGHT;
+	// Update perspective projection for 3D rendering
+	GameState.perspective = glm::perspective(GameState.player.camera.Zoom, (float)width / (float)height, 0.1f, 1000.0f);
+
+	// Update orthographic projection for GUI rendering
+	GameState.orthographic = glm::ortho(0.0f, (float)width, 0.0f, (float)height);
+
+	glViewport(0, 0, width, height);
+
+	int scale = 1;
+	for (int i = 0; i < 3; i++)
+	{
+		if (scale_res[i].x < width && scale_res[i].y < height)
+		{
+			scale++;
+		}
+	}
+	
+	menu_scale(&GameState.menu, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, scale);
+}
+
 
 int main()
 {
@@ -503,12 +560,12 @@ int main()
 
 	init_game_world();
 
-	//GameState.chunks.at(glm::vec3(0, 0, 0)).blocks[1];
-
 	memory_arena_dealloc(&GameState.noise_arena);
 
 	GL_CALL(glEnable(GL_BLEND));
 	GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
+	update_viewport();
 
 	platform_set_main_loop(GameState.window, game_main_loop);
 
@@ -518,28 +575,29 @@ int main()
 glm::dvec2 last_x;
 void on_scroll(PlatformScrollDirection direction)
 {
-	double step = 80;
-	(GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected;
+	double step = 1;
 	if (direction == PlatformScrollDirection::SCROLL_UP)
 	{
 		if (GameState.menu.item_selected != 8)
 		{
-			last_x = GameState.menu.highlight.position;
-			GameState.menu.item_selected++;
-
-			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
+			menu_select_prev(&GameState.menu);
 		}
 	}
 	else if (direction == PlatformScrollDirection::SCROLL_DOWN)
 	{
 		if (GameState.menu.item_selected != 0)
 		{
-			last_x = GameState.menu.highlight.position;
-			GameState.menu.item_selected--;
-
-			GameState.menu.highlight.position = glm::vec2((GameState.menu.toolbar.position.x - 5) + step * GameState.menu.item_selected, 0);
+			menu_select_next(&GameState.menu);
 		}
 	}
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+	GameState.SCR_WIDTH = width;
+	GameState.SCR_HEIGHT = height;
+
+	update_viewport();
 }
 
 GLFWwindow* init_and_create_window()
@@ -562,6 +620,9 @@ GLFWwindow* init_and_create_window()
 
 	platform_post_setup(window);
 	platform_set_scroll_callback((void*)window, on_scroll);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+	framebuffer_size_callback(window, GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 
 	g_logger_info("OpenGL version: %s", glGetString(GL_VERSION));
 	return window;

@@ -21,13 +21,11 @@ inline static int to_1d_array(const short x, const short y, const short z)
 	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
-inline
 block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
 {
 	return chunk_get_block(c, block_pos.x, block_pos.y, block_pos.z);
 }
 
-inline
 block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 {
 	Chunk* c = chunk;
@@ -212,7 +210,7 @@ void add_face_and_texture_f(Chunk* chunk, const block_size_t* data, int x, int y
 		result.info |= v << 10;
 		result.info |= occlusion << 8;
 		result.info |= texture << 1;
-		auto lighting = 0;// direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
+		auto lighting = 0;// = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
 		result.info |= lighting;
 
 		chunk->gpu_data_arr_transparent.push_back(result);
@@ -304,7 +302,7 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 		c->front_neighbor->dirty = true;
 	else if (block_pos.z == 0 && c->back_neighbor != nullptr)
 
-		c->back_neighbor->dirty = true;
+	c->back_neighbor->dirty = true;
 }
 
 void check_chunk_neighbors(Chunk* chunk)

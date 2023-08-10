@@ -12,6 +12,11 @@ struct UICrosshair
 	Quad quad;
 };
 
+void crosshair_scale(UICrosshair* self, int scale)
+{
+	
+}
+
 void crosshair_render(UICrosshair* self, Renderer* renderer, glm::mat4 view, float screen_w, float screen_h)
 {
 	int size = 20;

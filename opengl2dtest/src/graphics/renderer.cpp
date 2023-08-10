@@ -163,8 +163,6 @@ void renderer_render_cube(Renderer* self, glm::mat4 view, Cube* cube)
 	model = glm::scale(model, cube->scale);
 	shader_set_mat4(shader, ShaderUniform::MODEL, model);
 
-	int a = GL_TEXTURE_CUBE_MAP;
-
 	glBindVertexArray(cube->vao);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
