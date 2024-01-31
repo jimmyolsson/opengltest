@@ -16,6 +16,8 @@ struct block_info
 	bool is_transparent;
 	bool is_translucent;
 
+	bool ao_enabled;
+
 	// so we can share sounds
 	BlockType sound_place;
 	BlockType sound_remove;
@@ -38,6 +40,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // TRANSPARENT
 		true, // TRANSLUCENT
 
+		false, // AO_ENABLED
+
 		BlockType::AIR,
 		BlockType::AIR
 	},
@@ -53,6 +57,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
+
+		true, // AO_ENABLED
 
 		BlockType::STONE,
 		BlockType::STONE
@@ -70,6 +76,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		true, // AO_ENABLED
+
 		BlockType::DIRT,
 		BlockType::DIRT
 	},
@@ -85,6 +93,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
+
+		true, // AO_ENABLED
 
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
@@ -102,6 +112,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		true, // AO_ENABLED
+
 		BlockType::SAND,
 		BlockType::SAND
 	},
@@ -117,6 +129,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		true, // TRANSPARENT
 		false, // TRANSLUCENT
+
+		true, // AO_ENABLED
 
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
@@ -134,6 +148,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		true, // AO_ENABLED
+
 		BlockType::OAK_LOG,
 		BlockType::OAK_LOG
 	},
@@ -149,6 +165,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		true, // TRANSPARENT
 		true, // TRANSLUCENT
+
+		false, // AO_ENABLED
 
 		BlockType::WATER,
 		BlockType::WATER
@@ -166,6 +184,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		true, // AO_ENABLED
+
 		BlockType::GLASS_PANE,
 		BlockType::GLASS_PANE
 	},
@@ -181,6 +201,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
+
+		true, // AO_ENABLED
 
 		BlockType::BRICKS,
 		BlockType::BRICKS
@@ -198,6 +220,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		true, // AO_ENABLED
+
 		BlockType::CONCRETE_WHITE,
 		BlockType::CONCRETE_WHITE
 	},
@@ -214,6 +238,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // TRANSPARENT
 		false, // TRANSLUCENT
 
+		false, // AO_ENABLED
+
 		BlockType::GLASS,
 		BlockType::GLASS
 	},
@@ -229,6 +255,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 
 		true, // TRANSPARENT
 		false, // TRANSLUCENT
+
+		false, // AO_ENABLED
 
 		BlockType::GRASS,
 		BlockType::GRASS

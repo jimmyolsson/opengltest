@@ -42,17 +42,25 @@ void _load_shaders(Renderer* self)
 	// Do it like this for now. Maybe a better pattern will emerge later on?
 	_shader_uniform_mvp_cache(&self->shaders[SHADER_OUTLINE]);
 	_shader_uniform_mvp_cache(&self->shaders[SHADER_BASIC_COLOR]);
-	_shader_uniform_mvp_cache(&self->shaders[SHADER_CUBEMAP]);
+	{
+		ShaderProgram* shader = &self->shaders[SHADER_CUBEMAP];
+		shader->uniform_count = 3;
+		shader->uniform_locations = (unsigned int*)malloc(shader->uniform_count * sizeof(unsigned int));
+		shader->uniform_locations[ShaderUniform::VIEW] = glGetUniformLocation(shader->handle, "view");
+		shader->uniform_locations[ShaderUniform::MODEL] = glGetUniformLocation(shader->handle, "model");
+		shader->uniform_locations[ShaderUniform::PROJECTION] = glGetUniformLocation(shader->handle, "projection");
+		//shader->uniform_locations[3] = glGetUniformLocation(shader->handle, "");
+	}
 
 	{
 		ShaderProgram* shader = &self->shaders[SHADER_CHUNK];
-
-		shader->uniform_count = 4;
+		shader->uniform_count = 5;
 		shader->uniform_locations = (unsigned int*)malloc(shader->uniform_count * sizeof(unsigned int));
 		shader->uniform_locations[ShaderUniform::VIEW] = glGetUniformLocation(shader->handle, "view");
 		shader->uniform_locations[ShaderUniform::MODEL] = glGetUniformLocation(shader->handle, "model");
 		shader->uniform_locations[ShaderUniform::PROJECTION] = glGetUniformLocation(shader->handle, "projection");
 		shader->uniform_locations[3] = glGetUniformLocation(shader->handle, "cameraPosition");
+		shader->uniform_locations[4] = glGetUniformLocation(shader->handle, "atlas");
 	}
 	{
 		ShaderProgram* shader = &self->shaders[SHADER_BASIC_TEXTURE];
@@ -183,6 +191,8 @@ void renderer_render_custom(Renderer* self, glm::mat4 view, TextureType texture_
 
 	glActiveTexture(GL_TEXTURE0 + texture->handle);
 	glBindTexture(texture->type, texture->handle);
+
+	shader_set_int(shader, shader->uniform_locations[4], GL_TEXTURE0 + texture->handle);
 
 	glBindVertexArray(vao);
 

@@ -308,7 +308,6 @@ void world_generate(block* blocks, float* noise, const int xoffset, const int zo
 	world_width = width;
 	world_height = height;
 
-
 	s.make_monotonic();
 
 	for (int z = 0; z < world_width; z++)

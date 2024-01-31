@@ -3,7 +3,6 @@
 #include <emscripten/html5.h>
 #else
 #include "irrKlang.h"
-#include <Windows.h>
 #include "sound_manager.h"
 #endif
 
@@ -52,6 +51,8 @@ struct State
 {
 	GLFWwindow* window;
 	Renderer renderer;
+
+	bool multiplayer = false;
 
 	float SCR_WIDTH = 1360;
 	float SCR_HEIGHT = 960;
@@ -241,7 +242,7 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 	if (ray_hit.top_half)
 	{
-		g_logger_debug("TOP HALF");
+		//g_logger_debug("TOP HALF");
 	}
 
 	// what chunk and block to process
@@ -395,23 +396,21 @@ void processInput(GLFWwindow* window, double delta_time)
 		menu_select_item(&GameState.menu, 8);
 }
 
-void render_3d()
+void render_3d_vegetation()
+{
+	glm::mat4 view = GameState.player.camera.GetViewMatrix();
+	for (auto& iter : GameState.chunks)
+	{
+		glUniform3f(GameState.renderer.shaders[ShaderType::SHADER_CHUNK].uniform_locations[3], GameState.player.camera.Position.x, GameState.player.camera.Position.y, GameState.player.camera.Position.z);
+		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
+		chunk_render_veg(&iter.second, &GameState.renderer, view, position);
+	}
+}
+
+void render_3d_transparent()
 {
 	glm::mat4 view = GameState.player.camera.GetViewMatrix();
 
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-
-	// Render the opaque objects first
-	for (auto& iter : GameState.chunks)
-	{
-		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
-		chunk_render_opaque(&iter.second, &GameState.renderer, view, position);
-	}
-	outline_render(&GameState.outline, &GameState.renderer, view);
-
-	// Render translucent objects
-	//glDisable(GL_CULL_FACE);
 	std::vector<std::pair<glm::ivec2, Chunk*>> chunks_vector;
 	for (auto& pair : GameState.chunks)
 	{
@@ -436,6 +435,18 @@ void render_3d()
 	outline_render(&GameState.outline, &GameState.renderer, view);
 }
 
+void render_3d_opaque()
+{
+	glm::mat4 view = GameState.player.camera.GetViewMatrix();
+
+	// Render the opaque objects first
+	for (auto& iter : GameState.chunks)
+	{
+		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
+		chunk_render_opaque(&iter.second, &GameState.renderer, view, position);
+	}
+}
+
 void render_2d()
 {
 	const glm::mat4 view = glm::mat4(1.0f);
@@ -445,25 +456,49 @@ void render_2d()
 
 void game_render()
 {
-	// 3D pass
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-		render_3d();
-	}
-
 	// Skybox render
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
+		glDisable(GL_DEPTH_TEST); // Disable depth testing
+		glDepthMask(GL_FALSE);    // Disable depth writing
 		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
+	}
+
+	// Opaque
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+
+		render_3d_opaque();
+
+		glDepthMask(GL_FALSE);
+		glDisable(GL_DEPTH_TEST);
+	}
+
+	// Vegetation
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		render_3d_vegetation();
+
+		//glDisable(GL_DEPTH_TEST);
+	}
+
+	// Transparent
+	{
+		render_3d_transparent();
+
+		glDisable(GL_BLEND);      // Disable blending
 	}
 
 	// 2D pass
 	{
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_DEPTH_TEST); // Disable depth testing
+		glEnable(GL_BLEND);       // Enable blending
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Typical alpha blending
 		render_2d();
+		glDisable(GL_BLEND);      // Disable blending
 	}
 }
 
@@ -482,27 +517,29 @@ void game_update(float deltaTime)
 	chunk_update(&GameState.chunks, GameState.player.camera.Position);
 }
 
+#pragma comment (lib, "winmm.lib")
+bool hasJoined = false;
 void game_main_loop()
 {
-    static double lastFrameTime = glfwGetTime();
-    static double lastFPSTime = glfwGetTime();
-    static int numberOfFrames = 0;
+	static double lastFrameTime = glfwGetTime();
+	static double lastFPSTime = glfwGetTime();
+	static int numberOfFrames = 0;
 
-    // Calculate delta time
-    double currentTime = glfwGetTime();
-    float delta_time = currentTime - lastFrameTime;
-    lastFrameTime = currentTime;
+	// Calculate delta time
+	double currentTime = glfwGetTime();
+	float delta_time = currentTime - lastFrameTime;
+	lastFrameTime = currentTime;
 
-    // Increment frame counter
-    numberOfFrames++;
+	// Increment frame counter
+	numberOfFrames++;
 
-    // Check if a second has passed; if so, print FPS
-    if (currentTime - lastFPSTime >= 1.0)
-    {
-        std::cout << 1000.0 / double(numberOfFrames) << " ms/frame (" << double(numberOfFrames) << " fps)" << std::endl;
-        numberOfFrames = 0;
-        lastFPSTime += 1.0;
-    }	
+	// Check if a second has passed; if so, print FPS
+	if (currentTime - lastFPSTime >= 1.0)
+	{
+		//std::cout << 1000.0 / double(numberOfFrames) << " ms/frame (" << double(numberOfFrames) << " fps)" << std::endl;
+		numberOfFrames = 0;
+		lastFPSTime += 1.0;
+	}
 	glfwPollEvents();
 
 	processInput(GameState.window, delta_time);
@@ -518,7 +555,7 @@ void game_main_loop()
 // Steps should ideally be calculated like this:
 // std::max(1.0, std::min(std::floor(width / 320.0), std::floor(height / 240.0)));
 // but who in their right mind uses >1920
-static glm::ivec2 scale_res[] = 
+static glm::ivec2 scale_res[] =
 {
 	glm::vec2(640, 480),
 	glm::vec2(960, 720),
@@ -545,7 +582,7 @@ void update_viewport()
 			scale++;
 		}
 	}
-	
+
 	menu_scale(&GameState.menu, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, scale);
 }
 

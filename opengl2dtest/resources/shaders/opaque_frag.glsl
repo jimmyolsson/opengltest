@@ -12,10 +12,11 @@ uniform vec3 cameraPosition;
 
 const float drawDistance = 155.0f;
 
-void AddFog()
+void AddDrawDistanceFog()
 {
     vec4 fogColor = vec4(166.0/255.0, 195.0/255.0, 255.0/255.0, 1.0);
     float fogDistance = drawDistance - 5;
+    float discardDistance = fogDistance + 5;
     float fogWallDistance = drawDistance;
 
     float dist = length(cameraPosition - FragPos);
@@ -28,7 +29,11 @@ void AddFog()
     {
         float fogFactor = (dist - fogDistance) / (fogWallDistance - fogDistance);
         FragColor = mix(FragColor, fogColor, fogFactor);
+        FragColor.a = 1;
     }
+
+    if(dist > fogDistance + 5)
+        discard;
 }
 
 void main()
@@ -46,5 +51,6 @@ void main()
 		FragColor = vec4(texture.xyz * Lighting, texture.w);
 	}
 
-	AddFog();
+    // Makes a wall of smoke and discards fragments if too far away
+	AddDrawDistanceFog();
 }

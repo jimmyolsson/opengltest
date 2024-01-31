@@ -15,15 +15,18 @@ in float Lighting;
 uniform sampler2DArray atlas;
 uniform vec3 cameraPosition;
 
-const float drawDistance = 1.0f;
+const float drawDistance = 155.0f;
 
-void AddFog()
+void AddDrawDistanceFog()
 {
 	vec4 fogColor = vec4(166.0/255.0, 195.0/255.0, 255.0/255.0, 1.0);
 	float fogDistance = drawDistance - 5.0f;
 	float fogWallDistance = drawDistance;
 
     float dist = distance(cameraPosition, FragPos);
+
+    if(dist > fogDistance + 5.0f)
+		discard;
 
     if (dist > fogWallDistance)
     {
@@ -33,6 +36,7 @@ void AddFog()
     {
         float fogFactor = (dist - fogDistance) / (fogWallDistance - fogDistance);
         FragColor = mix(FragColor, fogColor, fogFactor);
+        FragColor.a = 1.0f;
     }
 }
 
@@ -48,4 +52,6 @@ void main()
     {
         FragColor = vec4(textureColor.xyz * Lighting, textureColor.w);
     }
+
+    AddDrawDistanceFog();
 }

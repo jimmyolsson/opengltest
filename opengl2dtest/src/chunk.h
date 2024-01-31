@@ -12,7 +12,7 @@ enum class BlockFaceDirection;
 
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 10;
+static const int CHUNK_DRAW_DISTANCE = 1;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
@@ -28,22 +28,28 @@ struct Chunk
 	glm::ivec2 world_pos;
 	block* blocks;
 
-	std::vector<GPUData> gpu_data_arr = {};
-	int verts_in_use = 0;
-
-	std::vector<GPUData> gpu_data_arr_transparent = {};
-	int verts_in_use_transparent = 0;
-
 	Chunk* front_neighbor = nullptr;
 	Chunk* back_neighbor = nullptr;
 	Chunk* right_neighbor = nullptr;
 	Chunk* left_neighbor = nullptr;
 
-	unsigned int vao_handle = -1;
-	unsigned int vbo_handle = -1;
+	std::vector<GPUData> gpu_data_opaque = {};
+	int verts_in_use = 0;
+
+	std::vector<GPUData> gpu_data_transparent = {};
+	int verts_in_use_transparent = 0;
+
+	std::vector<GPUData> gpu_data_veg = {};
+	int verts_in_use_veg = 0;
+
+	unsigned int vao_handle_opaque = -1;
+	unsigned int vbo_handle_opaque = -1;
 
 	unsigned int vao_handle_transparent = -1;
 	unsigned int vbo_handle_transparent = -1;
+
+	unsigned int vao_handle_veg = -1;
+	unsigned int vbo_handle_veg = -1;
 
 	bool initialized = false;
 	bool dirty = false;
@@ -62,3 +68,4 @@ void chunk_generate_buffers(Chunk* self);
 void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos);
 void chunk_render_opaque(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+void chunk_render_veg(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
