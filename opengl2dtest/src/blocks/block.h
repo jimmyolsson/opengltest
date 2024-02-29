@@ -3,6 +3,7 @@
 const int TOTAL_ELEMENTS_IN_QUAD = 30;
 typedef float block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
+const int BLOCK_NAME_MAX_SIZE = 50;
 
 #define BLOCK_TYPE_LAST BlockType::GRASS
 enum BlockType : int
@@ -125,6 +126,6 @@ const static block_size_t m_top_verticies[TOTAL_ELEMENTS_IN_QUAD] = {
 	0, 1, 0, 0, 0
 };
 
-int block_get_texture(BlockFaceDirection direction, BlockType type);
+BlockTextureIndex block_get_texture(BlockFaceDirection direction, BlockType type);
 
 void block_get_sound(BlockType type, bool remove, char* name, int buffer_size);

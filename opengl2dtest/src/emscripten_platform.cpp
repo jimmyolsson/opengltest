@@ -34,4 +34,14 @@ void platform_set_main_loop(GLFWwindow* window, main_loop_callback callback)
 {
 	emscripten_set_main_loop(callback, 0, 1);
 }
+
+// Sound currently not supported
+void platform_sound_init()
+{
+
+}
+void platform_sound_play(const char* path)
+{
+
+}
 #endif

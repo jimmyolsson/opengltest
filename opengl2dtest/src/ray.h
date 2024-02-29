@@ -4,7 +4,6 @@
 
 #include "robin_hood.h"
 #include "chunk.h"
-#include "state.h"
 
 inline glm::vec3 intbound(glm::vec3 s, glm::vec3 ds)
 {

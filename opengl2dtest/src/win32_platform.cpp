@@ -4,6 +4,10 @@
 #include <glm/glm.hpp>
 
 #include <Windows.h>
+#include "irrKlang.h"
+
+static const char* SOUND_PATH = "";
+static irrklang::ISoundEngine* sound_engine;
 
 static scroll_callback scroll_cb;
 static main_loop_callback main_loop_cb;
@@ -48,4 +52,26 @@ void platform_set_main_loop(GLFWwindow* window, main_loop_callback callback)
 		callback();
 	}
 }
+
+void platform_sound_init()
+{
+	sound_engine = irrklang::createIrrKlangDevice(irrklang::ESOD_AUTO_DETECT, irrklang::ESEO_LOAD_PLUGINS);
+	// TODO: Properly log this
+	if (!sound_engine)
+	{
+		return;
+	}
+	sound_engine->setSoundVolume(0.1);
+}
+
+void platform_sound_play(const char* sound_name)
+{
+	char file_name[100];
+	snprintf(file_name, sizeof(file_name), "..\\.\\opengl2dtest\\resources\\sounds\\block_dig\\%s", sound_name);
+
+	// TODO: Do not use hardcoded path
+	// This will silently(lol) fail if it dosent find the file 
+	sound_engine->play2D(file_name, false);
+}
+
 #endif

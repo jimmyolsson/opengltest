@@ -54,27 +54,27 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	name[buffer_size - 1] = '\0';
 }
 
-int block_get_texture(BlockFaceDirection direction, BlockType type)
+BlockTextureIndex block_get_texture(BlockFaceDirection direction, BlockType type)
 {
 	switch (direction)
 	{
 	case BlockFaceDirection::BACK:
-		return (int)block_infos[type].texture_index_back;
+		return block_infos[type].texture_index_back;
 		break;
 	case BlockFaceDirection::FRONT:
-		return (int)block_infos[type].texture_index_front;
+		return block_infos[type].texture_index_front;
 		break;
 	case BlockFaceDirection::RIGHT:
-		return (int)block_infos[type].texture_index_right;
+		return block_infos[type].texture_index_right;
 		break;
 	case BlockFaceDirection::LEFT:
-		return (int)block_infos[type].texture_index_left;
+		return block_infos[type].texture_index_left;
 		break;
 	case BlockFaceDirection::BOTTOM:
-		return (int)block_infos[type].texture_index_bottom;
+		return block_infos[type].texture_index_bottom;
 		break;
 	case BlockFaceDirection::TOP:
-		return (int)block_infos[type].texture_index_top;
+		return block_infos[type].texture_index_top;
 		break;
 	default:
 		assert(false);
@@ -83,7 +83,7 @@ int block_get_texture(BlockFaceDirection direction, BlockType type)
 
 void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 {
-	char n[50];
+	char n[BLOCK_NAME_MAX_SIZE];
 	BlockType sound_type = remove ? block_infos[type].sound_remove : block_infos[type].sound_place;
 	block_get_name(sound_type, n, sizeof(n));
 

@@ -161,7 +161,7 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 	int i = 0;
 	while (i != vert_count)
 	{
-		unsigned char texture = block_get_texture(direction, type);
+		unsigned char texture = (char)block_get_texture(direction, type);
 
 		GPUData result;
 		result.x = data[i] + x;
@@ -174,6 +174,9 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 		char ao = 0;
 		if (block_infos[type].ao_enabled)
 			ao = calc_ao(chunk, i, direction, block_pos);
+
+		if (type == BlockType::WATER)
+			int a = 2;
 
 		result.info = 0;
 		result.info |= u << 11;
@@ -344,7 +347,7 @@ void gen_mesh_transparent(Chunk* chunk)
 				{
 					case BlockType::LEAVES:
 					{
-						// This creates flickering because we have duplicate triangles
+						// This creates flickering because we have duplicate triangles, cull backface?
 						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_back_verticies, BlockFaceDirection::BACK, x, y, z, type);
 						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, type);
 						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, type);
@@ -362,7 +365,6 @@ void gen_mesh_transparent(Chunk* chunk)
 					}
 					// Default behaviour
 					case BlockType::WATER:
-					case BlockType::GLASS:
 					case BlockType::GLASS_PANE:
 					{
 						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
@@ -381,6 +383,27 @@ void gen_mesh_transparent(Chunk* chunk)
 						{
 							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
 						}
+						break;
+					}
+					case BlockType::GLASS:
+					{
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, type);
+
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), x >= CHUNK_SIZE_WIDTH - 1, type);
+
+						// no chunk neighbors on the Y-axis
+						if (y != 0 && (y == 0 || block_infos[chunk->blocks[to_1d_array(x, y - 1, z)].type].is_transparent))
+						{
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+						}
+
+						if (y + 1 > CHUNK_SIZE_HEIGHT || block_infos[chunk->blocks[to_1d_array(x, y + 1, z)].type].is_transparent)
+						{
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+						}
+
 						break;
 					}
 				}

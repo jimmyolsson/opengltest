@@ -55,7 +55,7 @@ class Camera
 
 		// Moves the player a very tiny bit forward. This somehow fixes a bug where the mouse is a bit off, probably something thats not initialized properly.
 		// TODO: Fix the bug for real
-		ProcessKeyboard(Camera_Movement::FORWARD, 0.0001f);
+		MoveWithVelocity(Camera_Movement::FORWARD, 0.0001f);
 	}
 
 	glm::mat4 GetViewMatrix()
@@ -66,7 +66,7 @@ class Camera
 	glm::vec3 Velocity = glm::vec3(0.0f);
 	float DampingFactor = 0.9f; // A value between 0 and 1 to control the damping
 
-	void ProcessKeyboard(Camera_Movement direction, float deltaTime)
+	void MoveWithVelocity(Camera_Movement direction, float deltaTime)
 	{
 		float velocityValue = MovementSpeed * deltaTime;
 		glm::vec3 movementDirection = glm::vec3(0.0f);

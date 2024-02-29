@@ -5,14 +5,16 @@
 #include <vector>
 #include "blocks/block.h"
 #include "graphics/renderer.h"
-#include "common.h"
 
 enum BlockType : int;
 enum class BlockFaceDirection;
 
+struct Chunk;
+typedef robin_hood::unordered_flat_map<glm::ivec2, Chunk> chunk_map_t;
+
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 1;
+static const int CHUNK_DRAW_DISTANCE = 4;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 

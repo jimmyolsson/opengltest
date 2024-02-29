@@ -78,12 +78,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)lib\PerlinNoise\include;$(ProjectDir)lib\emscripten\include\;$(ProjectDir)lib\glm\include;$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)lib\libwebsockets\include;$(ProjectDir)lib\PerlinNoise\include;$(ProjectDir)lib\emscripten\include\;$(ProjectDir)lib\glm\include;$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\GLFW\lib-vc2022;$(ProjectDir)lib\FastNoise2\lib;$(ProjectDir)lib\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)lib\PerlinNoise\include;$(ProjectDir)lib\emscripten\include\;$(ProjectDir)lib\glm\include;$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)lib\libwebsockets\include;$(ProjectDir)lib\PerlinNoise\include;$(ProjectDir)lib\emscripten\include\;$(ProjectDir)lib\glm\include;$(ProjectDir)lib\stb_image;$(ProjectDir)lib\GLAD;$(ProjectDir)lib\GLFW\include;$(ProjectDir)lib\FastNoise2\include;$(ProjectDir)lib\irrklang\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\GLFW\lib-vc2022;$(ProjectDir)lib\FastNoise2\lib;$(ProjectDir)lib\irrklang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -179,7 +179,6 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClCompile Include="src\util\common.cpp" />
     <ClCompile Include="src\util\memory_arena.cpp" />
     <ClCompile Include="src\graphics\shader.cpp" />
-    <ClCompile Include="src\sound_manager.cpp" />
     <ClCompile Include="src\win32_platform.cpp" />
     <ClCompile Include="src\world_gen.cpp" />
   </ItemGroup>
@@ -190,7 +189,6 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClInclude Include="src\environment\skybox.h" />
     <ClInclude Include="src\graphics\camera.h" />
     <ClInclude Include="src\chunk.h" />
-    <ClInclude Include="src\common.h" />
     <ClInclude Include="src\graphics\cube.h" />
     <ClInclude Include="src\graphics\quad.h" />
     <ClInclude Include="src\graphics\renderer.h" />
@@ -209,8 +207,6 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClInclude Include="src\ray.h" />
     <ClInclude Include="src\robin_hood.h" />
     <ClInclude Include="src\graphics\shader.h" />
-    <ClInclude Include="src\sound_manager.h" />
-    <ClInclude Include="src\state.h" />
     <ClInclude Include="src\win32_net.h" />
     <ClInclude Include="src\win32_platform.h" />
     <ClInclude Include="src\world_gen.h" />

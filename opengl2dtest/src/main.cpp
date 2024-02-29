@@ -1,9 +1,6 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
-#else
-#include "irrKlang.h"
-#include "sound_manager.h"
 #endif
 
 #include "util/common_graphics.h"
@@ -29,8 +26,6 @@
 #include <array>
 #include <chrono>
 
-#include "common.h"
-
 #include "util/common.h"
 #include "graphics/renderer.h"
 #include "robin_hood.h"
@@ -46,7 +41,6 @@
 #include "world_gen.h"
 #include "environment/skybox.h"
 
-const int SHADER_COUNT = 3;
 struct State
 {
 	GLFWwindow* window;
@@ -64,7 +58,6 @@ struct State
 
 	player_s player;
 	chunk_map_t chunks;
-	//sound_manager_s sound_manager;
 
 	memory_arena block_arena;
 	memory_arena noise_arena;
@@ -118,10 +111,7 @@ void state_global_init()
 	GameState.delta_time = 0;
 	GameState.last_frame = 0;
 
-	// TODO: Fix cross-platform sound
-#ifndef __EMSCRIPTEN__
-	//sound_init(&GameState.sound_manager);
-#endif
+	platform_sound_init();
 
 	GameState.menu = menu_create(GameState.SCR_WIDTH, GameState.SCR_HEIGHT);
 	g_logger_debug("Menu created");
@@ -226,6 +216,19 @@ BlockType inventory[9] =
 	BlockType::GRASS,
 	BlockType::WATER,
 };
+
+void play_block_sound(BlockType type, bool remove)
+{
+	char block_name[BLOCK_NAME_MAX_SIZE];
+	block_get_sound(type, remove, block_name, sizeof(block_name));
+
+	char file_name[100];
+	snprintf(file_name, sizeof(file_name), "%s.oga", block_name);
+	file_name[sizeof(file_name) - 1] = '\0';
+
+	platform_sound_play(file_name);
+}
+
 // TODO: Cleanup this disgusting method
 void handle_block_hit(ray_hit_result ray_hit, bool remove)
 {
@@ -291,21 +294,21 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 	if (another_chunk)
 	{
-		//sound_play_block_sound(&GameState.sound_manager, type, remove);
+		play_block_sound(type, remove);
 		chunk_set_block(hit_chunk, b_pos, type);
 	}
 	else
 	{
 		if (remove)
 		{
-			//sound_play_block_sound(&GameState.sound_manager, chunk_get_block(hit_chunk, b_pos)->type, remove);
+			play_block_sound(chunk_get_block(hit_chunk, b_pos)->type, remove);
 			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
 		else
 		{
 			chunk_set_block(hit_chunk, b_pos, type);
-			//if (type != BlockType::AIR)
-				//sound_play_block_sound(&GameState.sound_manager, type, remove);
+			if (type != BlockType::AIR)
+				play_block_sound(type, remove);
 		}
 
 		hit_chunk->verts_in_use = 0;
@@ -317,8 +320,27 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 // TODO: Move to renderer
 void opengl_clear_screen()
 {
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+bool is_pos_inside_block(glm::vec2 pos)
+{
+	// TODO: Filter chunks
+	for (auto& c : GameState.chunks)
+	{
+		for (auto& p : c.second.gpu_data_opaque)
+		{
+			if (GameState.player.camera.Position.x <= p.x && GameState.player.camera.Position.x + 1 >= p.x
+				&& GameState.player.camera.Position.z <= p.z && GameState.player.camera.Position.z + 1 >= p.z)
+			{
+				if (GameState.player.camera.Position.y > p.y + 1)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 float lastX = GameState.SCR_WIDTH / 2.0f;
@@ -365,17 +387,20 @@ void processInput(GLFWwindow* window, double delta_time)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(FORWARD, delta_time);
+	{
+		// Changes player velocity aswell
+		GameState.player.camera.MoveWithVelocity(FORWARD, delta_time);
+	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(BACKWARD, delta_time);
+		GameState.player.camera.MoveWithVelocity(BACKWARD, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(LEFT, delta_time);
+		GameState.player.camera.MoveWithVelocity(LEFT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(RIGHT, delta_time);
+		GameState.player.camera.MoveWithVelocity(RIGHT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(DOWN, delta_time);
+		GameState.player.camera.MoveWithVelocity(DOWN, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		GameState.player.camera.ProcessKeyboard(UP, delta_time);
+		GameState.player.camera.MoveWithVelocity(UP, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
 		menu_select_item(&GameState.menu, 0);
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
@@ -417,22 +442,12 @@ void render_3d_transparent()
 		chunks_vector.push_back({ pair.first, &pair.second });
 	}
 
-	std::sort(chunks_vector.begin(), chunks_vector.end(),
-		[](const std::pair<glm::ivec2, Chunk*>& a, const std::pair<glm::ivec2, Chunk*>& b) -> bool
-	{
-		glm::vec3 pos_a(a.second->world_pos.x, 0, a.second->world_pos.y);
-		glm::vec3 pos_b(b.second->world_pos.x, 0, b.second->world_pos.y);
-		return glm::distance(pos_a, GameState.player.camera.Position) > glm::distance(pos_b, GameState.player.camera.Position);
-	});
-
 	for (auto& iter : chunks_vector)
 	{
 		glUniform3f(GameState.renderer.shaders[ShaderType::SHADER_CHUNK].uniform_locations[3], GameState.player.camera.Position.x, GameState.player.camera.Position.y, GameState.player.camera.Position.z);
 		glm::vec3 position = glm::vec3(iter.first.x, 0, iter.first.y);
 		chunk_render_transparent(iter.second, &GameState.renderer, view, position);
 	}
-
-	outline_render(&GameState.outline, &GameState.renderer, view);
 }
 
 void render_3d_opaque()
@@ -456,50 +471,44 @@ void render_2d()
 
 void game_render()
 {
-	// Skybox render
-	{
-		glDisable(GL_DEPTH_TEST); // Disable depth testing
-		glDepthMask(GL_FALSE);    // Disable depth writing
-		skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
-	}
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Opaque
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
+	// Render skybox
+	glDepthMask(GL_FALSE);    // Disable depth writing
+	skybox_render(&GameState.skybox, &GameState.renderer, GameState.player.camera.GetViewMatrix());
+	glDepthMask(GL_TRUE);
 
-		render_3d_opaque();
+	// Render opaque
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	render_3d_opaque();
 
-		glDepthMask(GL_FALSE);
-		glDisable(GL_DEPTH_TEST);
-	}
+	// TODO: SORT SEMI-TRANSPARENT OBJECTS
+	// Render semi-transparent
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask(GL_FALSE);
+	render_3d_vegetation();
+	glDepthMask(GL_TRUE);
 
-	// Vegetation
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		render_3d_vegetation();
+	// TODO: SORT TRANSPARENT
 
-		//glDisable(GL_DEPTH_TEST);
-	}
+	// Render transparent
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	render_3d_transparent();
+	glDisable(GL_BLEND);
+	glDisable(GL_CULL_FACE);
 
-	// Transparent
-	{
-		render_3d_transparent();
-
-		glDisable(GL_BLEND);      // Disable blending
-	}
-
-	// 2D pass
-	{
-		glDisable(GL_DEPTH_TEST); // Disable depth testing
-		glEnable(GL_BLEND);       // Enable blending
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Typical alpha blending
-		render_2d();
-		glDisable(GL_BLEND);      // Disable blending
-	}
+	outline_render(&GameState.outline, &GameState.renderer, GameState.player.camera.GetViewMatrix());
+	// Render UI
+	glDisable(GL_DEPTH_TEST); // Disable depth testing
+	glEnable(GL_BLEND);       // Enable blending
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Typical alpha blending
+	render_2d();
+	glDisable(GL_BLEND);      // Disable blending
 }
 
 void game_update(float deltaTime)
@@ -546,7 +555,6 @@ void game_main_loop()
 
 	game_update(delta_time);
 
-	opengl_clear_screen();
 	game_render();
 
 	glfwSwapBuffers(GameState.window);
@@ -598,9 +606,6 @@ int main()
 	init_game_world();
 
 	memory_arena_dealloc(&GameState.noise_arena);
-
-	GL_CALL(glEnable(GL_BLEND));
-	GL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
 	update_viewport();
 
