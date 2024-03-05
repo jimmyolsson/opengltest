@@ -7,28 +7,31 @@
 #include "graphics/renderer.h"
 
 enum BlockType : int;
-enum class BlockFaceDirection;
+enum class BlockFaceDirection : int;
 
 struct Chunk;
 typedef robin_hood::unordered_flat_map<glm::ivec2, Chunk> chunk_map_t;
 
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 4;
+static const int CHUNK_DRAW_DISTANCE = 1;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
 struct GPUData
 {
 	float x, y, z;
+	// Bitfield
 	unsigned int info;
+	// Bitfield
+	unsigned int lighting_levels;
 };
 
 struct Chunk
 {
 	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
 	glm::ivec2 world_pos;
-	block* blocks;
+	Block* blocks;
 
 	Chunk* front_neighbor = nullptr;
 	Chunk* back_neighbor = nullptr;
@@ -60,8 +63,8 @@ struct Chunk
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
 
 // If the coordinates are outside of the bounds of the chunk, it will return the neighboring chunk
-block* chunk_get_block(Chunk* c, glm::ivec3 block_pos);
-block* chunk_get_block(Chunk* c, short x, short y, short z);
+Block* chunk_get_block(Chunk* c, glm::ivec3 block_pos);
+Block* chunk_get_block(Chunk* c, short x, short y, short z);
 
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(Chunk* chunk);

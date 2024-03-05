@@ -12,21 +12,34 @@
 
 const int ATTRIBUTES_PER_VERTEX = 1;
 
+inline glm::ivec3 to_3d_position(int index)
+{
+	int z = index / (CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT);
+	index -= (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT);
+	int y = index / CHUNK_SIZE_WIDTH;
+	int x = index % CHUNK_SIZE_WIDTH;
+
+	return glm::ivec3(x, y, z);
+}
+
+
 inline static int to_1d_array(const glm::ivec3& pos)
 {
 	return (pos.z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (pos.y * CHUNK_SIZE_WIDTH) + pos.x;
 }
+
 inline static int to_1d_array(const short x, const short y, const short z)
 {
-	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
+	auto a = (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
+	return a;
 }
 
-block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
+Block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
 {
 	return chunk_get_block(c, block_pos.x, block_pos.y, block_pos.z);
 }
 
-block* chunk_get_block(Chunk* chunk, short x, short y, short z)
+Block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 {
 	Chunk* c = chunk;
 	if (x == CHUNK_SIZE_WIDTH)
@@ -71,6 +84,9 @@ void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::v
 	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3));
 	glEnableVertexAttribArray(1);
 
+	glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(GPUData), (void*)(sizeof(float) * 3 + sizeof(int)));
+	glEnableVertexAttribArray(2);
+
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 }
@@ -87,7 +103,7 @@ bool find_inc(Chunk* chunk, glm::vec3 block_pos, glm::vec3 pos)
 {
 	glm::vec3 a = block_pos + pos;
 
-	block* b = chunk_get_block(chunk, a);
+	Block* b = chunk_get_block(chunk, a);
 	if (b != nullptr)
 		if (!block_infos[b->type].is_transparent)
 			return true;
@@ -153,7 +169,7 @@ char calc_ao(Chunk* chunk, int i, BlockFaceDirection direction, glm::ivec3 block
 		find_inc(chunk, block_pos, coord->third);
 }
 
-void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z, BlockType type)
+void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z, const Block& block)
 {
 	const glm::vec3 block_pos = glm::vec3(x, y, z);
 
@@ -161,9 +177,9 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 	int i = 0;
 	while (i != vert_count)
 	{
-		unsigned char texture = (char)block_get_texture(direction, type);
+		unsigned char texture = (char)block_get_texture(direction, block.type);
 
-		GPUData result;
+		GPUData result = { 0 };
 		result.x = data[i] + x;
 		result.y = data[i + 1] + y;
 		result.z = data[i + 2] + z;
@@ -172,123 +188,57 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 		unsigned int v = (int)data[i + 4];
 
 		char ao = 0;
-		if (block_infos[type].ao_enabled)
+		if (block_infos[block.type].ao_enabled)
 			ao = calc_ao(chunk, i, direction, block_pos);
 
-		if (type == BlockType::WATER)
-			int a = 2;
+		int direc = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
+		char lighting_level = 5;
 
-		result.info = 0;
-		result.info |= u << 11;
-		result.info |= v << 10;
-		result.info |= ao << 8;
-		result.info |= texture << 1;
-		auto lighting = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
-		result.info |= lighting;
+		result.info |= u << 31;
+		result.info |= v << 30;
+		result.info |= ao << 28;
+		result.info |= texture << 20;
+		result.info |= direc << 19;
+		//result.info |= block.lighting_level[(int)3] << 11;
+		result.info |= block.lighting_level[(int)direction] << 11;
 
 		gpu_data->push_back(result);
 		i += 5;
 	}
 }
-//
-//void add_face_and_texture_f(Chunk* chunk, const block_size_t* data, int x, int y, int z, BlockType type)
-//{
-//	const glm::vec3 block_pos = glm::vec3(x, y, z);
-//
-//	static const int vert_count = 30;
-//	int i = 0;
-//	while (i != vert_count)
-//	{
-//		char occlusion = 0;
-//
-//		unsigned char texture = (char)BlockTextureIndex::GRASS;
-//
-//		GPUData result;
-//		result.x = data[i] + x;
-//		result.y = data[i + 1] + y;
-//		result.z = data[i + 2] + z;
-//
-//		unsigned int u = (int)data[i + 3];
-//		unsigned int v = (int)data[i + 4];
-//
-//		result.info = 0;
-//		result.info |= u << 11;
-//		result.info |= v << 10;
-//		result.info |= occlusion << 8;
-//		result.info |= texture << 1;
-//		auto lighting = 0;// = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
-//		result.info |= lighting;
-//
-//		chunk->gpu_data_arr_transparent.push_back(result);
-//		i += 5;
-//	}
-//}
-//
-//void add_face_and_texture_t(Chunk* chunk, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z, BlockType type)
-//{
-//	const glm::vec3 block_pos = glm::vec3(x, y, z);
-//
-//	static const int vert_count = 30;
-//	int i = 0;
-//	while (i != vert_count)
-//	{
-//		char occlusion = 0;
-//
-//		unsigned char texture = block_get_texture(direction, type);
-//
-//		GPUData result;
-//		result.x = data[i] + x;
-//		result.y = data[i + 1] + y;
-//		result.z = data[i + 2] + z;
-//
-//		unsigned int u = (int)data[i + 3];
-//		unsigned int v = (int)data[i + 4];
-//
-//		result.info = 0;
-//		result.info |= u << 11;
-//		result.info |= v << 10;
-//		result.info |= occlusion << 8;
-//		result.info |= texture << 1;
-//		auto lighting = direction == BlockFaceDirection::LEFT || direction == BlockFaceDirection::RIGHT ? 1 : 0;
-//		result.info |= lighting;
-//
-//		chunk->gpu_data_arr_transparent.push_back(result);
-//		i += 5;
-//	}
-//}
 
-void generate_face(Chunk* current_chunk, std::vector<GPUData>* gpu_data, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge, BlockType type)
+void generate_face(Chunk* current_chunk, std::vector<GPUData>* gpu_data, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge, const Block& block)
 {
 	if (on_edge)
 	{
 		//If i have a neighbor that is transparent
 		if (neighbor != nullptr && block_infos[neighbor->blocks[other_chunk_index].type].is_transparent)
 		{
-			add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, type);
+			add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, block);
 		}
 
 	}
 	// Is the block next to me occupied?
 	else if (block_infos[current_chunk->blocks[current_chunk_index].type].is_transparent)
 	{
-		add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, type);
+		add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, block);
 	}
 }
 
-void generate_face_t(Chunk* current_chunk, std::vector<GPUData>* gpu_data, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge, BlockType type)
+void generate_face_t(Chunk* current_chunk, std::vector<GPUData>* gpu_data, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge, const Block& block)
 {
 	if (on_edge)
 	{
 		//If i have a neighbor that is transparent
 		if (neighbor != nullptr && neighbor->blocks[other_chunk_index].type == BlockType::AIR)
 		{
-			add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, type);
+			add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, block);
 		}
 	}
 	// Is the block next to me occupied?
 	else if (current_chunk->blocks[current_chunk_index].type == BlockType::AIR)
 	{
-		add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, type);
+		add_face_and_texture_new(current_chunk, gpu_data, data, direction, x, y, z, block);
 	}
 }
 
@@ -341,67 +291,67 @@ void gen_mesh_transparent(Chunk* chunk)
 			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
 				int current = to_1d_array(x, y, z);
-				BlockType type = chunk->blocks[current].type;
+				const Block& current_block = chunk->blocks[current];
 
-				switch (type)
+				switch (current_block.type)
 				{
 					case BlockType::LEAVES:
 					{
 						// This creates flickering because we have duplicate triangles, cull backface?
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_back_verticies, BlockFaceDirection::BACK, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_back_verticies, BlockFaceDirection::BACK, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, current_block);
 						break;
 					}
 					case BlockType::GRASS:
 					{
 						// Grass is a bit weird since it has no 'direction' so it's just a placeholder here.
-						add_face_and_texture_new(chunk, &chunk->gpu_data_veg, grass_1, BlockFaceDirection::BACK, x, y, z, type);
-						add_face_and_texture_new(chunk, &chunk->gpu_data_veg, grass_2, BlockFaceDirection::BACK, x, y, z, type);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_veg, grass_1, BlockFaceDirection::BACK, x, y, z, current_block);
+						add_face_and_texture_new(chunk, &chunk->gpu_data_veg, grass_2, BlockFaceDirection::BACK, x, y, z, current_block);
 						break;
 					}
 					// Default behaviour
 					case BlockType::WATER:
 					case BlockType::GLASS_PANE:
 					{
-						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
-						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH, type);
+						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, current_block);
+						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), (z + 1) >= CHUNK_SIZE_WIDTH, current_block);
 
-						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
-						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH), type);
+						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, current_block);
+						generate_face_t(chunk, &chunk->gpu_data_transparent, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), ((x + 1) >= CHUNK_SIZE_WIDTH), current_block);
 
 						// no chunk neighbors on the Y-axis
 						if (y != 0 && (y == 0 || chunk->blocks[to_1d_array(x, y - 1, z)].type == BlockType::AIR))
 						{
-							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, current_block);
 						}
 
 						if (y + 1 > CHUNK_SIZE_HEIGHT || chunk->blocks[to_1d_array(x, y + 1, z)].type == BlockType::AIR)
 						{
-							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, current_block);
 						}
 						break;
 					}
 					case BlockType::GLASS:
 					{
-						generate_face(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
-						generate_face(chunk, &chunk->gpu_data_transparent, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, type);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, current_block);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, current_block);
 
-						generate_face(chunk, &chunk->gpu_data_transparent, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
-						generate_face(chunk, &chunk->gpu_data_transparent, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), x >= CHUNK_SIZE_WIDTH - 1, type);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, current_block);
+						generate_face(chunk, &chunk->gpu_data_transparent, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), x >= CHUNK_SIZE_WIDTH - 1, current_block);
 
 						// no chunk neighbors on the Y-axis
 						if (y != 0 && (y == 0 || block_infos[chunk->blocks[to_1d_array(x, y - 1, z)].type].is_transparent))
 						{
-							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, current_block);
 						}
 
 						if (y + 1 > CHUNK_SIZE_HEIGHT || block_infos[chunk->blocks[to_1d_array(x, y + 1, z)].type].is_transparent)
 						{
-							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+							add_face_and_texture_new(chunk, &chunk->gpu_data_transparent, m_top_verticies, BlockFaceDirection::TOP, x, y, z, current_block);
 						}
 
 						break;
@@ -425,64 +375,308 @@ void gen_mesh_opaque(Chunk* chunk)
 			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
 				int current = to_1d_array(x, y, z);
-				auto type = chunk->blocks[current].type;
+				const Block& current_block = chunk->blocks[current];
 
-				if (block_infos[type].is_transparent)
+				if (block_infos[current_block.type].is_transparent)
 					continue;
 
-				generate_face(chunk, &chunk->gpu_data_opaque, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, type);
-				generate_face(chunk, &chunk->gpu_data_opaque, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, type);
+				generate_face(chunk, &chunk->gpu_data_opaque, chunk->back_neighbor, m_back_verticies, BlockFaceDirection::BACK, x, y, z, to_1d_array(x, y, CHUNK_SIZE_WIDTH - 1), to_1d_array(x, y, z - 1), z == 0, current_block);
+				generate_face(chunk, &chunk->gpu_data_opaque, chunk->front_neighbor, m_front_verticies, BlockFaceDirection::FRONT, x, y, z, to_1d_array(x, y, 0), to_1d_array(x, y, z + 1), z >= CHUNK_SIZE_WIDTH - 1, current_block);
 
-				generate_face(chunk, &chunk->gpu_data_opaque, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, type);
-				generate_face(chunk, &chunk->gpu_data_opaque, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), x >= CHUNK_SIZE_WIDTH - 1, type);
+				generate_face(chunk, &chunk->gpu_data_opaque, chunk->left_neighbor, m_left_verticies, BlockFaceDirection::LEFT, x, y, z, to_1d_array(CHUNK_SIZE_WIDTH - 1, y, z), to_1d_array(x - 1, y, z), x == 0, current_block);
+				generate_face(chunk, &chunk->gpu_data_opaque, chunk->right_neighbor, m_right_verticies, BlockFaceDirection::RIGHT, x, y, z, to_1d_array(0, y, z), to_1d_array(x + 1, y, z), x >= CHUNK_SIZE_WIDTH - 1, current_block);
 
 				// no chunk neighbors on the Y-axis
 				if (y != 0 && (y == 0 || block_infos[chunk->blocks[to_1d_array(x, y - 1, z)].type].is_transparent))
 				{
-					add_face_and_texture_new(chunk, &chunk->gpu_data_opaque, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, type);
+					add_face_and_texture_new(chunk, &chunk->gpu_data_opaque, m_bottom_verticies, BlockFaceDirection::BOTTOM, x, y, z, current_block);
 				}
 
 				if (y + 1 > CHUNK_SIZE_HEIGHT || block_infos[chunk->blocks[to_1d_array(x, y + 1, z)].type].is_transparent)
 				{
-					add_face_and_texture_new(chunk, &chunk->gpu_data_opaque, m_top_verticies, BlockFaceDirection::TOP, x, y, z, type);
+					add_face_and_texture_new(chunk, &chunk->gpu_data_opaque, m_top_verticies, BlockFaceDirection::TOP, x, y, z, current_block);
 				}
 			}
 		}
 	}
 }
 
-void chunk_generate_mesh(Chunk* chunk)
-{
-	chunk->gpu_data_opaque.clear();
-	chunk->gpu_data_transparent.clear();
-	chunk->gpu_data_veg.clear();
-
-	// TODO: These should be the same method
-	gen_mesh_opaque(chunk);
-
-	gen_mesh_transparent(chunk);
-
-	chunk->verts_in_use = chunk->gpu_data_opaque.size();
-	chunk->verts_in_use_transparent = chunk->gpu_data_transparent.size();
-	chunk->verts_in_use_veg = chunk->gpu_data_veg.size();
-}
-
-void calculate_lighting(Chunk* c, const glm::vec2& chunk_pos)
+void check_light(Chunk* chunk)
 {
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 		{
+			for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+			{
+				Block* b = &chunk->blocks[to_1d_array(x, y, z)];
+				if (b->type == BlockType::AIR && b->light != 14)
+				{
+					int a = 2;
+				}
+			}
+		}
+	}
+}
+
+struct LightNode
+{
+	int index;
+	Chunk* chunk;
+
+	LightNode(int idx, Chunk* ch) : index(idx), chunk(ch) {}
+};
+
+#include <queue>
+
+static std::queue<LightNode> lightNodes = {};
+
+void add_to(int index, Chunk* c)
+{
+	lightNodes.emplace(index, c);
+}
+
+void ch(glm::ivec3 light_pos, int light_level, Chunk* chunk, int index, BlockFaceDirection dir, int x, int y, int z, bool asd = false)
+{
+	int current_index = to_1d_array(x, y, z);
+	if (x < 0 || x > CHUNK_SIZE_WIDTH - 1 ||
+		y < 0 || y > CHUNK_SIZE_HEIGHT - 1 ||
+		z < 0 || z > CHUNK_SIZE_WIDTH - 1)
+		return;
+
+	if (chunk->blocks[current_index].light + 2 <= light_level)
+	{
+		if (chunk->blocks[current_index].type == BlockType::AIR)
+		{
+			if (!asd)
+				chunk->blocks[current_index].light = light_level - 1;
+			else
+				chunk->blocks[current_index].light = light_level;
+			add_to(current_index, chunk);
+		}
+		else
+		{
+			chunk->blocks[current_index].lighting_level[(int)dir] = light_level - 1;
+		}
+	}
+}
+
+void bfs(Chunk* c)
+{
+	TIMER_START(LIGHT_CALC);
+	lightNodes.emplace(to_1d_array(CHUNK_SIZE_WIDTH / 2, CHUNK_SIZE_WIDTH / 3 + 32, CHUNK_SIZE_WIDTH / 2), c);
+	c->blocks[to_1d_array(CHUNK_SIZE_WIDTH / 2, CHUNK_SIZE_WIDTH / 3 + 32, CHUNK_SIZE_WIDTH / 2)].light = 15;
+
+	while (lightNodes.empty() == false)
+	{
+		LightNode& node = lightNodes.front();
+		int index = node.index;
+		Chunk* chunk = node.chunk;
+
+		lightNodes.pop();
+		glm::ivec3 light_pos = to_3d_position(index);
+		int light_level = chunk->blocks[index].light;
+
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::RIGHT, light_pos.x - 1, light_pos.y, light_pos.z);
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::LEFT, light_pos.x + 1, light_pos.y, light_pos.z);
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::BOTTOM, light_pos.x, light_pos.y + 1, light_pos.z);
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::TOP, light_pos.x, light_pos.y - 1, light_pos.z);
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::BACK, light_pos.x, light_pos.y, light_pos.z + 1);
+		ch(light_pos, light_level, chunk, index, BlockFaceDirection::FRONT, light_pos.x, light_pos.y, light_pos.z - 1);
+
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x - 1, light_pos.y, light_pos.z);
+		//	if (current_index <= -1 || light_pos.x < 0)
+		//		goto asd;
+
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::RIGHT] = light_level - 1;
+		//		}
+		//	}
+		//	//ch(light_pos, light_level, chunk, index, dir, light_pos.x - 1, light_pos.y, light_pos.z);
+		//asd:
+		//	int a = 2;
+		//}
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x + 1, light_pos.y, light_pos.z);
+		//	if (current_index <= -1 || light_pos.x >= CHUNK_SIZE_WIDTH - 1)
+		//		goto asdads;
+
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::LEFT] = light_level - 1;
+		//		}
+
+		//	}
+		//asdads:
+		//	int a = 2;
+		//}
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x, light_pos.y + 1, light_pos.z);
+		//	if (current_index <= -1 || light_pos.y >= CHUNK_SIZE_HEIGHT - 1)
+		//		goto aaaa;
+
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::TOP] = light_level - 1;
+		//		}
+		//	}
+		//aaaa:
+		//	int a = 2;
+		//}
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x, light_pos.y - 1, light_pos.z);
+		//	if (current_index <= -1 || light_pos.y < 0)
+		//		goto aaa;
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::TOP] = light_level - 1;
+		//		}
+		//	}
+		//aaa:
+		//	int a = 2;
+		//}
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x, light_pos.y, light_pos.z + 1);
+
+		//	if (current_index <= -1 || light_pos.z >= CHUNK_SIZE_WIDTH - 1)
+		//		goto aa;
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::BACK] = light_level - 1;
+		//		}
+		//	}
+		//aa:
+		//	int a = 2;
+		//}
+		//{
+		//	int light_level = chunk->blocks[index].light;
+		//	int current_index = to_1d_array(light_pos.x, light_pos.y, light_pos.z - 1);
+		//	if (current_index <= -1 || light_pos.z < 0)
+		//		goto a;
+		//	if (chunk->blocks[current_index].light + 2 <= light_level)
+		//	{
+		//		if (chunk->blocks[current_index].type == BlockType::AIR)
+		//		{
+		//			chunk->blocks[current_index].light = light_level - 1;
+		//			lightNodes.emplace(current_index, chunk);
+		//		}
+		//		else
+		//		{
+		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::FRONT] = light_level - 1;
+		//		}
+		//	}
+		//a:
+		//	int a = 2;
+		//}
+	}
+	TIMER_END(LIGHT_CALC);
+}
+
+void calculate_lighting(Chunk* c)
+{
+	//for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+	//{
+	//	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+	//	{
+	//		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
+	//		{
+	//			Block* b = &c->blocks[to_1d_array(x, y, z)];
+	//			if (b->type != BlockType::AIR)
+	//			{
+	//				int d = 0;
+	//				b->lighting_level[(int)BlockFaceDirection::TOP] = d;
+	//				b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
+	//				b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
+	//				b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
+	//				b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
+	//				b->lighting_level[(int)BlockFaceDirection::BACK] = d;
+	//				b->light = d;
+	//			}
+	//		}
+	//	}
+	//}
+
+	for (int z = 0; z <= CHUNK_SIZE_WIDTH - 1; z++)
+	{
+		for (int x = 0; x <= CHUNK_SIZE_WIDTH - 1; x++)
+		{
 			for (int y = CHUNK_SIZE_HEIGHT - 1; y != 0; --y)
 			{
-				block* b = &c->blocks[to_1d_array(x, y, z)];
-				if (b->type != BlockType::AIR)
+				Block* b = &c->blocks[to_1d_array(x, y, z)];
+				if (b->type == BlockType::AIR)
+				{
+					//b->light = 14; // Exposed to the sky
+					//add_to(to_1d_array(x, y, z), c);
+				}
+				else
 				{
 					break;
 				}
 			}
 		}
 	}
+}
+void chunk_generate_mesh(Chunk* chunk)
+{
+	chunk->gpu_data_opaque.clear();
+	chunk->gpu_data_transparent.clear();
+	chunk->gpu_data_veg.clear();
+
+	calculate_lighting(chunk);
+	check_light(chunk);
+
+	bfs(chunk);
+	check_light(chunk);
+
+	gen_mesh_opaque(chunk);
+	gen_mesh_transparent(chunk);
+	check_light(chunk);
+
+	chunk->verts_in_use = chunk->gpu_data_opaque.size();
+	chunk->verts_in_use_transparent = chunk->gpu_data_transparent.size();
+	chunk->verts_in_use_veg = chunk->gpu_data_veg.size();
 }
 
 void update_buffers(GLuint vao_handle, const std::vector<GPUData>& gpu_data_arr)

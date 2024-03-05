@@ -5,7 +5,7 @@
 
 void memory_arena_init(memory_arena* self, unsigned long long total_size, unsigned long long piece_size)
 {
-	self->base = (char*)malloc(total_size);
+	self->base = (char*)calloc(total_size, 1);
 	self->total_size = total_size;
 	self->piece_size = piece_size;
 }

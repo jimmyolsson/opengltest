@@ -17,7 +17,7 @@ inline static int to_1d_array(const short x, const short y, const short z)
 	return (z * CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT) + (y * CHUNK_SIZE_WIDTH) + x;
 }
 
-void generate_world_cube(block* blocks, const int xoffset, const int zoffset)
+void generate_world_cube(Block* blocks, const int xoffset, const int zoffset)
 {
 	for (int z = 0; z < world_width; z++)
 	{
@@ -126,7 +126,7 @@ static std::vector<structure_node> tree_structure = {
 };
 
 
-void add_trees(block* blocks)
+void add_trees(Block* blocks)
 {
 	for (int z = 0; z < world_width; z++)
 	{
@@ -171,7 +171,7 @@ void add_trees(block* blocks)
 }
 
 // Spawns GRASS blocks on DIRT_GRASS blocks with a 1/10 chance
-void add_foliage(block* blocks)
+void add_foliage(Block* blocks)
 {
 	for (int z = 0; z < world_width; z++)
 	{
@@ -227,7 +227,7 @@ BlockType get_block_type(const int x, const int y, const int z)
 }
 
 
-void generate_world_noise(block* blocks, float* noisee, const int xoffset, const int zoffset)
+void generate_world_noise(Block* blocks, float* noisee, const int xoffset, const int zoffset)
 {
 	for (int z = 0; z < world_width; z++)
 	{
@@ -281,7 +281,7 @@ void generate_world_noise(block* blocks, float* noisee, const int xoffset, const
 	add_foliage(blocks);
 }
 static int c = 0;
-void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffset)
+void generate_world_flatgrass(Block* blocks, const int xoffset, const int zoffset)
 {
 	for (int z = 0; z < world_width; z++)
 	{
@@ -303,7 +303,7 @@ void generate_world_flatgrass(block* blocks, const int xoffset, const int zoffse
 	}
 }
 
-void world_generate(block* blocks, float* noise, const int xoffset, const int zoffset, const int width, const int height)
+void world_generate(Block* blocks, float* noise, const int xoffset, const int zoffset, const int width, const int height)
 {
 	world_width = width;
 	world_height = height;

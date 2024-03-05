@@ -52,9 +52,12 @@ enum class BlockFaceDirection : int
 	TOP
 };
 
-struct block
+struct Block
 {
-	BlockType type = BlockType::AIR;
+	BlockType type;
+	char light = 0;
+	// One for each side
+	char lighting_level[6];
 };
 bool block_is_transparent(BlockType type);
 

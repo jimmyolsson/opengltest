@@ -6,7 +6,6 @@
 #include <Windows.h>
 #include "irrKlang.h"
 
-static const char* SOUND_PATH = "";
 static irrklang::ISoundEngine* sound_engine;
 
 static scroll_callback scroll_cb;

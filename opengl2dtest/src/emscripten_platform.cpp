@@ -1,4 +1,3 @@
-// To stop visual studio from compiling
 #ifdef __EMSCRIPTEN__
 #include "emscripten_platform.h"
 

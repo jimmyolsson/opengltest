@@ -75,14 +75,14 @@ GLFWwindow* init_and_create_window();
 
 void state_allocate_memory()
 {
-	const auto block_arena_size = (sizeof(block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
+	const auto block_arena_size = (sizeof(Block) * BLOCKS_IN_CHUNK) * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 	const auto noise_arena_size = sizeof(float) * BLOCKS_IN_CHUNK * CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 
 	const int mb = 1024 * 1024;
 	g_logger_info("Allocating: %dMB", block_arena_size / mb);
 	g_logger_info("Allocating: %dMB", noise_arena_size / mb);
 
-	memory_arena_init(&GameState.block_arena, block_arena_size, sizeof(block) * BLOCKS_IN_CHUNK);
+	memory_arena_init(&GameState.block_arena, block_arena_size, sizeof(Block) * BLOCKS_IN_CHUNK);
 	memory_arena_init(&GameState.noise_arena, noise_arena_size, sizeof(float) * (CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH));
 }
 
@@ -125,7 +125,7 @@ void create_and_init_chunk_e(const int x, const int z)
 {
 	Chunk chunk;
 
-	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
+	chunk.blocks = (Block*)memory_arena_get(&GameState.block_arena);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	chunk.dirty = true;
@@ -139,7 +139,7 @@ void create_and_init_chunk(const int x, const int z)
 {
 	Chunk chunk;
 
-	chunk.blocks = (block*)memory_arena_get(&GameState.block_arena);
+	chunk.blocks = (Block*)memory_arena_get(&GameState.block_arena);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
 	chunk.dirty = true;
@@ -392,15 +392,15 @@ void processInput(GLFWwindow* window, double delta_time)
 		GameState.player.camera.MoveWithVelocity(FORWARD, delta_time);
 	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		GameState.player.camera.MoveWithVelocity(BACKWARD, delta_time);
+		GameState.player.camera.MoveWithVelocity(Camera_Movement::BACKWARD, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		GameState.player.camera.MoveWithVelocity(LEFT, delta_time);
+		GameState.player.camera.MoveWithVelocity(Camera_Movement::LEFT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		GameState.player.camera.MoveWithVelocity(RIGHT, delta_time);
+		GameState.player.camera.MoveWithVelocity(Camera_Movement::RIGHT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-		GameState.player.camera.MoveWithVelocity(DOWN, delta_time);
+		GameState.player.camera.MoveWithVelocity(Camera_Movement::DOWN, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		GameState.player.camera.MoveWithVelocity(UP, delta_time);
+		GameState.player.camera.MoveWithVelocity(Camera_Movement::UP, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
 		menu_select_item(&GameState.menu, 0);
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
