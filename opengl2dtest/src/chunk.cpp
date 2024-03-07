@@ -38,10 +38,29 @@ Block* chunk_get_block(Chunk* c, glm::ivec3 block_pos)
 {
 	return chunk_get_block(c, block_pos.x, block_pos.y, block_pos.z);
 }
+Block* chunk_get_block_inside(Chunk* chunk, short x, short y, short z)
+{
+	if (x < 0 || y < 0 || z < 0 ||
+		x > CHUNK_SIZE_WIDTH - 1 || y > CHUNK_SIZE_HEIGHT - 1 || z > CHUNK_SIZE_WIDTH - 1)
+	{
+		return nullptr;
+	}
+	else
+	{
+		return &chunk->blocks[to_1d_array(x, y, z)];
+	}
+}
+
+Block* chunk_get_block_inside(Chunk* c, glm::ivec3 block_pos)
+{
+	return chunk_get_block_inside(c, block_pos.x, block_pos.y, block_pos.z);
+}
+
 
 Block* chunk_get_block(Chunk* chunk, short x, short y, short z)
 {
 	Chunk* c = chunk;
+
 	if (x == CHUNK_SIZE_WIDTH)
 	{
 		c = chunk->right_neighbor;
@@ -199,8 +218,8 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 		result.info |= ao << 28;
 		result.info |= texture << 20;
 		result.info |= direc << 19;
-		//result.info |= block.lighting_level[(int)3] << 11;
-		result.info |= block.lighting_level[(int)direction] << 11;
+		result.info |= block.light << 11;
+		//result.info |= block.lighting_level[(int)direction] << 11;
 
 		gpu_data->push_back(result);
 		i += 5;
@@ -247,7 +266,9 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 	if (c == nullptr)
 		return;
 
-	c->blocks[to_1d_array(block_pos)].type = new_type;
+	Block* b = &c->blocks[to_1d_array(block_pos)];
+	b->type = new_type;
+	b->light = 0;
 	c->dirty = true;
 
 	if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
@@ -375,7 +396,7 @@ void gen_mesh_opaque(Chunk* chunk)
 			for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
 			{
 				int current = to_1d_array(x, y, z);
-				const Block& current_block = chunk->blocks[current];
+				Block& current_block = chunk->blocks[current];
 
 				if (block_infos[current_block.type].is_transparent)
 					continue;
@@ -461,202 +482,254 @@ void ch(glm::ivec3 light_pos, int light_level, Chunk* chunk, int index, BlockFac
 	}
 }
 
+struct Info
+{
+	int node_index;
+	Chunk* node_chunk;
+	glm::ivec3 node_pos;
+	int node_light_level;
+
+	Info(int i, Chunk* c, glm::ivec3 p, int ll) : node_index(i), node_chunk(c), node_pos(p), node_light_level(ll) {}
+};
+
+void calc_l(LightNode& node, BlockFaceDirection dir)
+{
+	int node_index = node.index;
+	Chunk* node_chunk = node.chunk;
+	glm::ivec3 node_pos = to_3d_position(node_index);
+	int node_light_level = node_chunk->blocks[node_index].light;
+
+	glm::ivec3 neighbor_pos = node_pos;
+
+	if (dir == BlockFaceDirection::LEFT)
+		neighbor_pos.x = node_pos.x + 1;
+	else if (dir == BlockFaceDirection::RIGHT)
+		neighbor_pos.x = node_pos.x - 1;
+	else if (dir == BlockFaceDirection::BOTTOM)
+		neighbor_pos.y = node_pos.y + 1;
+	else if (dir == BlockFaceDirection::TOP)
+		neighbor_pos.y = node_pos.y - 1;
+	else if (dir == BlockFaceDirection::BACK)
+		neighbor_pos.z = node_pos.z + 1;
+	else if (dir == BlockFaceDirection::FRONT)
+		neighbor_pos.z = node_pos.z - 1;
+
+	Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+	if (neighbor_block != nullptr)
+	{
+		// Make sure its not opaque
+		if (neighbor_block->type == BlockType::AIR &&
+			neighbor_block->light + 2 <= node_light_level)
+		{
+			neighbor_block->light = node_light_level - 1;
+			int neighbor_index = to_1d_array(neighbor_pos);
+
+			// Not supporting multiple chunks
+			lightNodes.emplace(neighbor_index, node_chunk);
+		}
+		else if (neighbor_block->type != BlockType::AIR)
+		{
+			neighbor_block->light = 0;
+			neighbor_block->lighting_level[(int)dir] = node_light_level - 1;
+		}
+	}
+}
+
 void bfs(Chunk* c)
 {
 	TIMER_START(LIGHT_CALC);
-	lightNodes.emplace(to_1d_array(CHUNK_SIZE_WIDTH / 2, CHUNK_SIZE_WIDTH / 3 + 32, CHUNK_SIZE_WIDTH / 2), c);
-	c->blocks[to_1d_array(CHUNK_SIZE_WIDTH / 2, CHUNK_SIZE_WIDTH / 3 + 32, CHUNK_SIZE_WIDTH / 2)].light = 15;
 
+	int x = CHUNK_SIZE_WIDTH / 2;
+	int y = CHUNK_SIZE_WIDTH / 3 + 32;
+	int z = CHUNK_SIZE_WIDTH / 2;
+
+	lightNodes.emplace(to_1d_array(x, y, z), c);
+	c->blocks[to_1d_array(x, y, z)].light = 15;
+
+	int countt = 0;
 	while (lightNodes.empty() == false)
 	{
-		LightNode& node = lightNodes.front();
-		int index = node.index;
-		Chunk* chunk = node.chunk;
+		countt++;
+		LightNode node = lightNodes.front();
+
+		int node_index = node.index;
+		Chunk* node_chunk = node.chunk;
+		glm::ivec3 node_pos = to_3d_position(node_index);
+		int node_light_level = node_chunk->blocks[node_index].light;
 
 		lightNodes.pop();
-		glm::ivec3 light_pos = to_3d_position(index);
-		int light_level = chunk->blocks[index].light;
 
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::RIGHT, light_pos.x - 1, light_pos.y, light_pos.z);
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::LEFT, light_pos.x + 1, light_pos.y, light_pos.z);
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::BOTTOM, light_pos.x, light_pos.y + 1, light_pos.z);
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::TOP, light_pos.x, light_pos.y - 1, light_pos.z);
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::BACK, light_pos.x, light_pos.y, light_pos.z + 1);
-		ch(light_pos, light_level, chunk, index, BlockFaceDirection::FRONT, light_pos.x, light_pos.y, light_pos.z - 1);
-
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x - 1, light_pos.y, light_pos.z);
-		//	if (current_index <= -1 || light_pos.x < 0)
-		//		goto asd;
-
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::RIGHT] = light_level - 1;
-		//		}
-		//	}
-		//	//ch(light_pos, light_level, chunk, index, dir, light_pos.x - 1, light_pos.y, light_pos.z);
-		//asd:
-		//	int a = 2;
-		//}
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x + 1, light_pos.y, light_pos.z);
-		//	if (current_index <= -1 || light_pos.x >= CHUNK_SIZE_WIDTH - 1)
-		//		goto asdads;
-
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::LEFT] = light_level - 1;
-		//		}
-
-		//	}
-		//asdads:
-		//	int a = 2;
-		//}
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x, light_pos.y + 1, light_pos.z);
-		//	if (current_index <= -1 || light_pos.y >= CHUNK_SIZE_HEIGHT - 1)
-		//		goto aaaa;
-
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::TOP] = light_level - 1;
-		//		}
-		//	}
-		//aaaa:
-		//	int a = 2;
-		//}
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x, light_pos.y - 1, light_pos.z);
-		//	if (current_index <= -1 || light_pos.y < 0)
-		//		goto aaa;
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::TOP] = light_level - 1;
-		//		}
-		//	}
-		//aaa:
-		//	int a = 2;
-		//}
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x, light_pos.y, light_pos.z + 1);
-
-		//	if (current_index <= -1 || light_pos.z >= CHUNK_SIZE_WIDTH - 1)
-		//		goto aa;
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::BACK] = light_level - 1;
-		//		}
-		//	}
-		//aa:
-		//	int a = 2;
-		//}
-		//{
-		//	int light_level = chunk->blocks[index].light;
-		//	int current_index = to_1d_array(light_pos.x, light_pos.y, light_pos.z - 1);
-		//	if (current_index <= -1 || light_pos.z < 0)
-		//		goto a;
-		//	if (chunk->blocks[current_index].light + 2 <= light_level)
-		//	{
-		//		if (chunk->blocks[current_index].type == BlockType::AIR)
-		//		{
-		//			chunk->blocks[current_index].light = light_level - 1;
-		//			lightNodes.emplace(current_index, chunk);
-		//		}
-		//		else
-		//		{
-		//			chunk->blocks[current_index].lighting_level[(int)BlockFaceDirection::FRONT] = light_level - 1;
-		//		}
-		//	}
-		//a:
-		//	int a = 2;
-		//}
-	}
-	TIMER_END(LIGHT_CALC);
-}
-
-void calculate_lighting(Chunk* c)
-{
-	//for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
-	//{
-	//	for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
-	//	{
-	//		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
-	//		{
-	//			Block* b = &c->blocks[to_1d_array(x, y, z)];
-	//			if (b->type != BlockType::AIR)
-	//			{
-	//				int d = 0;
-	//				b->lighting_level[(int)BlockFaceDirection::TOP] = d;
-	//				b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
-	//				b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
-	//				b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
-	//				b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
-	//				b->lighting_level[(int)BlockFaceDirection::BACK] = d;
-	//				b->light = d;
-	//			}
-	//		}
-	//	}
-	//}
-
-	for (int z = 0; z <= CHUNK_SIZE_WIDTH - 1; z++)
-	{
-		for (int x = 0; x <= CHUNK_SIZE_WIDTH - 1; x++)
+		// Expands light in air nodes
 		{
-			for (int y = CHUNK_SIZE_HEIGHT - 1; y != 0; --y)
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.x = node_pos.x + 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
 			{
-				Block* b = &c->blocks[to_1d_array(x, y, z)];
-				if (b->type == BlockType::AIR)
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
 				{
-					//b->light = 14; // Exposed to the sky
-					//add_to(to_1d_array(x, y, z), c);
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
 				}
-				else
+				else if (neighbor_block->type != BlockType::AIR)
 				{
-					break;
+					neighbor_block->light = node_light_level - 1;
+				}
+			}
+		}
+		{
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.x = node_pos.x - 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
+			{
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
+				{
+					if (x == 16 && y == 41 && z == 14)
+					{
+						int a = 2;
+					}
+
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
+				}
+				else if (neighbor_block->type != BlockType::AIR)
+				{
+					neighbor_block->light = node_light_level - 1;
+				}
+			}
+		}
+
+		{
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.y = node_pos.y + 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
+			{
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
+				{
+					if (x == 16 && y == 41 && z == 14)
+					{
+						int a = 2;
+					}
+
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
+				}
+				else if (neighbor_block->type != BlockType::AIR)
+				{
+					neighbor_block->light = node_light_level - 1;
+				}
+			}
+		}
+		{
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.y = node_pos.y - 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
+			{
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
+				{
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
+				}
+				else if (neighbor_block->type != BlockType::AIR)
+				{
+					neighbor_block->light = node_light_level - 1;
+				}
+			}
+		}
+		{
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.z = node_pos.z - 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
+			{
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
+				{
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
+				}
+				else if (neighbor_block->type != BlockType::AIR)
+				{
+					neighbor_block->light = node_light_level - 1;
+				}
+			}
+		}
+		{
+			glm::ivec3 neighbor_pos = node_pos;
+			neighbor_pos.z = node_pos.z + 1;
+			Block* neighbor_block = chunk_get_block_inside(node_chunk, neighbor_pos);
+
+			if (neighbor_block != nullptr)
+			{
+				if (neighbor_block->type == BlockType::AIR &&
+					neighbor_block->light + 2 <= node_light_level)
+				{
+					neighbor_block->light = node_light_level - 1;
+					lightNodes.emplace(to_1d_array(neighbor_pos), node_chunk);
+				}
+				else if (neighbor_block->type != BlockType::AIR)
+				{
+					neighbor_block->light = node_light_level - 1;
 				}
 			}
 		}
 	}
+	TIMER_END(LIGHT_CALC);
+	g_logger_debug("COUNT: %d", countt);
+}
+
+void calculate_lighting(Chunk* c)
+{
+	for (int z = 0; z < CHUNK_SIZE_WIDTH - 1; z++)
+	{
+		for (int x = 0; x < CHUNK_SIZE_WIDTH - 1; x++)
+		{
+			for (int y = 0; y < CHUNK_SIZE_HEIGHT - 1; y++)
+			{
+				Block* b = &c->blocks[to_1d_array(x, y, z)];
+				int d = 0;
+				b->lighting_level[(int)BlockFaceDirection::TOP] = d;
+				b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
+				b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
+				b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
+				b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
+				b->lighting_level[(int)BlockFaceDirection::BACK] = d;
+				b->light = d;
+			}
+		}
+	}
+
+	//for (int z = 0; z <= CHUNK_SIZE_WIDTH - 1; z++)
+	//{
+	//	for (int x = 0; x <= CHUNK_SIZE_WIDTH - 1; x++)
+	//	{
+	//		for (int y = CHUNK_SIZE_HEIGHT - 1; y != 0; --y)
+	//		{
+	//			Block* b = &c->blocks[to_1d_array(x, y, z)];
+	//			if (b->type == BlockType::AIR)
+	//			{
+	//				//b->light = 14; // Exposed to the sky
+	//				//add_to(to_1d_array(x, y, z), c);
+	//			}
+	//			else
+	//			{
+	//				break;
+	//			}
+	//		}
+	//	}
+	//}
 }
 void chunk_generate_mesh(Chunk* chunk)
 {
@@ -665,14 +738,10 @@ void chunk_generate_mesh(Chunk* chunk)
 	chunk->gpu_data_veg.clear();
 
 	calculate_lighting(chunk);
-	check_light(chunk);
-
 	bfs(chunk);
-	check_light(chunk);
 
 	gen_mesh_opaque(chunk);
 	gen_mesh_transparent(chunk);
-	check_light(chunk);
 
 	chunk->verts_in_use = chunk->gpu_data_opaque.size();
 	chunk->verts_in_use_transparent = chunk->gpu_data_transparent.size();
