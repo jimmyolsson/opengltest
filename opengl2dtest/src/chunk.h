@@ -14,7 +14,7 @@ typedef robin_hood::unordered_flat_map<glm::ivec2, Chunk> chunk_map_t;
 
 static const int CHUNK_SIZE_WIDTH = 32;
 static const int CHUNK_SIZE_HEIGHT = 255;
-static const int CHUNK_DRAW_DISTANCE = 1;
+static const int CHUNK_DRAW_DISTANCE = 2;
 static const int TOTAL_CHUNKS = CHUNK_DRAW_DISTANCE * CHUNK_DRAW_DISTANCE;
 static const int BLOCKS_IN_CHUNK = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_WIDTH;
 
@@ -57,20 +57,31 @@ struct Chunk
 	unsigned int vbo_handle_veg = -1;
 
 	bool initialized = false;
-	bool dirty = false;
+	bool needs_remesh = false;
+	bool needs_light_recalc = false;
 };
 
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
 
 // If the coordinates are outside of the bounds of the chunk, it will return the neighboring chunk
-Block* chunk_get_block(Chunk* c, glm::ivec3 block_pos);
-Block* chunk_get_block(Chunk* c, short x, short y, short z);
+struct GetBlockResult
+{
+	Block* b;
+	int block_index;
+	Chunk* c;
+};
+
+GetBlockResult chunk_get_block(Chunk* c, glm::ivec3 block_pos);
+GetBlockResult chunk_get_block(Chunk* c, short x, short y, short z);
+std::vector<Block*> get_blocks_in_circle(Chunk* chunk, glm::ivec3 center, int radius);
 
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(Chunk* chunk);
 void chunk_generate_buffers(Chunk* self);
+void set_chunk_neighbors(Chunk* chunk);
 
 void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos);
 void chunk_render_opaque(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_veg(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
+

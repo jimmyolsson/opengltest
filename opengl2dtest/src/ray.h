@@ -67,7 +67,7 @@ struct Ray
 
 
 					const auto a = chunk_get_block(&it.second, x, y, z);
-					if (a->type != BlockType::AIR && a->type != BlockType::WATER)
+					if (a.b->type != BlockType::AIR && a.b->type != BlockType::WATER)
 					{
 						// Inside the intersect_block method, after finding a hit block:
 						float intersection_time = t_max.x < t_max.y ? (t_max.x < t_max.z ? t_max.x : t_max.z) : (t_max.y < t_max.z ? t_max.y : t_max.z);

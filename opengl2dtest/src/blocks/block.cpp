@@ -98,6 +98,6 @@ void block_get_sound(BlockType type, bool remove, char* name, int buffer_size)
 
 bool block_is_transparent(BlockType type)
 {
-	return block_infos[type].is_transparent && type != BlockType::AIR;
+	return block_infos[type].is_transparent;
 }
 

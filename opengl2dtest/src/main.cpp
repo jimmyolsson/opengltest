@@ -121,20 +121,6 @@ void state_global_init()
 	state_allocate_memory();
 }
 
-void create_and_init_chunk_e(const int x, const int z)
-{
-	Chunk chunk;
-
-	chunk.blocks = (Block*)memory_arena_get(&GameState.block_arena);
-	chunk.chunks = &GameState.chunks;
-	chunk.initialized = false;
-	chunk.dirty = true;
-	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
-	chunk.world_pos = pos;
-	GameState.chunks[pos] = chunk;
-	world_generate(GameState.chunks[pos].blocks, nullptr, pos.x, pos.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
-}
-
 void create_and_init_chunk(const int x, const int z)
 {
 	Chunk chunk;
@@ -142,7 +128,8 @@ void create_and_init_chunk(const int x, const int z)
 	chunk.blocks = (Block*)memory_arena_get(&GameState.block_arena);
 	chunk.chunks = &GameState.chunks;
 	chunk.initialized = false;
-	chunk.dirty = true;
+	chunk.needs_light_recalc = true;
+	chunk.needs_remesh = true;
 	glm::ivec2 pos = glm::vec2(x * CHUNK_SIZE_WIDTH, z * CHUNK_SIZE_WIDTH);
 	chunk.world_pos = pos;
 	GameState.chunks[pos] = chunk;
@@ -171,8 +158,13 @@ void init_game_world()
 
 	g_logger_debug("Chunk size width: %d - height: %d", CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 
+	for (auto& iter : GameState.chunks)
+	{
+		set_chunk_neighbors(&iter.second);
+	}
 	// Emscripten dosent like this and i cba doing it another way
-#ifndef __EMSCRIPTEN__
+#define NOMULTI
+#if !defined(__EMSCRIPTEN) && !defined(NOMULTI)
 	std::for_each(std::execution::par_unseq, std::begin(GameState.chunks), std::end(GameState.chunks),
 		[&](auto& iter)
 	{
@@ -183,7 +175,6 @@ void init_game_world()
 	{
 		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	}
-
 #endif // !__EMSCRIPTEN__
 
 	g_logger_debug("Chunks initialized!");
@@ -235,11 +226,9 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	if (ray_hit.chunk_hit == nullptr)
 		return;
 
-	g_logger_debug("RAY HIT: Local(%d,%d,%d) World(%d,%d,%d)",
+	g_logger_debug("RAY HIT: Local(%d,%d,%d) ChunkPos(%d,%d)",
 		ray_hit.block_pos.x, ray_hit.block_pos.y, ray_hit.block_pos.z,
-		ray_hit.chunk_world_pos.x + ray_hit.block_pos.x,
-		ray_hit.block_pos.y,
-		ray_hit.chunk_world_pos.y + ray_hit.block_pos.z);
+		ray_hit.chunk_hit->world_pos.x, ray_hit.chunk_hit->world_pos.y);
 
 	BlockType type = inventory[GameState.menu.item_selected];
 
@@ -301,7 +290,13 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		if (remove)
 		{
-			play_block_sound(chunk_get_block(hit_chunk, b_pos)->type, remove);
+			//auto asd = get_blocks_in_circle(hit_chunk, b_pos, 4);
+			//for (auto b : asd)
+			//{
+			//	b->type = BlockType::AIR;
+			//	//b.c->dirty = true;
+			//}
+			play_block_sound(chunk_get_block(hit_chunk, b_pos).b->type, remove);
 			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
 		else
@@ -313,7 +308,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 
 		hit_chunk->verts_in_use = 0;
 		hit_chunk->verts_in_use_transparent = 0;
-		hit_chunk->dirty = true;
 	}
 }
 
@@ -522,7 +516,7 @@ void game_update(float deltaTime)
 	GameState.player.camera.Update(deltaTime);
 
 	renderer_update(&GameState.renderer, GameState.perspective, GameState.orthographic);
-	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
+	//outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks, GameState.player.camera.Position);
 }
 
@@ -572,11 +566,12 @@ static glm::ivec2 scale_res[] =
 
 void update_viewport()
 {
-	int width = GameState.SCR_WIDTH;
-	int height = GameState.SCR_HEIGHT;
+	const int width = GameState.SCR_WIDTH;
+	const int height = GameState.SCR_HEIGHT;
+	const float near = 0.1f;
+	const float far = 1000.0f;
 	// Update perspective projection for 3D rendering
-	GameState.perspective = glm::perspective(GameState.player.camera.Zoom, (float)width / (float)height, 0.1f, 1000.0f);
-
+	GameState.perspective = glm::perspective(GameState.player.camera.Zoom, (float)width / (float)height, near, far);
 	// Update orthographic projection for GUI rendering
 	GameState.orthographic = glm::ortho(0.0f, (float)width, 0.0f, (float)height);
 

@@ -52,6 +52,14 @@ enum class BlockFaceDirection : int
 	TOP
 };
 
+
+//struct Blocks
+//{
+//	BlockType* types;
+//	char* lights;
+//	char* lighting_levels[6];
+//}
+
 struct Block
 {
 	BlockType type;
