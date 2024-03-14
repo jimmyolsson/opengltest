@@ -29,7 +29,7 @@ struct GPUData
 
 struct Chunk
 {
-	robin_hood::unordered_flat_map<glm::ivec2, Chunk>* chunks;
+	chunk_map_t* chunks;
 	glm::ivec2 world_pos;
 	Block* blocks;
 
@@ -59,7 +59,18 @@ struct Chunk
 	bool initialized = false;
 	bool needs_remesh = false;
 	bool needs_light_recalc = false;
+	bool needs_light_reset = false;
 };
+
+// We need to keep track of what lights are in the world so that we can calculate them first  
+// If we remove a block in chunk x how do we know that its not affected by lights in chunk y?
+// Recalc the whole visible world?
+struct Light
+{
+	glm::ivec2 chunk_index;
+	int block_index;
+};
+static std::vector<Light> LightsInWorld;
 
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
 
@@ -74,14 +85,13 @@ struct GetBlockResult
 GetBlockResult chunk_get_block(Chunk* c, glm::ivec3 block_pos);
 GetBlockResult chunk_get_block(Chunk* c, short x, short y, short z);
 std::vector<Block*> get_blocks_in_circle(Chunk* chunk, glm::ivec3 center, int radius);
+void set_chunk_neighbors(Chunk* chunk);
 
 // Exposed just so that we can multithread init
 void chunk_generate_mesh(Chunk* chunk);
 void chunk_generate_buffers(Chunk* self);
-void set_chunk_neighbors(Chunk* chunk);
 
 void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos);
 void chunk_render_opaque(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_transparent(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
 void chunk_render_veg(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position);
-

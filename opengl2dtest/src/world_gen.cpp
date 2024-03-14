@@ -302,12 +302,12 @@ void generate_world_flatgrass(Block* blocks, const int xoffset, const int zoffse
 		}
 	}
 
-	int x = CHUNK_SIZE_WIDTH / 2 + 2;
+	int x = 0;
 	int y = CHUNK_SIZE_WIDTH / 3 + 32;
-	int z = CHUNK_SIZE_WIDTH / 2 + 2;
+	int z = 0;
 
 	int index = to_1d_array(x, y, z);
-	blocks[index].type = BlockType::DIRT_GRASS;
+	blocks[index].type = BlockType::BRICKS;
 }
 
 void world_generate(Block* blocks, float* noise, const int xoffset, const int zoffset, const int width, const int height)

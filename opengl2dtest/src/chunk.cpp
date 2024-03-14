@@ -11,8 +11,10 @@
 #include <queue>
 #include "blocks/blocks.h"
 #include "ray.h"
+#include "selectable_profiler.cpp"
 
 const int ATTRIBUTES_PER_VERTEX = 1;
+static bool light_reload = true;
 
 glm::ivec3 to_3d_position(int index)
 {
@@ -158,6 +160,8 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 {
 	Block* b = &c->blocks[to_1d_array(block_pos)];
 	b->type = new_type;
+	b->light = 0;
+	light_reload = true;
 
 	chunk_set_full_dirty(c);
 
@@ -232,6 +236,7 @@ void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::v
 
 void chunk_generate_buffers(Chunk* self)
 {
+	TimeFunction;
 	generate_buffers(&self->vao_handle_opaque, &self->vbo_handle_opaque, &self->gpu_data_opaque);
 	generate_buffers(&self->vao_handle_transparent, &self->vbo_handle_transparent, &self->gpu_data_transparent);
 	generate_buffers(&self->vao_handle_veg, &self->vbo_handle_veg, &self->gpu_data_veg);
@@ -310,6 +315,7 @@ char calc_ao(Chunk* chunk, int i, BlockFaceDirection direction, glm::ivec3 block
 
 void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, const block_size_t* data, BlockFaceDirection direction, int x, int y, int z, const Block& block)
 {
+	TimeFunction;
 	const glm::vec3 block_pos = glm::vec3(x, y, z);
 
 	static const int vert_count = 30;
@@ -353,6 +359,7 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 
 void generate_face(Chunk* current_chunk, std::vector<GPUData>* gpu_data, const Chunk* neighbor, const block_size_t data[30], BlockFaceDirection direction, int x, int y, int z, int other_chunk_index, int current_chunk_index, bool on_edge, const Block& block)
 {
+	TimeFunction;
 	if (on_edge)
 	{
 		//If i have a neighbor that is transparent
@@ -409,6 +416,7 @@ void set_chunk_neighbors(Chunk* chunk)
 // Also generates partially transparent(translucent) blocks
 void gen_mesh_transparent(Chunk* chunk)
 {
+	TimeFunction;
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
@@ -489,6 +497,7 @@ void gen_mesh_transparent(Chunk* chunk)
 
 void gen_mesh_opaque(Chunk* chunk)
 {
+	TimeFunction;
 	chunk->gpu_data_opaque.clear();
 
 	using namespace std::chrono;
@@ -526,7 +535,6 @@ void gen_mesh_opaque(Chunk* chunk)
 		}
 	}
 }
-
 struct LightNode
 {
 	int index;
@@ -537,6 +545,7 @@ struct LightNode
 
 void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirection dir)
 {
+	TimeFunction;
 	int node_index = node.index;
 	Chunk* node_chunk = node.chunk;
 	glm::ivec3 node_pos = to_3d_position(node_index);
@@ -561,11 +570,11 @@ void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirect
 	if (node_chunk->world_pos.x == -32 && node_chunk->world_pos.y == 0)
 	{
 		int b = 2;
-		if (node_pos.x == 31 && node_pos.y == 41 && node_pos.z == 0)
+		if (node_pos.x == 31 && node_pos.y == 41 && node_pos.z == 1)
 		{
 			int a = 2;
 		}
-		if (neighbor_pos.x == 31 && neighbor_pos.y == 41 && neighbor_pos.z == 0)
+		if (neighbor_pos.x == 31 && neighbor_pos.y == 41 && neighbor_pos.z == 1)
 		{
 			int a = 2;
 		}
@@ -580,15 +589,15 @@ void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirect
 			neighbor.b->light + 2 <= node_light_level)
 		{
 			neighbor.b->light = node_light_level - 1;
-			//chunk_set_block(neighbor.c, neighbor.block_index, BlockType::GLASS);
 			neighbor.c->needs_remesh = true;
+			//neighbor.c->needs_light_reset = true;
 
 			light_nodes.emplace(neighbor.block_index, neighbor.c);
 		}
 		// If it is opaque set the light level of the block-face that is facing the light
 		else if (!block_is_transparent(neighbor.b->type))
 		{
-			neighbor.b->light = node_light_level - 1;
+			neighbor.b->light = node_light_level - 1;;
 			neighbor.b->lighting_level[(int)dir] = node_light_level - 1;
 		}
 	}
@@ -597,35 +606,37 @@ void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirect
 // Expands the light from the light sources using a bfs algorithm and also sets the touching faces's light values.
 void calculate_lighting(Chunk* c)
 {
-	std::queue<LightNode> light_nodes = {};
+TimeFunction;
+	std::queue<LightNode> light_nodes_queue = {};
 
 	int x = 0;
 	int y = CHUNK_SIZE_WIDTH / 3 + 32;
 	int z = 0;
 
-	light_nodes.emplace(to_1d_array(x, y, z), c);
+	light_nodes_queue.emplace(to_1d_array(x, y, z), c);
 	c->blocks[to_1d_array(x, y, z)].light = 15;
 
 	int g = 0;
-	while (light_nodes.empty() == false)
+	while (light_nodes_queue.empty() == false)
 	{
 		g++;
-		LightNode node = light_nodes.front();
+		LightNode node = light_nodes_queue.front();
 
-		light_nodes.pop();
+		light_nodes_queue.pop();
 
-		calc_l(light_nodes, node, BlockFaceDirection::LEFT);
-		calc_l(light_nodes, node, BlockFaceDirection::RIGHT);
-		calc_l(light_nodes, node, BlockFaceDirection::TOP);
-		calc_l(light_nodes, node, BlockFaceDirection::BOTTOM);
-		calc_l(light_nodes, node, BlockFaceDirection::FRONT);
-		calc_l(light_nodes, node, BlockFaceDirection::BACK);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::LEFT);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::RIGHT);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::TOP);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::BOTTOM);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::FRONT);
+		calc_l(light_nodes_queue, node, BlockFaceDirection::BACK);
 	}
-	//g_logger_debug("COUNTER: %d", g);
+	//g_logger_debug("calculate_lighting count: %d", g);
 }
 
 void reset_lighting(Chunk* c)
 {
+	TimeFunction;
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
@@ -647,6 +658,7 @@ void reset_lighting(Chunk* c)
 }
 void chunk_generate_mesh(Chunk* chunk)
 {
+	TimeFunction;
 	chunk->gpu_data_opaque.clear();
 	chunk->gpu_data_transparent.clear();
 	chunk->gpu_data_veg.clear();
@@ -668,6 +680,7 @@ void update_buffers(GLuint vao_handle, const std::vector<GPUData>& gpu_data_arr)
 
 void _clear_chunk_gpu_buffers(Chunk* self)
 {
+	TimeFunction;
 	glDeleteBuffers(1, &self->vbo_handle_opaque);
 	glDeleteVertexArrays(1, &self->vao_handle_opaque);
 
@@ -685,15 +698,22 @@ glm::vec3 calculate_centroid(const glm::vec3& v1, const glm::vec3& v2, const glm
 
 void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos)
 {
+	if (!light_reload)
+	{
+		return;
+	}
+
+	BeginProfile();
+	//for (auto& lights : LightsInWorld)
 	for (auto& cpair : *chunks)
 	{
-		//if (cpair.second.needs_light_recalc)
-			//reset_lighting(&cpair.second);
+		reset_lighting(&cpair.second);
+		//cpair.second.needs_light_reset = false;
 	}
 
 	for (auto& cpair : *chunks)
 	{
-		if (cpair.second.needs_light_recalc)
+		//if (cpair.second.needs_light_recalc)
 		{
 			calculate_lighting(&cpair.second);
 			cpair.second.needs_light_recalc = false;
@@ -702,18 +722,20 @@ void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos)
 
 	for (auto& cpair : *chunks)
 	{
-		if (cpair.second.needs_remesh)
+		//if (cpair.second.needs_remesh)
 		{
 			_clear_chunk_gpu_buffers(&cpair.second);
 			chunk_generate_mesh(&cpair.second);
 			chunk_generate_buffers(&cpair.second);
 			cpair.second.needs_remesh = false;
 		}
-		else
+		//else
 		{
-			update_buffers(cpair.second.vao_handle_transparent, cpair.second.gpu_data_transparent);
+			//update_buffers(cpair.second.vao_handle_transparent, cpair.second.gpu_data_transparent);
 		}
 	}
+	light_reload = false;
+	EndAndPrintProfile();
 
 	//Chunk& chunk = pair.second;
 	//if (chunk.dirty)

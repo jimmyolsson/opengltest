@@ -176,23 +176,11 @@ void init_game_world()
 		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	}
 #endif // !__EMSCRIPTEN__
-
-	g_logger_debug("Chunks initialized!");
-	int total_verts = 0;
-	int total_blocks = 0;
 	for (auto& iter : GameState.chunks)
 	{
-		total_verts += iter.second.verts_in_use + iter.second.verts_in_use_transparent;
-		for (int i = 0; i < BLOCKS_IN_CHUNK; i++)
-		{
-			if (iter.second.blocks[i].type != BlockType::AIR)
-				total_blocks++;
-		}
+		LightsInWorld.push_back({ iter.first, 1344 });
 	}
-
 	g_logger_info("Done initializing game world!");
-	g_logger_info("Total blocks: %d", total_blocks);
-	g_logger_info("Total triangles: %d", total_verts / 3);
 }
 
 BlockType inventory[9] =
