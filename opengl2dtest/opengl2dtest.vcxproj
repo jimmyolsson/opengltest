@@ -175,9 +175,9 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClCompile Include="src\graphics\quad.cpp" />
     <ClCompile Include="src\graphics\renderer.cpp" />
     <ClCompile Include="src\graphics\texture.cpp" />
-    <ClCompile Include="src\listing_0074_platform_metrics.cpp" />
+    <ClCompile Include="src\util\platform_metrics.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\selectable_profiler.cpp" />
+    <ClCompile Include="src\util\selectable_profiler.cpp" />
     <ClCompile Include="src\util\common.cpp" />
     <ClCompile Include="src\util\memory_arena.cpp" />
     <ClCompile Include="src\graphics\shader.cpp" />

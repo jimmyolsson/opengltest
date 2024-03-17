@@ -504,7 +504,7 @@ void game_update(float deltaTime)
 	GameState.player.camera.Update(deltaTime);
 
 	renderer_update(&GameState.renderer, GameState.perspective, GameState.orthographic);
-	//outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
+	outline_update(&GameState.outline, GameState.player.camera.Position, GameState.player.camera.Front, &GameState.chunks);
 	chunk_update(&GameState.chunks, GameState.player.camera.Position);
 }
 

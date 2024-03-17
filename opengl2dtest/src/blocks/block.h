@@ -65,7 +65,8 @@ enum class BlockFaceDirection : int
 struct Block
 {
 	BlockType type;
-	char light = 0;
+	char light_sun = 0;
+	char light_torch = 0;
 	// One for each side
 	char lighting_level[6];
 };

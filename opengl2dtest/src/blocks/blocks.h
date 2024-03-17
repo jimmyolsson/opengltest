@@ -196,8 +196,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // AO_ENABLED
 		false,
 
-		BlockType::GLASS_PANE,
-		BlockType::GLASS_PANE
+		BlockType::GRASS,
+		BlockType::GRASS
 	},
 	// BRICKS
 	{
@@ -215,8 +215,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // AO_ENABLED
 		false,
 
-		BlockType::BRICKS,
-		BlockType::BRICKS
+		BlockType::STONE,
+		BlockType::STONE
 	},
 	// WHITE CONCRETE
 	{
@@ -234,8 +234,8 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // AO_ENABLED
 		false,
 
-		BlockType::CONCRETE_WHITE,
-		BlockType::CONCRETE_WHITE
+		BlockType::STONE,
+		BlockType::STONE
 	},
 	// GLASS
 	{
@@ -253,7 +253,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // AO_ENABLED
 		false,
 
-		BlockType::GLASS,
+		BlockType::STONE,
 		BlockType::GLASS
 	},
 	// GRASS
@@ -291,7 +291,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // AO_ENABLED
 		true, 
 
-		BlockType::GLOWSTONE,
-		BlockType::GLOWSTONE
+		BlockType::STONE,
+		BlockType::GLASS
 	}
 };

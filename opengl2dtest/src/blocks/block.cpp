@@ -43,7 +43,7 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 		strncpy(name, "CONCRETE_WHITE", buffer_size);
 		return;
 	case BlockType::GLASS:
-		strncpy(name, "BRICKS", buffer_size);
+		strncpy(name, "GLASS", buffer_size);
 		return;	
 	case BlockType::GRASS:
 		strncpy(name, "GRASS", buffer_size);
@@ -51,6 +51,7 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	case BlockType::GLOWSTONE:
 		strncpy(name, "GLOWSTONE", buffer_size);
 		return;	
+
 
 
 	default:

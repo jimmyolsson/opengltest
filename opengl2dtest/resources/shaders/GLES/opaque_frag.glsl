@@ -9,7 +9,7 @@ out vec4 FragColor;
 in vec3 FragPos;
 in vec2 TexCoords;
 in float LightValue;
-in float Btype;
+flat in uint Btype;
 in float Lighting;
 
 uniform sampler2DArray atlas;
@@ -44,7 +44,7 @@ void main()
 {
     vec4 textureColor = texture(atlas, vec3(TexCoords.xy, Btype));
 
-    if(Btype == 5.0 && distance(cameraPosition, FragPos) > drawDistance && textureColor.a < 0.7)
+    if(Btype == 5u && distance(cameraPosition, FragPos) > drawDistance && textureColor.a < 0.7)
     {
         FragColor = vec4(textureColor.xyz * Lighting, 1.0);
     }

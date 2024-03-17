@@ -14,13 +14,16 @@
    LISTING 74
    ======================================================================== */
 
+
+// TODO: MOVE THIS TO PLATFORM LAYER
+
+#include <cstdint>
 #if _WIN32
 
 #include <intrin.h>
 #include <windows.h>
-#include <cstdint>
-
 typedef uint64_t u64;
+
 static u64 GetOSTimerFreq(void)
 {
 	LARGE_INTEGER Freq;
@@ -34,8 +37,20 @@ static u64 ReadOSTimer(void)
 	QueryPerformanceCounter(&Value);
 	return Value.QuadPart;
 }
+#elif __EMSCRIPTEN__
+typedef uint64_t u64;
+// TODO: Support emscripten
 
+static u64 GetOSTimerFreq(void)
+{
+	return 0;
+}
+static u64 ReadOSTimer(void)
+{
+	return 0;
+}
 #else
+typedef uint64_t u64;
 
 #include <x86intrin.h>
 #include <sys/time.h>
@@ -58,6 +73,7 @@ static u64 ReadOSTimer(void)
 
 #endif
 
+#if _WIN32
 /* NOTE(casey): This does not need to be "inline", it could just be "static"
    because compilers will inline it anyway. But compilers will warn about 
    static functions that aren't used. So "inline" is just the simplest way 
@@ -70,6 +86,13 @@ inline u64 ReadCPUTimer(void)
 	
 	return __rdtsc();
 }
+#else
+inline u64 ReadCPUTimer(void)
+{
+	return 0;
+}
+
+#endif
 
 static u64 EstimateCPUTimerFreq(void)
 {

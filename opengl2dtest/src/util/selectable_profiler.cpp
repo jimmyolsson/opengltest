@@ -20,7 +20,7 @@
 #include <math.h>
 #include <sys/stat.h>
 
-#include "listing_0074_platform_metrics.cpp"
+#include "platform_metrics.cpp"
 
 typedef uint8_t u8;
 typedef uint32_t u32;

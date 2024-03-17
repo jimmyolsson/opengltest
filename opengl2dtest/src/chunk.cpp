@@ -11,7 +11,7 @@
 #include <queue>
 #include "blocks/blocks.h"
 #include "ray.h"
-#include "selectable_profiler.cpp"
+#include "util/selectable_profiler.cpp"
 
 const int ATTRIBUTES_PER_VERTEX = 1;
 static bool light_reload = true;
@@ -186,11 +186,15 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 
 	if (new_type == BlockType::AIR)
 	{
-		b->light = 0;
+		b->light_torch = 0;
+	}
+	else if (new_type == BlockType::GLOWSTONE)
+	{
+		b->light_torch = 15;
 	}
 
 	// TODO: Better approach is to let the light algo define who actually needs a remesh
-	if (block_infos[new_type].is_light_emitter)
+	//if (block_infos[new_type].is_light_emitter)
 	{
 		NeighborChunks neighbors[8];
 		get_surrounding_chunks(c->chunks, c->world_pos, neighbors);
@@ -200,17 +204,17 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 				c->chunks->at(neighbors[i].coord).needs_remesh = true;
 		}
 	}
-	else
-	{
-		if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
-			c->right_neighbor->needs_remesh = true;
-		if (block_pos.x == 0 && c->left_neighbor != nullptr)
-			c->left_neighbor->needs_remesh = true;
-		if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
-			c->front_neighbor->needs_remesh = true;
-		if (block_pos.z == 0 && c->back_neighbor != nullptr)
-			c->back_neighbor->needs_remesh = true;
-	}
+	//else
+	//{
+	//	if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
+	//		c->right_neighbor->needs_remesh = true;
+	//	if (block_pos.x == 0 && c->left_neighbor != nullptr)
+	//		c->left_neighbor->needs_remesh = true;
+	//	if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
+	//		c->front_neighbor->needs_remesh = true;
+	//	if (block_pos.z == 0 && c->back_neighbor != nullptr)
+	//		c->back_neighbor->needs_remesh = true;
+	//}
 }
 
 void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::vector<GPUData>* gpu_data)
@@ -352,7 +356,7 @@ void add_face_and_texture_new(Chunk* chunk, std::vector<GPUData>* gpu_data, cons
 		result.info |= direc << 19;
 
 		if (block_infos[block.type].is_transparent)
-			result.info |= block.light << 11;
+			result.info |= block.light_torch << 11;
 		else
 			result.info |= block.lighting_level[(int)direction] << 11;
 
@@ -552,7 +556,7 @@ void lighting_compute_node(std::queue<LightNode>& light_nodes, LightNode& node, 
 	int node_index = node.index;
 	Chunk* node_chunk = node.chunk;
 	glm::ivec3 node_pos = to_3d_position(node_index);
-	int node_light_level = node_chunk->blocks[node_index].light;
+	int node_light_level = node_chunk->blocks[node_index].light_torch;
 
 	glm::ivec3 neighbor_pos = node_pos;
 
@@ -569,38 +573,20 @@ void lighting_compute_node(std::queue<LightNode>& light_nodes, LightNode& node, 
 	else if (dir == BlockFaceDirection::FRONT)
 		neighbor_pos.z = node_pos.z - 1;
 
-	// DEBUG
-	if (node_chunk->world_pos.x == -32 && node_chunk->world_pos.y == 0)
-	{
-		int b = 2;
-		if (node_pos.x == 31 && node_pos.y == 41 && node_pos.z == 1)
-		{
-			int a = 2;
-		}
-		if (neighbor_pos.x == 31 && neighbor_pos.y == 41 && neighbor_pos.z == 1)
-		{
-			int a = 2;
-		}
-	}
-
-	int a = 2;
 	auto neighbor = chunk_get_block(node_chunk, neighbor_pos);
 	if (neighbor.c != nullptr && neighbor.b != nullptr)
 	{
 		// Make sure its not opaque
 		if (block_is_transparent(neighbor.b->type) &&
-			neighbor.b->light + 2 <= node_light_level)
+			neighbor.b->light_torch + 2 <= node_light_level)
 		{
-			neighbor.b->light = node_light_level - 1;
-			//neighbor.c->needs_remesh = true;
-			//neighbor.c->needs_light_reset = true;
+			neighbor.b->light_torch = node_light_level - 1;
 
 			light_nodes.emplace(neighbor.block_index, neighbor.c);
 		}
 		// If it is opaque set the light level of the block-face that is facing the light
 		else if (!block_is_transparent(neighbor.b->type))
 		{
-			neighbor.b->light = node_light_level - 1;;
 			neighbor.b->lighting_level[(int)dir] = node_light_level - 1;
 		}
 	}
@@ -646,16 +632,16 @@ void reset_lighting(Chunk* c)
 	for (int i = 0; i < BLOCKS_IN_CHUNK; i++)
 	{
 		Block* b = &c->blocks[i];
-		if (!block_infos[b->type].is_light_emitter)
-		{
-			b->lighting_level[(int)BlockFaceDirection::TOP] = d;
-			b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
-			b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
-			b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
-			b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
-			b->lighting_level[(int)BlockFaceDirection::BACK] = d;
-			b->light = d;
-		}
+		if (block_infos[b->type].is_light_emitter)
+			continue;
+		b->lighting_level[(int)BlockFaceDirection::TOP] = d;
+		b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
+		b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
+		b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
+		b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
+		b->lighting_level[(int)BlockFaceDirection::BACK] = d;
+		b->light_sun = d;
+		b->light_torch = d;
 	}
 }
 void chunk_generate_mesh(Chunk* chunk)
