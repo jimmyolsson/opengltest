@@ -7,6 +7,7 @@
 #include "blocks.h"
 #include "../util/common.h"
 
+// TODO: Move this to blocks.h
 void block_get_name(BlockType type, char* name, int buffer_size)
 {
 	switch (type)
@@ -47,6 +48,10 @@ void block_get_name(BlockType type, char* name, int buffer_size)
 	case BlockType::GRASS:
 		strncpy(name, "GRASS", buffer_size);
 		return;	
+	case BlockType::GLOWSTONE:
+		strncpy(name, "GLOWSTONE", buffer_size);
+		return;	
+
 
 	default:
 		assert(false);

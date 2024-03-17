@@ -91,7 +91,8 @@ void _load_textures(Renderer* self)
 		"resources/textures/block/glass_pane_top.png",
 		"resources/textures/block/bricks.png",
 		"resources/textures/block/white_concrete.png",
-		"resources/textures/block/grass.png"
+		"resources/textures/block/grass.png",
+		"resources/textures/block/glowstone.png"
 	);
 
 	self->textures[TEXTURE_UI_CROSSHAIR] = texture_create("resources/textures/gui/crosshair.png");

@@ -5,7 +5,7 @@ typedef float block_size_t;
 const int BLOCK_SIZE_BYTES = sizeof(block_size_t);
 const int BLOCK_NAME_MAX_SIZE = 50;
 
-#define BLOCK_TYPE_LAST BlockType::GRASS
+#define BLOCK_TYPE_LAST BlockType::GLOWSTONE
 enum BlockType : int
 {
 	AIR = 0,
@@ -21,9 +21,10 @@ enum BlockType : int
 	CONCRETE_WHITE,
 	GLASS,
 	GRASS,
+	GLOWSTONE
 };
 
-#define BLOCK_TEXTURE_INDEX_LAST (int)BlockTextureIndex::GRASS
+#define BLOCK_TEXTURE_INDEX_LAST (int)BlockTextureIndex::GLOWSTONE
 enum class BlockTextureIndex : int
 {
 	STONE = 0,
@@ -40,6 +41,7 @@ enum class BlockTextureIndex : int
 	BRICKS,
 	WHITE_CONCRETE,
 	GRASS,
+	GLOWSTONE
 };
 
 enum class BlockFaceDirection : int

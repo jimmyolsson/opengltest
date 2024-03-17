@@ -307,7 +307,8 @@ void generate_world_flatgrass(Block* blocks, const int xoffset, const int zoffse
 	int z = 0;
 
 	int index = to_1d_array(x, y, z);
-	blocks[index].type = BlockType::BRICKS;
+	blocks[index].type = BlockType::GLOWSTONE;
+	blocks[index].light_torch = 15;
 }
 
 void world_generate(Block* blocks, float* noise, const int xoffset, const int zoffset, const int width, const int height)

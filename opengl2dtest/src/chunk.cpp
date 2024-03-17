@@ -144,6 +144,28 @@ GetBlockResult chunk_get_block(Chunk* chunk, short x, short y, short z)
 		c
 	};
 }
+struct NeighborChunks
+{
+	glm::ivec2 coord;
+	bool exist = false;
+};
+
+void get_surrounding_chunks(chunk_map_t* chunks, glm::ivec2 world_pos, NeighborChunks* positions)
+{
+	// Relative positions of the eight surrounding chunks
+	const int offsets[8][2] = {
+		{-1, -1}, { 0, -1}, { 1, -1},
+		{-1,  0},           { 1,  0},
+		{-1,  1}, { 0,  1}, { 1,  1}
+	};
+
+	for (int i = 0; i < 8; ++i)
+	{
+		positions[i].coord = world_pos + glm::ivec2(offsets[i][0] * CHUNK_SIZE_WIDTH, offsets[i][1] * CHUNK_SIZE_WIDTH);
+		auto iter = chunks->find(positions[i].coord);
+		positions[i].exist = iter != chunks->end();
+	}
+}
 
 void chunk_set_full_dirty(Chunk* c)
 {
@@ -160,55 +182,35 @@ void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type)
 {
 	Block* b = &c->blocks[to_1d_array(block_pos)];
 	b->type = new_type;
-	b->light = 0;
-	light_reload = true;
+	c->needs_remesh = true;
 
-	chunk_set_full_dirty(c);
-
-	if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
-		chunk_set_full_dirty(c->right_neighbor);
-	if (block_pos.x == 0 && c->left_neighbor != nullptr)
-		chunk_set_full_dirty(c->left_neighbor);
-	if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
-		chunk_set_full_dirty(c->front_neighbor);
-	if (block_pos.z == 0 && c->back_neighbor != nullptr)
-		chunk_set_full_dirty(c->back_neighbor);
-}
-
-std::vector<Block*> get_blocks_in_circle(Chunk* chunk, glm::ivec3 center, int radius)
-{
-	std::vector<Block*> blocks_in_circle;
-
-	for (int x = center.x - radius; x <= center.x + radius; x++)
+	if (new_type == BlockType::AIR)
 	{
-		for (int y = center.y - radius; y <= center.y + radius; y++)
-		{
-			for (int z = center.z - radius; z <= center.z + radius; z++)
-			{
-				// Calculate distance from the center
-				int dx = x - center.x;
-				int dy = y - center.y;
-				int dz = z - center.z;
-				if (dx * dx + dy * dy + dz * dz <= radius * radius)
-				{
-					// Convert to 1D index and add to the list if within bounds
-					chunk_get_blockf(chunk, x, y, z);
-					glm::ivec3 pos = { x, y, z };
-					if (pos.x >= 0 && pos.x < CHUNK_SIZE_WIDTH &&
-						pos.y >= 0 && pos.y < CHUNK_SIZE_HEIGHT &&
-						pos.z >= 0 && pos.z < CHUNK_SIZE_WIDTH)
-					{
-						int index = to_1d_array(pos);
-						blocks_in_circle.push_back(&(chunk->blocks[index]));
-					}
-					else
-						int a = 2;
-				}
-			}
-		}
+		b->light = 0;
 	}
 
-	return blocks_in_circle;
+	// TODO: Better approach is to let the light algo define who actually needs a remesh
+	if (block_infos[new_type].is_light_emitter)
+	{
+		NeighborChunks neighbors[8];
+		get_surrounding_chunks(c->chunks, c->world_pos, neighbors);
+		for (int i = 0; i < 8; i++)
+		{
+			if (neighbors[i].exist)
+				c->chunks->at(neighbors[i].coord).needs_remesh = true;
+		}
+	}
+	else
+	{
+		if (block_pos.x == CHUNK_SIZE_WIDTH - 1 && c->right_neighbor != nullptr)
+			c->right_neighbor->needs_remesh = true;
+		if (block_pos.x == 0 && c->left_neighbor != nullptr)
+			c->left_neighbor->needs_remesh = true;
+		if (block_pos.z == CHUNK_SIZE_WIDTH - 1 && c->front_neighbor != nullptr)
+			c->front_neighbor->needs_remesh = true;
+		if (block_pos.z == 0 && c->back_neighbor != nullptr)
+			c->back_neighbor->needs_remesh = true;
+	}
 }
 
 void generate_buffers(unsigned int* vao_handle, unsigned int* vbo_handle, std::vector<GPUData>* gpu_data)
@@ -245,7 +247,8 @@ void chunk_generate_buffers(Chunk* self)
 // The pos argument assumes that you are looking at the back-face
 bool find_inc(Chunk* chunk, glm::vec3 block_pos, glm::vec3 pos)
 {
-	glm::vec3 a = block_pos + pos;
+	TimeFunction
+		glm::vec3 a = block_pos + pos;
 
 	Block* b = chunk_get_block(chunk, a).b;
 	if (b != nullptr)
@@ -258,6 +261,7 @@ bool find_inc(Chunk* chunk, glm::vec3 block_pos, glm::vec3 pos)
 // TODO: Rewrite, this is completely idiotic and written entirely on a whim
 char calc_ao(Chunk* chunk, int i, BlockFaceDirection direction, glm::ivec3 block_pos)
 {
+	TimeFunction;
 	enum TriangleIndicies
 	{
 		TOP_LEFT = 0,
@@ -416,7 +420,6 @@ void set_chunk_neighbors(Chunk* chunk)
 // Also generates partially transparent(translucent) blocks
 void gen_mesh_transparent(Chunk* chunk)
 {
-	TimeFunction;
 	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
 	{
 		for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
@@ -543,7 +546,7 @@ struct LightNode
 	LightNode(int idx, Chunk* ch) : index(idx), chunk(ch) {}
 };
 
-void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirection dir)
+void lighting_compute_node(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirection dir)
 {
 	TimeFunction;
 	int node_index = node.index;
@@ -589,7 +592,7 @@ void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirect
 			neighbor.b->light + 2 <= node_light_level)
 		{
 			neighbor.b->light = node_light_level - 1;
-			neighbor.c->needs_remesh = true;
+			//neighbor.c->needs_remesh = true;
 			//neighbor.c->needs_light_reset = true;
 
 			light_nodes.emplace(neighbor.block_index, neighbor.c);
@@ -602,57 +605,56 @@ void calc_l(std::queue<LightNode>& light_nodes, LightNode& node, BlockFaceDirect
 		}
 	}
 }
-
-// Expands the light from the light sources using a bfs algorithm and also sets the touching faces's light values.
-void calculate_lighting(Chunk* c)
+void lighting_run_bfs(Chunk* c, int index)
 {
-TimeFunction;
 	std::queue<LightNode> light_nodes_queue = {};
+	light_nodes_queue.emplace(index, c);
 
-	int x = 0;
-	int y = CHUNK_SIZE_WIDTH / 3 + 32;
-	int z = 0;
-
-	light_nodes_queue.emplace(to_1d_array(x, y, z), c);
-	c->blocks[to_1d_array(x, y, z)].light = 15;
-
-	int g = 0;
 	while (light_nodes_queue.empty() == false)
 	{
-		g++;
 		LightNode node = light_nodes_queue.front();
 
 		light_nodes_queue.pop();
 
-		calc_l(light_nodes_queue, node, BlockFaceDirection::LEFT);
-		calc_l(light_nodes_queue, node, BlockFaceDirection::RIGHT);
-		calc_l(light_nodes_queue, node, BlockFaceDirection::TOP);
-		calc_l(light_nodes_queue, node, BlockFaceDirection::BOTTOM);
-		calc_l(light_nodes_queue, node, BlockFaceDirection::FRONT);
-		calc_l(light_nodes_queue, node, BlockFaceDirection::BACK);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::LEFT);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::RIGHT);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::TOP);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::BOTTOM);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::FRONT);
+		lighting_compute_node(light_nodes_queue, node, BlockFaceDirection::BACK);
 	}
-	//g_logger_debug("calculate_lighting count: %d", g);
+}
+
+// Expands the light from the light sources using a bfs algorithm and also sets the touching faces's light values.
+void calculate_lighting(Chunk* c)
+{
+	TimeFunction;
+
+	for (int i = 0; i < BLOCKS_IN_CHUNK; i++)
+	{
+		if (block_infos[c->blocks[i].type].is_light_emitter)
+		{
+			lighting_run_bfs(c, i);
+		}
+	}
 }
 
 void reset_lighting(Chunk* c)
 {
 	TimeFunction;
-	for (int z = 0; z < CHUNK_SIZE_WIDTH; z++)
+	static const int d = 4;
+	for (int i = 0; i < BLOCKS_IN_CHUNK; i++)
 	{
-		for (int x = 0; x < CHUNK_SIZE_WIDTH; x++)
+		Block* b = &c->blocks[i];
+		if (!block_infos[b->type].is_light_emitter)
 		{
-			for (int y = 0; y < CHUNK_SIZE_HEIGHT; y++)
-			{
-				Block* b = &c->blocks[to_1d_array(x, y, z)];
-				int d = 4;
-				b->lighting_level[(int)BlockFaceDirection::TOP] = d;
-				b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
-				b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
-				b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
-				b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
-				b->lighting_level[(int)BlockFaceDirection::BACK] = d;
-				b->light = d;
-			}
+			b->lighting_level[(int)BlockFaceDirection::TOP] = d;
+			b->lighting_level[(int)BlockFaceDirection::BOTTOM] = d;
+			b->lighting_level[(int)BlockFaceDirection::LEFT] = d;
+			b->lighting_level[(int)BlockFaceDirection::RIGHT] = d;
+			b->lighting_level[(int)BlockFaceDirection::FRONT] = d;
+			b->lighting_level[(int)BlockFaceDirection::BACK] = d;
+			b->light = d;
 		}
 	}
 }
@@ -690,65 +692,39 @@ void _clear_chunk_gpu_buffers(Chunk* self)
 	glDeleteBuffers(1, &self->vbo_handle_veg);
 	glDeleteVertexArrays(1, &self->vao_handle_veg);
 }
-
-glm::vec3 calculate_centroid(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
-{
-	return (v1 + v2 + v3) / 3.0f;
-}
+#define BeginProfile();
+#define EndAndPrintProfile();
 
 void chunk_update(chunk_map_t* chunks, glm::vec3 camera_pos)
 {
-	if (!light_reload)
-	{
-		return;
-	}
-
 	BeginProfile();
-	//for (auto& lights : LightsInWorld)
 	for (auto& cpair : *chunks)
 	{
-		reset_lighting(&cpair.second);
-		//cpair.second.needs_light_reset = false;
-	}
-
-	for (auto& cpair : *chunks)
-	{
-		//if (cpair.second.needs_light_recalc)
+		if (cpair.second.needs_remesh)
 		{
-			calculate_lighting(&cpair.second);
-			cpair.second.needs_light_recalc = false;
+			reset_lighting(&cpair.second);
 		}
 	}
 
 	for (auto& cpair : *chunks)
 	{
-		//if (cpair.second.needs_remesh)
+		if (cpair.second.needs_remesh)
+		{
+			calculate_lighting(&cpair.second);
+		}
+	}
+
+	for (auto& cpair : *chunks)
+	{
+		if (cpair.second.needs_remesh)
 		{
 			_clear_chunk_gpu_buffers(&cpair.second);
 			chunk_generate_mesh(&cpair.second);
 			chunk_generate_buffers(&cpair.second);
 			cpair.second.needs_remesh = false;
 		}
-		//else
-		{
-			//update_buffers(cpair.second.vao_handle_transparent, cpair.second.gpu_data_transparent);
-		}
 	}
-	light_reload = false;
 	EndAndPrintProfile();
-
-	//Chunk& chunk = pair.second;
-	//if (chunk.dirty)
-	//{
-	//	_clear_chunk_gpu_buffers(&chunk);
-	//	chunk_generate_mesh(&chunk);
-	//	chunk_generate_buffers(&pair.second);
-	//	chunk.dirty = false;
-	//}
-	//else
-	//{
-	//	update_buffers(chunk.vao_handle_transparent, chunk.gpu_data_transparent);
-	//}
 }
 
 void chunk_render_opaque(Chunk* chunk, Renderer* renderer, glm::mat4 view, glm::vec3 position)

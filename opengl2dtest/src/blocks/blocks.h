@@ -17,6 +17,7 @@ struct block_info
 	bool is_translucent;
 
 	bool ao_enabled;
+	bool is_light_emitter;
 
 	// so we can share sounds
 	BlockType sound_place;
@@ -41,6 +42,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // TRANSLUCENT
 
 		false, // AO_ENABLED
+		false,
 
 		BlockType::AIR,
 		BlockType::AIR
@@ -59,6 +61,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::STONE,
 		BlockType::STONE
@@ -77,6 +80,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::DIRT,
 		BlockType::DIRT
@@ -95,6 +99,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
@@ -113,6 +118,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::SAND,
 		BlockType::SAND
@@ -131,6 +137,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::DIRT_GRASS,
 		BlockType::DIRT_GRASS
@@ -149,6 +156,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::OAK_LOG,
 		BlockType::OAK_LOG
@@ -167,6 +175,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		true, // TRANSLUCENT
 
 		false, // AO_ENABLED
+		false,
 
 		BlockType::WATER,
 		BlockType::WATER
@@ -185,6 +194,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::GLASS_PANE,
 		BlockType::GLASS_PANE
@@ -203,6 +213,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::BRICKS,
 		BlockType::BRICKS
@@ -221,6 +232,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		true, // AO_ENABLED
+		false,
 
 		BlockType::CONCRETE_WHITE,
 		BlockType::CONCRETE_WHITE
@@ -239,6 +251,7 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		false, // AO_ENABLED
+		false,
 
 		BlockType::GLASS,
 		BlockType::GLASS
@@ -257,8 +270,28 @@ static block_info block_infos[BLOCK_TYPE_LAST + 1] =
 		false, // TRANSLUCENT
 
 		false, // AO_ENABLED
+		false,
 
 		BlockType::GRASS,
 		BlockType::GRASS
+	},	
+	// GLOWSTONE
+	{
+		BlockType::GLOWSTONE,
+		BlockTextureIndex::GLOWSTONE, // BACK
+		BlockTextureIndex::GLOWSTONE, // FRONT
+		BlockTextureIndex::GLOWSTONE, // LEFT
+		BlockTextureIndex::GLOWSTONE, // RIGHT
+		BlockTextureIndex::GLOWSTONE, // BOTTOM
+		BlockTextureIndex::GLOWSTONE, // TOP
+
+		false, // TRANSPARENT
+		false, // TRANSLUCENT
+
+		true, // AO_ENABLED
+		true, 
+
+		BlockType::GLOWSTONE,
+		BlockType::GLOWSTONE
 	}
 };

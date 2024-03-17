@@ -188,7 +188,7 @@ BlockType inventory[9] =
 	BlockType::STONE,
 	BlockType::DIRT,
 	BlockType::DIRT_GRASS,
-	BlockType::SAND,
+	BlockType::GLOWSTONE,
 	BlockType::BRICKS,
 	BlockType::GLASS,
 	BlockType::LEAVES,
