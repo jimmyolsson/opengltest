@@ -464,7 +464,9 @@ void game_render()
 	// Render opaque
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
+	glEnable(GL_CULL_FACE);
 	render_3d_opaque();
+	glDisable(GL_CULL_FACE);
 
 	// TODO: SORT SEMI-TRANSPARENT OBJECTS
 	// Render semi-transparent
