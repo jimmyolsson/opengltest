@@ -123,6 +123,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -175,6 +176,7 @@ copy "$(ProjectDir)lib\GLFW\lib-vc2022\glfw3.dll" "$(OutDir)"
     <ClCompile Include="src\graphics\quad.cpp" />
     <ClCompile Include="src\graphics\renderer.cpp" />
     <ClCompile Include="src\graphics\texture.cpp" />
+    <ClCompile Include="src\ray.cpp" />
     <ClCompile Include="src\util\platform_metrics.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\util\selectable_profiler.cpp" />

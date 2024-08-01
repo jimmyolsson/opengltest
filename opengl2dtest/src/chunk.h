@@ -62,16 +62,6 @@ struct Chunk
 	bool needs_light_reset = false;
 };
 
-// We need to keep track of what lights are in the world so that we can calculate them first  
-// If we remove a block in chunk x how do we know that its not affected by lights in chunk y?
-// Recalc the whole visible world?
-struct Light
-{
-	glm::ivec2 chunk_index;
-	int block_index;
-};
-static std::vector<Light> LightsInWorld;
-
 void chunk_set_block(Chunk* c, glm::ivec3 block_pos, BlockType new_type);
 
 // If the coordinates are outside of the bounds of the chunk, it will return the neighboring chunk

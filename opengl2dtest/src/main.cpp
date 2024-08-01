@@ -176,10 +176,6 @@ void init_game_world()
 		world_generate(iter.second.blocks, nullptr, iter.first.x, iter.first.y, CHUNK_SIZE_WIDTH, CHUNK_SIZE_HEIGHT);
 	}
 #endif // !__EMSCRIPTEN__
-	for (auto& iter : GameState.chunks)
-	{
-		LightsInWorld.push_back({ iter.first, 1344 });
-	}
 	g_logger_info("Done initializing game world!");
 }
 
@@ -278,12 +274,6 @@ void handle_block_hit(ray_hit_result ray_hit, bool remove)
 	{
 		if (remove)
 		{
-			//auto asd = get_blocks_in_circle(hit_chunk, b_pos, 4);
-			//for (auto b : asd)
-			//{
-			//	b->type = BlockType::AIR;
-			//	//b.c->dirty = true;
-			//}
 			play_block_sound(chunk_get_block(hit_chunk, b_pos).b->type, remove);
 			chunk_set_block(hit_chunk, b_pos, BlockType::AIR);
 		}
@@ -304,26 +294,6 @@ void opengl_clear_screen()
 {
 }
 
-bool is_pos_inside_block(glm::vec2 pos)
-{
-	// TODO: Filter chunks
-	for (auto& c : GameState.chunks)
-	{
-		for (auto& p : c.second.gpu_data_opaque)
-		{
-			if (GameState.player.camera.Position.x <= p.x && GameState.player.camera.Position.x + 1 >= p.x
-				&& GameState.player.camera.Position.z <= p.z && GameState.player.camera.Position.z + 1 >= p.z)
-			{
-				if (GameState.player.camera.Position.y > p.y + 1)
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
 
 float lastX = GameState.SCR_WIDTH / 2.0f;
 float lastY = GameState.SCR_HEIGHT / 2.0f;
@@ -350,7 +320,7 @@ void processInput(GLFWwindow* window, double delta_time)
 	if (!lmouse && lcmouse)
 	{
 		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
-		ray_hit_result result = r.intersect_block(50, &GameState.chunks);
+		ray_hit_result result = ray_fire(&r, 50, &GameState.chunks);
 
 		handle_block_hit(result, true);
 	}
@@ -360,7 +330,7 @@ void processInput(GLFWwindow* window, double delta_time)
 	if (!rmouse && rcmouse)
 	{
 		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
-		ray_hit_result result = r.intersect_block(50, &GameState.chunks);
+		ray_hit_result result = ray_fire(&r, 50, &GameState.chunks);
 
 		handle_block_hit(result, false);
 	}
@@ -547,7 +517,7 @@ void game_main_loop()
 // Steps should ideally be calculated like this:
 // std::max(1.0, std::min(std::floor(width / 320.0), std::floor(height / 240.0)));
 // but who in their right mind uses >1920
-static glm::ivec2 scale_res[] =
+static const glm::ivec2 scale_res[] =
 {
 	glm::vec2(640, 480),
 	glm::vec2(960, 720),
