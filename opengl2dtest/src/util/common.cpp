@@ -1,34 +1,28 @@
 #include "common.h"
 #include <mutex>
-
-#ifdef __EMSCRIPTEN__
+#include "..\platform.h"
 #include <stdarg.h>
-#else
-#include <Windows.h>
-#endif
 
-void set_console_color(LogSeverity severity)
+static void set_console_color(LogSeverity severity)
 {
-#ifndef __EMSCRIPTEN__
 	switch (severity)
 	{
 	case LogSeverity::Debug:
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
+		platform_set_log_color(PlatformLogColor::GREEN);
 		break;
 	case LogSeverity::Info:
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN);
+		platform_set_log_color(PlatformLogColor::BLUE);
 		break;
 	case LogSeverity::Warning:
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_RED);
+		platform_set_log_color(PlatformLogColor::YELLOW);
 		break;
 	case LogSeverity::Error:
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED);
+		platform_set_log_color(PlatformLogColor::RED);
 		break;
 	}
-#endif
 }
 
-const char* get_str(LogSeverity severity)
+static const char* get_str(LogSeverity severity)
 {
 	switch (severity)
 	{
@@ -43,7 +37,6 @@ const char* get_str(LogSeverity severity)
 	}
 }
 #pragma warning(disable:4996)
-
 void _g_logger_log(LogSeverity severity, const char* format, ...)
 {
 	std::lock_guard<std::mutex> lock(_g_logMutex);
@@ -55,14 +48,11 @@ void _g_logger_log(LogSeverity severity, const char* format, ...)
 
 	printf("[");
 
-#ifndef __EMSCRIPTEN__
 	set_console_color(severity);
-#endif
+
 	printf(get_str(severity));
 
-#ifndef __EMSCRIPTEN__
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
-#endif
+	platform_reset_log_color();
 
 	printf("]: ");
 

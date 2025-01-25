@@ -73,4 +73,28 @@ void platform_sound_play(const char* sound_name)
 	sound_engine->play2D(file_name, false);
 }
 
+void platform_set_log_color(PlatformLogColor color)
+{
+	switch (color)
+	{
+		case PlatformLogColor::GREEN:
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
+			break;
+		case PlatformLogColor::BLUE:
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN);
+			break;
+		case PlatformLogColor::YELLOW:
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_RED);
+			break;
+		case PlatformLogColor::RED:
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED);
+			break;
+	}
+}
+
+void platform_reset_log_color()
+{
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0F);
+}
+
 #endif

@@ -43,4 +43,14 @@ void platform_sound_play(const char* path)
 {
 
 }
+
+// Log color not supported
+void platform_set_log_color(PlatformLogColor color)
+{
+
+}
+void platform_reset_log_color()
+{
+
+}
 #endif

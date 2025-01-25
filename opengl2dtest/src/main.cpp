@@ -294,7 +294,6 @@ void opengl_clear_screen()
 {
 }
 
-
 float lastX = GameState.SCR_WIDTH / 2.0f;
 float lastY = GameState.SCR_HEIGHT / 2.0f;
 
@@ -316,13 +315,25 @@ void processInput(GLFWwindow* window, double delta_time)
 	glm::vec3 position = GameState.player.camera.Position;
 	glm::vec3 rotation = GameState.player.camera.Front;
 
+    // Check if ctrl is held down (either left or right shift)
+    bool ctrlHeld = (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) ||
+                     (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS);
+
 	bool lcmouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 	if (!lmouse && lcmouse)
 	{
-		Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
-		ray_hit_result result = ray_fire(&r, 50, &GameState.chunks);
+        if (ctrlHeld) 
+        {
+            Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+            ray_hit_result result = ray_fire(&r, 50, &GameState.chunks);
+        } 
+        else 
+        {
+            Ray r(GameState.player.camera.Position, GameState.player.camera.Front);
+            ray_hit_result result = ray_fire(&r, 50, &GameState.chunks);
 
-		handle_block_hit(result, true);
+            handle_block_hit(result, true);
+        }
 	}
 	lmouse = lcmouse;
 
@@ -548,7 +559,6 @@ void update_viewport()
 
 	menu_scale(&GameState.menu, GameState.SCR_WIDTH, GameState.SCR_HEIGHT, scale);
 }
-
 
 int main()
 {
